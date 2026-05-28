@@ -9,8 +9,10 @@ export interface NotablePerson {
 export interface Tribe {
   number: number;
   name: string;
+  hebrew: string;
   callSign: string;
   slug: string;
+  essence: string;
   status: TribeStatus;
   keyScripture: string;
   keyScriptureRef: string;
@@ -32,6 +34,8 @@ export const tribes: Tribe[] = [
     name: "Judah",
     callSign: "The Lion",
     slug: "judah",
+    hebrew: "יְהוּדָה",
+    essence: "Honor · Courage · Authority",
     status: "active",
     hasZeal: true,
     color: "amber",
@@ -80,6 +84,8 @@ export const tribes: Tribe[] = [
     name: "Levi",
     callSign: "The Priest",
     slug: "levi",
+    hebrew: "לֵוִי",
+    essence: "Worship · Teaching · Consecration",
     status: "active",
     hasZeal: true,
     color: "violet",
@@ -130,6 +136,8 @@ export const tribes: Tribe[] = [
     name: "Issachar",
     callSign: "The Sage",
     slug: "issachar",
+    hebrew: "יִשָּׂשכָר",
+    essence: "Discernment · Timing · Wisdom",
     status: "active",
     color: "blue",
     keyScripture: "They understood the times and knew what Israel should do",
@@ -172,6 +180,8 @@ export const tribes: Tribe[] = [
     name: "Zebulun",
     callSign: "The Merchant",
     slug: "zebulun",
+    hebrew: "זְבוּלֻן",
+    essence: "Enterprise · Abundance · Influence",
     status: "active",
     color: "emerald",
     keyScripture: "Blessed to go out, create abundance, and draw people in",
@@ -209,6 +219,8 @@ export const tribes: Tribe[] = [
     name: "Joseph",
     callSign: "The Bull",
     slug: "joseph",
+    hebrew: "יוֹסֵף",
+    essence: "Resilience · Order · Fortitude",
     status: "active",
     color: "orange",
     keyScripture: "With bitterness archers attacked him... But his bow remained steady, his strong arms stayed limber, because of the hand of the Mighty One of Jacob",
@@ -258,6 +270,8 @@ export const tribes: Tribe[] = [
     name: "Benjamin",
     callSign: "The Wolf",
     slug: "benjamin",
+    hebrew: "בִּנְיָמִין",
+    essence: "Ferocity · Loyalty · Cunning",
     status: "active",
     hasZeal: true,
     color: "red",
@@ -306,6 +320,8 @@ export const tribes: Tribe[] = [
     name: "Dan",
     callSign: "The Serpent",
     slug: "dan",
+    hebrew: "דָּן",
+    essence: "Vigilance · Strategy · Discernment",
     status: "disqualified",
     color: "slate",
     keyScripture: "Dan shall judge his people as one of the tribes of Israel. Dan shall be a serpent in the way, a horned snake in the path",
@@ -350,6 +366,8 @@ export const tribes: Tribe[] = [
     name: "Naphtali",
     callSign: "The Deer",
     slug: "naphtali",
+    hebrew: "נַפְתָּלִי",
+    essence: "Freedom · Beauty · Healing",
     status: "active",
     color: "cyan",
     keyScripture: "Naphtali is a doe set free that bears beautiful fawns",
@@ -389,6 +407,8 @@ export const tribes: Tribe[] = [
     name: "Asher",
     callSign: "The Olive Tree",
     slug: "asher",
+    hebrew: "אָשֵׁר",
+    essence: "Hospitality · Nourishment · Generosity",
     status: "active",
     color: "lime",
     keyScripture: "Most blessed of sons is Asher... he will provide delicacies fit for a king",
@@ -431,6 +451,8 @@ export const tribes: Tribe[] = [
     name: "Gad",
     callSign: "The Raider",
     slug: "gad",
+    hebrew: "גָּד",
+    essence: "Grit · Endurance · Resistance",
     status: "disqualified-arc",
     color: "zinc",
     keyScripture: "Gad shall be raided by raiders, but he shall raid at their heels",
@@ -465,6 +487,8 @@ export const tribes: Tribe[] = [
     name: "Reuben",
     callSign: "The Firstborn",
     slug: "reuben",
+    hebrew: "רְאוּבֵן",
+    essence: "Potential · Leadership · Capacity",
     status: "warning",
     color: "yellow",
     keyScripture: "Reuben, you are my firstborn, my might, and the first fruits of my strength, excelling in honor, excelling in power. Turbulent as the waters, you will no longer excel",
@@ -509,6 +533,8 @@ export const tribes: Tribe[] = [
     name: "Simeon",
     callSign: "The Blade",
     slug: "simeon",
+    hebrew: "שִׁמְעוֹן",
+    essence: "Conviction · Zeal · Justice",
     status: "disqualified",
     color: "rose",
     keyScripture: "Cursed be their anger, so fierce, and their fury, so cruel! I will scatter them in Jacob and disperse them in Israel",

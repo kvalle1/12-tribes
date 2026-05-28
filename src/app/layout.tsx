@@ -1,21 +1,35 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Cormorant_Garamond, Cinzel, Frank_Ruhl_Libre } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  weight: ["500", "600"],
+  style: ["normal", "italic"],
   subsets: ["latin"],
+});
+
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
+  weight: ["600", "700"],
+  subsets: ["latin"],
+});
+
+const frankRuhl = Frank_Ruhl_Libre({
+  variable: "--font-frank",
+  weight: ["300", "400", "500", "700"],
+  subsets: ["hebrew", "latin"],
 });
 
 export const metadata: Metadata = {
   title: "Tribe Index",
   description:
-    "Twelve archetypes rooted in ancient source material. Strengths, shadow, oil, and fall line — mapped to how people are actually wired.",
+    "An identity you did not choose and cannot earn — only step into. Twelve ancient archetypes mapping your strengths, your shadow, and the calling written into your name.",
 };
 
 export default function RootLayout({
@@ -26,9 +40,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${cormorant.variable} ${cinzel.variable} ${frankRuhl.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

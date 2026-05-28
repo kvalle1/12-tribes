@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tribe Index — Desert Dawn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Rubik:wght@300;400;500;600&family=Frank+Ruhl+Libre:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sand:#fbf4ea;
+    --rose:#e9a07e;
+    --amber:#e8b96a;
+    --terra:#c8694a;
+    --plum:#7a4a63;
+    --ink:#3a2a28;
+    --muted:#8a716a;
+    --card:#fffaf3;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--sand);color:var(--ink);font-family:"Rubik",sans-serif;
+    line-height:1.65;-webkit-font-smoothing:antialiased;font-weight:300}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px}
+
+  /* dawn hero */
+  .hero{position:relative;border-radius:0 0 40px 40px;overflow:hidden;
+    background:
+      radial-gradient(120% 90% at 50% 0%, #fff3df 0%, transparent 45%),
+      linear-gradient(165deg,#fde3c4 0%,#f6b98e 32%,#e08b73 60%,#9d5e72 100%);
+    padding:26px 0 90px;color:#3a2628}
+  .sun{position:absolute;top:30px;left:50%;transform:translateX(-50%);width:340px;height:340px;
+    border-radius:50%;background:radial-gradient(circle,#fff6e6 0%,rgba(255,240,210,.6) 40%,transparent 70%);
+    filter:blur(4px);opacity:.9;pointer-events:none}
+  /* dune silhouettes */
+  .dunes{position:absolute;bottom:0;left:0;width:100%;height:160px;pointer-events:none}
+  nav{position:relative;display:flex;justify-content:space-between;align-items:center;z-index:2}
+  nav .brand{font-family:"Marcellus",serif;font-size:22px;letter-spacing:.05em;color:#5a3a3e}
+  nav .links{font-size:13px;letter-spacing:.04em;color:#6a4348;display:flex;gap:26px}
+  nav .links a{color:inherit;text-decoration:none;opacity:.85}
+  .hero-inner{position:relative;z-index:2;text-align:center;padding-top:64px}
+  .he{font-family:"Frank Ruhl Libre",serif;font-weight:300;font-size:clamp(26px,4.5vw,40px);
+    letter-spacing:.14em;color:#7d4a52;margin-bottom:10px}
+  .hero h1{font-family:"Marcellus",serif;font-size:clamp(46px,8vw,86px);font-weight:400;
+    line-height:1.02;color:#46282e;letter-spacing:.01em}
+  .hero p{max-width:560px;margin:22px auto 0;font-size:19px;color:#6a4348;font-weight:300}
+  .cta{display:inline-block;margin-top:34px;font-family:"Rubik";font-weight:500;font-size:14px;
+    letter-spacing:.04em;text-decoration:none;color:#fff;background:var(--terra);
+    padding:15px 36px;border-radius:99px;box-shadow:0 14px 30px -12px rgba(157,94,114,.7);
+    transition:transform .2s,box-shadow .2s}
+  .cta:hover{transform:translateY(-3px);box-shadow:0 20px 38px -12px rgba(157,94,114,.85)}
+
+  /* intro */
+  .intro{text-align:center;max-width:640px;margin:70px auto 44px}
+  .intro h2{font-family:"Marcellus",serif;font-size:34px;font-weight:400;color:var(--ink)}
+  .intro p{color:var(--muted);margin-top:10px}
+
+  /* soft cards */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding-bottom:30px}
+  @media(max-width:860px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:540px){.grid{grid-template-columns:1fr}}
+  .card{position:relative;background:var(--card);border-radius:22px;padding:26px 24px 24px;
+    text-decoration:none;color:var(--ink);overflow:hidden;
+    box-shadow:0 18px 40px -26px rgba(122,74,99,.5);transition:transform .25s,box-shadow .25s}
+  .card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;
+    background:linear-gradient(90deg,var(--accent),transparent)}
+  .card:hover{transform:translateY(-6px);box-shadow:0 30px 50px -24px rgba(122,74,99,.6)}
+  .glyph{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:"Frank Ruhl Libre",serif;font-weight:500;font-size:30px;color:#fff;
+    background:var(--accent);box-shadow:0 8px 18px -8px var(--accent)}
+  .num{position:absolute;top:24px;right:26px;font-family:"Marcellus",serif;color:var(--muted);
+    font-size:15px;opacity:.6}
+  .card h3{font-family:"Marcellus",serif;font-size:26px;font-weight:400;margin-top:18px}
+  .sign{color:var(--terra);font-size:14px;font-weight:500;letter-spacing:.02em}
+  .scr{margin-top:12px;font-size:14.5px;color:var(--muted);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .badge{display:inline-block;margin-top:14px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--terra);background:rgba(200,105,74,.12);border-radius:99px;padding:4px 11px;font-weight:500}
+
+  footer{text-align:center;padding:70px 0 90px}
+  footer q{font-family:"Marcellus",serif;font-size:clamp(24px,4vw,36px);color:var(--ink);font-style:normal}
+  footer .src{display:block;margin-top:16px;color:var(--terra);font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="sun"></div>
+    <svg class="dunes" viewBox="0 0 1440 160" preserveAspectRatio="none">
+      <path d="M0,90 C320,30 520,140 760,100 C1020,55 1180,150 1440,95 L1440,160 L0,160 Z" fill="#caa074" opacity=".35"/>
+      <path d="M0,120 C300,80 560,160 840,125 C1100,95 1260,160 1440,130 L1440,160 L0,160 Z" fill="#a9785f" opacity=".4"/>
+    </svg>
+    <div class="wrap">
+      <nav>
+        <div class="brand">Tribe Index</div>
+        <div class="links"><a href="#twelve">The Twelve</a><a href="#twelve">Assessment</a><a href="#twelve">About</a></div>
+      </nav>
+      <div class="hero-inner">
+        <div class="he">שִׁבְטֵי יִשְׂרָאֵל</div>
+        <h1>Step into the<br>calling of your name.</h1>
+        <p>A gentle journey of self-discovery through twelve ancient archetypes —
+          celebrating your strengths and equipping you for who you were made to be.</p>
+        <a class="cta" href="#twelve">Begin the Journey</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section class="intro">
+      <h2>The Twelve Tribes</h2>
+      <p>Each carries a strength, a shadow, and the oil that keeps it flourishing.
+        Which one describes how you were wired?</p>
+    </section>
+    <main class="grid" id="grid"></main>
+
+    <footer>
+      <q>“Naphtali is a doe set free that bears beautiful fawns.”</q>
+      <span class="src">Genesis 49:21</span>
+    </footer>
+  </div>
+
+<script>
+const tribes=[
+  {n:1,name:"Judah",he:"י",sign:"The Lion",color:"#dba43a",status:"",scr:"The scepter shall not depart from Judah."},
+  {n:2,name:"Levi",he:"ל",sign:"The Priest",color:"#9b7ad0",status:"",scr:"They shall teach Jacob your rules and Israel your law."},
+  {n:3,name:"Issachar",he:"יִ",sign:"The Sage",color:"#5b93cf",status:"",scr:"They understood the times and knew what to do."},
+  {n:4,name:"Zebulun",he:"ז",sign:"The Merchant",color:"#46a878",status:"",scr:"Blessed to go out, create abundance, and draw people in."},
+  {n:5,name:"Joseph",he:"יו",sign:"The Bull",color:"#dd8a4a",status:"",scr:"His bow remained steady, his strong arms stayed limber."},
+  {n:6,name:"Benjamin",he:"בִּ",sign:"The Wolf",color:"#d65b5b",status:"",scr:"In the morning he devours the prey."},
+  {n:7,name:"Dan",he:"ד",sign:"The Serpent",color:"#9099aa",status:"Disqualified",scr:"A serpent in the way, a horned snake in the path."},
+  {n:8,name:"Naphtali",he:"נ",sign:"The Deer",color:"#3fb4c4",status:"",scr:"A doe set free that bears beautiful fawns."},
+  {n:9,name:"Asher",he:"אָ",sign:"The Olive Tree",color:"#94b840",status:"",scr:"He will provide delicacies fit for a king."},
+  {n:10,name:"Gad",he:"גָּ",sign:"The Raider",color:"#a39a92",status:"Disqualified Arc",scr:"He shall raid at their heels."},
+  {n:11,name:"Reuben",he:"רְ",sign:"The Firstborn",color:"#d8b73e",status:"Warning",scr:"The first fruits of my strength, excelling in honor."},
+  {n:12,name:"Simeon",he:"שִׁ",sign:"The Blade",color:"#d4536e",status:"Disqualified",scr:"Conviction learning the heart behind the law."},
+];
+document.getElementById("grid").innerHTML=tribes.map(t=>`
+  <a class="card" href="#" style="--accent:${t.color}">
+    <span class="num">${String(t.n).padStart(2,"0")}/12</span>
+    <div class="glyph">${t.he}</div>
+    <h3>${t.name}</h3>
+    <div class="sign">${t.sign}</div>
+    <p class="scr">“${t.scr}”</p>
+    ${t.status?`<span class="badge">${t.status}</span>`:""}
+  </a>`).join("");
+</script>
+</body>
+</html>

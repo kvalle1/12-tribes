@@ -1,129 +1,161 @@
 import Link from "next/link";
-import { tribes, statusLabels, type TribeStatus } from "@/lib/tribes";
+import { tribes } from "@/lib/tribes";
 
-const statusBadge: Record<TribeStatus, string> = {
-  active: "",
-  disqualified: "bg-red-900/60 text-red-300 border border-red-700",
-  warning: "bg-yellow-900/60 text-yellow-300 border border-yellow-700",
-  "disqualified-arc": "bg-orange-900/60 text-orange-300 border border-orange-700",
-};
-
-const accentBorder: Record<string, string> = {
-  amber: "border-amber-600 hover:border-amber-400",
-  violet: "border-violet-600 hover:border-violet-400",
-  blue: "border-blue-600 hover:border-blue-400",
-  emerald: "border-emerald-600 hover:border-emerald-400",
-  orange: "border-orange-600 hover:border-orange-400",
-  red: "border-red-600 hover:border-red-400",
-  slate: "border-slate-500 hover:border-slate-300",
-  cyan: "border-cyan-600 hover:border-cyan-400",
-  lime: "border-lime-600 hover:border-lime-400",
-  zinc: "border-zinc-500 hover:border-zinc-300",
-  yellow: "border-yellow-600 hover:border-yellow-400",
-  rose: "border-rose-600 hover:border-rose-400",
-};
-
-const accentText: Record<string, string> = {
-  amber: "text-amber-400",
-  violet: "text-violet-400",
-  blue: "text-blue-400",
-  emerald: "text-emerald-400",
-  orange: "text-orange-400",
-  red: "text-red-400",
-  slate: "text-slate-300",
-  cyan: "text-cyan-400",
-  lime: "text-lime-400",
-  zinc: "text-zinc-300",
-  yellow: "text-yellow-400",
-  rose: "text-rose-400",
-};
+/** First Hebrew base letter, with vowel points (niqqud) stripped. */
+function hebrewInitial(hebrew: string): string {
+  return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
+}
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#0d0d0d] text-white">
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        {/* Header */}
-        <div className="mb-16 text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">
-            Personality &amp; Leadership Framework
-          </p>
-          <h1 className="text-5xl font-bold tracking-tight mb-4">
-            Tribe Index
-          </h1>
-          <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-            Twelve archetypes. Ancient source material. Strengths, shadow, oil,
-            and fall line — mapped to how people are actually wired.
-          </p>
-        </div>
-
-        {/* Tribe Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tribes.map((tribe) => (
-            <Link
-              key={tribe.slug}
-              href={`/tribes/${tribe.slug}`}
-              className={`group relative rounded-xl border-2 bg-white/[0.03] p-6 transition-all duration-200 hover:bg-white/[0.06] ${accentBorder[tribe.color]}`}
-            >
-              {/* Tribe number */}
-              <span className="text-xs text-zinc-600 font-mono">
-                {String(tribe.number).padStart(2, "0")}
-              </span>
-
-              {/* Status badge */}
-              {tribe.status !== "active" && (
-                <span
-                  className={`absolute top-4 right-4 text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-medium ${statusBadge[tribe.status]}`}
-                >
-                  {statusLabels[tribe.status]}
-                </span>
-              )}
-
-              {/* Name + Call Sign */}
-              <h2
-                className={`mt-2 text-2xl font-bold ${accentText[tribe.color]}`}
-              >
-                {tribe.name}
-              </h2>
-              <p className="text-zinc-400 text-sm font-medium tracking-wide mb-4">
-                {tribe.callSign}
-              </p>
-
-              {/* Scripture teaser */}
-              <p className="text-zinc-500 text-xs leading-relaxed line-clamp-2">
-                &ldquo;{tribe.keyScripture}&rdquo;
-              </p>
-
-              {/* Zeal marker */}
-              {tribe.hasZeal && (
-                <p className="mt-3 text-[10px] uppercase tracking-widest text-zinc-600">
-                  Marked with Zeal
-                </p>
-              )}
-
-              {/* Arrow */}
-              <span className="absolute bottom-5 right-5 text-zinc-700 group-hover:text-zinc-400 transition-colors text-lg">
-                →
-              </span>
-            </Link>
-          ))}
-        </div>
-
-        {/* Legend */}
-        <div className="mt-12 flex flex-wrap gap-4 justify-center text-xs text-zinc-500">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-700" />
-            Disqualified — absent from Revelation 7
+    <main className="min-h-screen bg-bone text-ink">
+      {/* Nav */}
+      <div className="max-w-[1040px] mx-auto px-8">
+        <nav className="relative z-10 flex items-center justify-between py-7">
+          <div className="font-serif text-[23px] font-semibold tracking-[0.04em]">
+            Tribe<span className="text-gold">·</span>Index
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-700" />
-            Disqualified Arc — present in Rev 7, significant warning
+          <div className="flex gap-7 text-[12px] uppercase tracking-[0.18em] text-muted">
+            <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
+            <Link href="#twelve" className="transition-colors hover:text-ink">The Assessment</Link>
+            <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-700" />
-            Warning Tribe — don&apos;t stay stuck here
-          </div>
-        </div>
+        </nav>
       </div>
+
+      {/* Hero */}
+      <header className="relative overflow-hidden py-[116px] text-center md:py-[130px]">
+        <div className="sun" aria-hidden="true" />
+        <div className="relative z-[2] mx-auto max-w-[1040px] px-8">
+          <div className="font-hebrew text-[clamp(22px,3.2vw,30px)] font-light tracking-[0.22em] text-gold mb-[26px]">
+            שִׁבְטֵי יִשְׂרָאֵל
+          </div>
+          <h1 className="font-serif font-semibold text-ink leading-[1.04] tracking-[0.005em] text-[clamp(44px,7.2vw,82px)]">
+            The world handed you
+            <br />
+            a role. Heaven wrote
+            <br />
+            you a{" "}
+            <span className="font-display font-bold uppercase tracking-[0.02em] text-gold text-[0.92em]">
+              name
+            </span>
+            .
+          </h1>
+          <p className="mx-auto mt-7 max-w-[540px] text-[18.5px] text-muted">
+            An identity you did not choose and cannot earn — only step into.
+            Twelve ancient archetypes to help you find it.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-[22px]">
+            <Link
+              href="#twelve"
+              className="rounded-[2px] bg-ink px-[34px] py-[15px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+            >
+              Take the Assessment
+            </Link>
+            <Link
+              href="#twelve"
+              className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+            >
+              Explore the tribes
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* The Twelve */}
+      <div className="max-w-[1040px] mx-auto px-8">
+        <section id="twelve">
+          <div className="flex items-baseline justify-between border-b border-ink pb-1.5 pt-6">
+            <h2 className="font-serif text-[30px] font-semibold">The Twelve Tribes</h2>
+            <span className="font-hebrew text-[20px] font-normal text-gold">הַשְּׁבָטִים</span>
+          </div>
+
+          <div>
+            {tribes.map((tribe) => (
+              <Link
+                key={tribe.slug}
+                href={`/tribes/${tribe.slug}`}
+                className="tribe-row"
+                style={{ "--accent": accentHex(tribe.color) } as React.CSSProperties}
+              >
+                {/* Hebrew initial + index */}
+                <div className="flex flex-col items-start gap-1.5">
+                  <span
+                    className="font-hebrew text-[46px] font-medium leading-[0.9] max-[820px]:text-[38px]"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    {hebrewInitial(tribe.hebrew)}
+                  </span>
+                  <span className="text-[11px] tracking-[0.18em] text-faint tabular-nums">
+                    {String(tribe.number).padStart(2, "0")} / 12
+                  </span>
+                </div>
+
+                {/* Name + call sign + essence */}
+                <div>
+                  <h3 className="font-serif text-[30px] font-semibold leading-[1.02] max-[520px]:text-[25px]">
+                    {tribe.name}
+                  </h3>
+                  <div className="font-serif text-[18px] italic text-muted mt-px">
+                    {tribe.callSign} · <span className="font-hebrew not-italic">{tribe.hebrew}</span>
+                  </div>
+                  <div className="mt-[11px] text-[10.5px] uppercase tracking-[0.13em] text-faint">
+                    {tribe.essence}
+                  </div>
+                </div>
+
+                {/* Scripture */}
+                <div className="row-scripture font-serif text-[18px] italic leading-[1.45] text-muted [display:-webkit-box] [-webkit-line-clamp:3] [-webkit-box-orient:vertical] overflow-hidden">
+                  &ldquo;{tribe.keyScripture}&rdquo;
+                  <span className="block font-sans not-italic text-[11px] tracking-[0.08em] uppercase text-faint mt-[7px]">
+                    {tribe.keyScriptureRef}
+                  </span>
+                </div>
+
+                {/* Arrow */}
+                <div className="justify-self-end">
+                  <span className="row-arrow text-[20px] text-hair transition-[color,transform] duration-200">
+                    →
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Closing */}
+      <section className="relative overflow-hidden py-[110px] text-center">
+        <blockquote className="relative z-[2] mx-auto max-w-[760px] font-serif text-[clamp(26px,4vw,42px)] font-medium italic leading-[1.28]">
+          &ldquo;They understood the times, and knew what they were to do.&rdquo;
+        </blockquote>
+        <cite className="relative z-[2] mt-[22px] block text-[12px] not-italic uppercase tracking-[0.22em] text-gold">
+          1 Chronicles 12:32
+        </cite>
+      </section>
+
+      <footer className="border-t border-hair py-[34px] text-center text-[12px] uppercase tracking-[0.14em] text-faint">
+        Tribe Index — A framework for self-discovery, calling &amp; the celebration of strength
+      </footer>
     </main>
   );
+}
+
+/** Maps a tribe's Tailwind color name to the accent hex used for the row bar + initial. */
+function accentHex(color: string): string {
+  const map: Record<string, string> = {
+    amber: "#b8860b",
+    violet: "#7c5cbf",
+    blue: "#2f6fb0",
+    emerald: "#2f8f63",
+    orange: "#c2691f",
+    red: "#b23535",
+    slate: "#6b7280",
+    cyan: "#1f97aa",
+    lime: "#6f9420",
+    zinc: "#7c7c85",
+    yellow: "#b8961a",
+    rose: "#bf3a52",
+  };
+  return map[color] ?? "#a9842f";
 }
