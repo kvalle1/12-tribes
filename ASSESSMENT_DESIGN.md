@@ -42,16 +42,17 @@ lives.
 *This is what participants see — one flat list, no labels, no grouping.*
 *Words are presented in random order each session.*
 
-Abundant · Aggressive · Alert · Analytical · Authoritative · Bold ·
-Calculated · Cautious · Comforting · Consistent · Convicted · Courageous ·
-Creative · Cunning · Decisive · Dedicated · Devoted · Discerning · Driven ·
-Enduring · Energetic · Enriching · Enterprising · Exacting · Expressive ·
+Aggressive · Alert · Analytical · Authoritative · Battle-tested · Bold ·
+Cautious · Comforting · Consistent · Convicted · Courageous ·
+Creative · Cunning · Decisive · Dedicated · Deliberate · Devoted · Discerning · Driven ·
+Enduring · Energetic · Enriching · Enterprising · Exacting · Expansive ·
+Expressive ·
 Faithful · Fervent · Fierce · Free-spirited · Generous · Graceful · Gritty ·
-Guarding · Hardened · Healing · Honorable · Hospitable · Impulsive ·
-Insightful · Inspiring · Intense · Just · Loyal · Measured · Nurturing ·
-Observant · Ordered · Passionate · Patient · Peaceful · Perceptive · Precise ·
+Guarding · Healing · Honorable · Hospitable · Impulsive ·
+Insightful · Inspiring · Intense · Just · Learned · Loyal · Measured · Nurturing ·
+Observant · Organized · Passionate · Patient · Peaceful · Perceptive · Precise ·
 Prosperous · Protective · Reliable · Resilient · Resourceful · Reverent ·
-Righteous · Sacrificial · Skeptical · Steady · Strategic · Strong · Studied ·
+Righteous · Sacrificial · Skeptical · Steady · Strategic · Strong ·
 Supportive · Territorial · Tough · Uncompromising · Vigilant · Watchful ·
 Welcoming · Wise · Zealous
 
@@ -66,13 +67,12 @@ Welcoming · Wise · Zealous
 
 | Word | Tribe |
 |---|---|
-| Abundant | Zebulun |
 | Aggressive | Benjamin |
 | Alert | Dan |
 | Analytical | Issachar |
 | Authoritative | Judah |
+| Battle-tested | Gad |
 | Bold | Judah · Reuben |
-| Calculated | Dan |
 | Cautious | Dan · Issachar |
 | Comforting | Asher |
 | Consistent | Joseph |
@@ -82,6 +82,7 @@ Welcoming · Wise · Zealous
 | Cunning | Benjamin · Dan |
 | Decisive | Simeon · Benjamin |
 | Dedicated | Levi |
+| Deliberate | Dan |
 | Devoted | Levi |
 | Discerning | Issachar · Dan |
 | Driven | Benjamin · Reuben |
@@ -90,6 +91,7 @@ Welcoming · Wise · Zealous
 | Enriching | Asher |
 | Enterprising | Zebulun |
 | Exacting | Levi |
+| Expansive | Zebulun |
 | Expressive | Naphtali |
 | Faithful | Joseph |
 | Fervent | Simeon · Judah |
@@ -99,7 +101,6 @@ Welcoming · Wise · Zealous
 | Graceful | Naphtali |
 | Gritty | Gad |
 | Guarding | Levi · Benjamin |
-| Hardened | Gad |
 | Healing | Naphtali |
 | Honorable | Judah |
 | Hospitable | Asher |
@@ -108,11 +109,12 @@ Welcoming · Wise · Zealous
 | Inspiring | Naphtali |
 | Intense | Benjamin · Reuben |
 | Just | Simeon |
+| Learned | Issachar |
 | Loyal | Joseph · Benjamin |
 | Measured | Issachar |
 | Nurturing | Asher |
 | Observant | Dan · Issachar |
-| Ordered | Joseph |
+| Organized | Joseph |
 | Passionate | Reuben · Simeon |
 | Patient | Issachar |
 | Peaceful | Asher |
@@ -130,7 +132,6 @@ Welcoming · Wise · Zealous
 | Steady | Joseph · Gad |
 | Strategic | Issachar · Dan |
 | Strong | Reuben · Judah |
-| Studied | Issachar |
 | Supportive | Joseph · Asher |
 | Territorial | Benjamin · Gad |
 | Tough | Gad |
@@ -149,14 +150,14 @@ Welcoming · Wise · Zealous
 |---|---|---|---|
 | Judah | The Lion | 8 | Authoritative, Bold\*, Courageous, Fervent\*, Honorable, Protective\*, Sacrificial, Strong\*, Zealous\* |
 | Levi | The Priest | 6 | Dedicated, Devoted, Exacting, Guarding\*, Precise, Reverent |
-| Issachar | The Sage | 10 | Analytical, Cautious\*, Discerning\*, Insightful, Measured, Observant\*, Patient, Perceptive\*, Strategic\*, Studied, Wise |
-| Zebulun | The Merchant | 6 | Abundant, Enterprising, Generous\*, Prosperous, Resourceful |
-| Joseph | The Bull | 10 | Consistent, Enduring\*, Faithful, Loyal\*, Ordered, Reliable, Resilient\*, Steady\*, Supportive\* |
+| Issachar | The Sage | 10 | Analytical, Cautious\*, Discerning\*, Insightful, Learned, Measured, Observant\*, Patient, Perceptive\*, Strategic\*, Wise |
+| Zebulun | The Merchant | 6 | Enterprising, Expansive, Generous\*, Prosperous, Resourceful |
+| Joseph | The Bull | 10 | Consistent, Enduring\*, Faithful, Loyal\*, Organized, Reliable, Resilient\*, Steady\*, Supportive\* |
 | Benjamin | The Wolf | 9 | Aggressive, Cunning\*, Decisive\*, Driven\*, Fierce, Guarding\*, Intense\*, Loyal\*, Protective\*, Territorial\*, Zealous\* |
-| Dan | The Serpent | 10 | Alert, Calculated, Cautious\*, Cunning\*, Discerning\*, Observant\*, Perceptive\*, Skeptical, Strategic\*, Vigilant, Watchful |
+| Dan | The Serpent | 10 | Alert, Cautious\*, Cunning\*, Deliberate, Discerning\*, Observant\*, Perceptive\*, Skeptical, Strategic\*, Vigilant, Watchful |
 | Naphtali | The Deer | 7 | Creative, Expressive, Free-spirited, Graceful, Healing, Inspiring |
 | Asher | The Olive Tree | 8 | Comforting, Enriching, Generous\*, Hospitable, Nurturing, Peaceful, Supportive\*, Welcoming |
-| Gad | The Raider | 7 | Enduring\*, Gritty, Hardened, Resilient\*, Steady\*, Territorial\*, Tough |
+| Gad | The Raider | 7 | Battle-tested, Enduring\*, Gritty, Resilient\*, Steady\*, Territorial\*, Tough |
 | Reuben | The Firstborn | 7 | Bold\*, Driven\*, Energetic, Impulsive, Intense\*, Passionate\*, Strong\* |
 | Simeon | The Blade | 6 | Convicted, Decisive\*, Fervent\*, Just, Passionate\*, Righteous, Uncompromising, Zealous\* |
 
