@@ -19,7 +19,7 @@ There is no test runner configured. Type errors surface via `npm run build` (tsc
 
 ## Conventions
 
-- **Git commits: never include `Co-Authored-By` (or any co-author) trailers.** Keep commit messages free of attribution lines.
+- **Git commits & PR descriptions / comments: never include `Co-Authored-By` (or any co-author) trailers.** Keep commit messages free of attribution lines.
 
 ## Architecture
 
