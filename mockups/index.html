@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tribe Index — Design Mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#101014;color:#e8e6e1;font-family:"Inter",sans-serif;line-height:1.6;padding:60px 24px}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:42px;margin-bottom:6px}
+  .sub{color:#8a8780;margin-bottom:44px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  a.card{display:block;text-decoration:none;color:inherit;border:1px solid #2a2a31;border-radius:14px;
+    padding:26px;background:#16161b;transition:transform .2s,border-color .2s}
+  a.card:hover{transform:translateY(-3px);border-color:#5a5a66}
+  .swatch{display:flex;gap:6px;margin-bottom:16px}
+  .swatch span{width:26px;height:26px;border-radius:6px}
+  .num{font-family:"Fraunces",serif;color:#6a6a72;font-size:14px}
+  .card h2{font-family:"Fraunces",serif;font-weight:600;font-size:24px;margin:4px 0}
+  .card p{color:#9a978f;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tribe Index — Design Directions</h1>
+  <p class="sub">Five takes on a modern-Hebrew, biblically-rooted feel. Open each, then let's converge.</p>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+const m=[
+  {f:"06-merged.html",n:"06 ★",t:"Sanctuary × Illuminated",d:"The merge: Sanctuary's clean light base, Dawn's sun-bloom behind the hero phrase, Illuminated's gold Hebrew & cohesive cards, in vertical rows.",c:["#f7f5f0","#c19a3e","#1c1b18"]},
+  {f:"01-illuminated.html",n:"01",t:"Illuminated Manuscript",d:"Parchment & gold leaf, ornamental folios, illuminated Hebrew initials. Reverent, ancient, crafted.",c:["#f4ead5","#b08818","#7c2b22"]},
+  {f:"02-sanctuary.html",n:"02",t:"Modern Sanctuary",d:"Bright, airy, museum-minimal. Hairline list, restrained brass accent. Professional & calm.",c:["#f7f5f0","#9a7b3f","#1c1b18"]},
+  {f:"03-celestial.html",n:"03",t:"Celestial Journey",d:"Deep night sky, gold constellations, dramatic glow. Wonder & the journey of calling.",c:["#070a16","#d8b25c","#a98be0"]},
+  {f:"04-editorial.html",n:"04",t:"Editorial Hebrew",d:"Bold contemporary magazine. Clay + ink, oversized Hebrew type, hard grid. Confident & creative.",c:["#f3eee4","#b9542f","#16140f"]},
+  {f:"05-dawn.html",n:"05",t:"Desert Dawn",d:"Warm dawn gradient, soft rounded cards, dunes. Hopeful, inviting, gentle self-discovery.",c:["#fbf4ea","#c8694a","#9d5e72"]},
+];
+document.getElementById("grid").innerHTML=m.map(x=>`
+  <a class="card" href="${x.f}">
+    <div class="swatch">${x.c.map(c=>`<span style="background:${c}"></span>`).join("")}</div>
+    <div class="num">${x.n}</div>
+    <h2>${x.t}</h2>
+    <p>${x.d}</p>
+  </a>`).join("");
+</script>
+</body>
+</html>

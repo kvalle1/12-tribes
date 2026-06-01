@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tribe Index — Illuminated Manuscript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Frank+Ruhl+Libre:wght@400;500;700;900&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment:#f4ead5;
+    --parchment-deep:#e9dabb;
+    --ink:#2b2317;
+    --ink-soft:#5c503a;
+    --gold:#b08818;
+    --gold-bright:#caa53e;
+    --crimson:#7c2b22;
+    --line:#cdb98c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:
+      radial-gradient(circle at 20% 10%, rgba(255,255,255,.5), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(176,136,24,.08), transparent 45%),
+      var(--parchment);
+    color:var(--ink);
+    font-family:"EB Garamond",serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    mix-blend-mode:multiply;
+  }
+  .wrap{position:relative;z-index:1;max-width:1140px;margin:0 auto;padding:0 28px}
+
+  /* ---------- Hero ---------- */
+  header.hero{text-align:center;padding:90px 0 50px}
+  .eyebrow{
+    font-family:"Frank Ruhl Libre",serif;letter-spacing:.42em;text-transform:uppercase;
+    font-size:11px;color:var(--gold);font-weight:500;
+  }
+  .hebrew-mark{
+    font-family:"Frank Ruhl Libre",serif;font-weight:900;font-size:clamp(60px,12vw,128px);
+    color:var(--crimson);line-height:1;margin:14px 0 4px;
+    text-shadow:0 1px 0 rgba(255,255,255,.5);
+  }
+  h1.title{
+    font-family:"Cormorant Garamond",serif;font-weight:600;
+    font-size:clamp(40px,7vw,76px);letter-spacing:.01em;line-height:1.02;
+  }
+  .rule{
+    width:200px;height:1px;margin:26px auto;border:0;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);position:relative;
+  }
+  .rule::after{
+    content:"✦";position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+    color:var(--gold-bright);font-size:14px;background:var(--parchment);padding:0 10px;
+  }
+  .lede{
+    max-width:620px;margin:0 auto;font-size:21px;color:var(--ink-soft);font-style:italic;
+  }
+  .cta{
+    display:inline-block;margin-top:34px;font-family:"Frank Ruhl Libre",serif;font-weight:500;
+    letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:var(--parchment);
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    padding:15px 34px;border-radius:2px;text-decoration:none;
+    box-shadow:0 6px 18px -8px rgba(124,43,34,.5),inset 0 1px 0 rgba(255,255,255,.35);
+    border:1px solid #8c6c12;transition:transform .2s;
+  }
+  .cta:hover{transform:translateY(-2px)}
+
+  /* ---------- Section heading ---------- */
+  .section-head{text-align:center;margin:30px 0 40px}
+  .section-head h2{
+    font-family:"Cormorant Garamond",serif;font-size:34px;font-weight:500;
+  }
+  .section-head p{color:var(--ink-soft);font-style:italic}
+
+  /* ---------- Tribe folios ---------- */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;padding-bottom:30px}
+  @media(max-width:860px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .folio{
+    position:relative;background:
+      linear-gradient(180deg,rgba(255,255,255,.4),rgba(233,218,187,.25));
+    border:1px solid var(--line);border-radius:3px;padding:24px 22px 22px;
+    text-decoration:none;color:var(--ink);overflow:hidden;
+    box-shadow:0 2px 0 rgba(255,255,255,.4) inset, 0 10px 24px -18px rgba(43,35,23,.6);
+    transition:transform .25s,box-shadow .25s,border-color .25s;
+  }
+  .folio::before{ /* inner gilt frame */
+    content:"";position:absolute;inset:7px;border:1px solid rgba(176,136,24,.32);
+    border-radius:2px;pointer-events:none;
+  }
+  .folio:hover{transform:translateY(-4px);border-color:var(--gold);
+    box-shadow:0 2px 0 rgba(255,255,255,.5) inset,0 18px 34px -18px rgba(124,43,34,.45)}
+  .folio .num{
+    font-family:"Frank Ruhl Libre",serif;font-size:11px;letter-spacing:.2em;color:var(--gold);
+  }
+  .initial{
+    font-family:"Frank Ruhl Libre",serif;font-weight:900;font-size:58px;line-height:1;
+    color:var(--accent);margin:6px 0 2px;text-shadow:0 1px 0 rgba(255,255,255,.6);
+  }
+  .folio h3{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:27px;line-height:1}
+  .sign{font-style:italic;color:var(--ink-soft);font-size:16px;margin-top:2px}
+  .badge{
+    position:absolute;top:14px;right:14px;font-family:"Frank Ruhl Libre",serif;
+    font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--crimson);
+    border:1px solid rgba(124,43,34,.4);border-radius:99px;padding:3px 9px;background:rgba(255,255,255,.4);
+  }
+  .scripture{margin-top:14px;font-size:14.5px;color:var(--ink-soft);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+  footer{text-align:center;padding:60px 0 80px;color:var(--ink-soft);font-style:italic;font-size:15px}
+  footer .rule{margin-bottom:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">A Framework of Identity &amp; Calling</p>
+    <div class="hebrew-mark">שִׁבְטֵי יִשְׂרָאֵל</div>
+    <h1 class="title">The Tribe Index</h1>
+    <hr class="rule">
+    <p class="lede">Twelve ancient archetypes, illuminated anew — a journey into how
+      you are wired, the strengths you carry, and the calling written into your name.</p>
+    <div><a class="cta" href="#tribes">Begin the Discovery</a></div>
+  </header>
+
+  <section class="section-head" id="tribes">
+    <h2>The Twelve</h2>
+    <p>Each tribe a doorway — strength, shadow, and the oil that keeps it true.</p>
+  </section>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <hr class="rule">
+    “The scepter shall not depart from Judah.” — Genesis 49:10<br>
+    Discover the tribe you were made to carry.
+  </footer>
+</div>
+
+<script>
+const tribes=[
+  {n:1,name:"Judah",he:"י",sign:"The Lion",color:"#b8860b",status:"",scr:"The scepter shall not depart from Judah, nor the ruler's staff from between his feet."},
+  {n:2,name:"Levi",he:"ל",sign:"The Priest",color:"#7c5cbf",status:"",scr:"They shall teach Jacob your rules and Israel your law."},
+  {n:3,name:"Issachar",he:"יִ",sign:"The Sage",color:"#2f6fb0",status:"",scr:"They understood the times and knew what Israel should do."},
+  {n:4,name:"Zebulun",he:"ז",sign:"The Merchant",color:"#2f8f63",status:"",scr:"Blessed to go out, create abundance, and draw people in."},
+  {n:5,name:"Joseph",he:"יו",sign:"The Bull",color:"#c2691f",status:"",scr:"But his bow remained steady, his strong arms stayed limber."},
+  {n:6,name:"Benjamin",he:"בִּ",sign:"The Wolf",color:"#b23535",status:"",scr:"In the morning he devours the prey, in the evening he divides the spoils."},
+  {n:7,name:"Dan",he:"ד",sign:"The Serpent",color:"#6b7280",status:"Disqualified",scr:"Dan shall be a serpent in the way, a horned snake in the path."},
+  {n:8,name:"Naphtali",he:"נ",sign:"The Deer",color:"#2095a8",status:"",scr:"Naphtali is a doe set free that bears beautiful fawns."},
+  {n:9,name:"Asher",he:"אָ",sign:"The Olive Tree",color:"#6f9420",status:"",scr:"He will provide delicacies fit for a king."},
+  {n:10,name:"Gad",he:"גָּ",sign:"The Raider",color:"#7c7c85",status:"Disqualified Arc",scr:"Gad shall be raided by raiders, but he shall raid at their heels."},
+  {n:11,name:"Reuben",he:"רְ",sign:"The Firstborn",color:"#bb961a",status:"Warning",scr:"My might, and the first fruits of my strength, excelling in honor."},
+  {n:12,name:"Simeon",he:"שִׁ",sign:"The Blade",color:"#bf3a52",status:"Disqualified",scr:"Zeal for holiness — conviction that must learn the heart behind the law."},
+];
+document.getElementById("grid").innerHTML=tribes.map(t=>`
+  <a class="folio" href="#" style="--accent:${t.color}">
+    ${t.status?`<span class="badge">${t.status}</span>`:""}
+    <div class="num">${String(t.n).padStart(2,"0")} / XII</div>
+    <div class="initial">${t.he}</div>
+    <h3>${t.name}</h3>
+    <div class="sign">${t.sign}</div>
+    <p class="scripture">“${t.scr}”</p>
+  </a>`).join("");
+</script>
+</body>
+</html>

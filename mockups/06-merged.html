@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tribe Index — Sanctuary × Illuminated</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Frank+Ruhl+Libre:wght@300;400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bone:#f7f5f0;
+    --stone:#ece7dd;
+    --ink:#1c1b18;
+    --muted:#736e64;
+    --faint:#9b958a;
+    --hair:#ddd8cd;
+    --gold:#a9842f;        /* brass for text accents */
+    --gold-bright:#c19a3e; /* illuminated gold for hebrew */
+    --sun-1:rgba(229,184,96,.30);
+    --sun-2:rgba(224,150,90,.09);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bone);color:var(--ink);font-family:"Inter",sans-serif;
+    line-height:1.65;-webkit-font-smoothing:antialiased;font-weight:300}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 32px}
+
+  /* ---- nav ---- */
+  nav{display:flex;justify-content:space-between;align-items:center;padding:26px 0;position:relative;z-index:3}
+  nav .brand{font-family:"Cormorant Garamond",serif;font-size:23px;letter-spacing:.04em;font-weight:600}
+  nav .brand span{color:var(--gold)}
+  nav .links{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:flex;gap:26px}
+  nav .links a{color:inherit;text-decoration:none;transition:color .2s}
+  nav .links a:hover{color:var(--ink)}
+
+  /* ---- hero with sun bloom ---- */
+  .hero{position:relative;text-align:center;padding:130px 0 116px;overflow:hidden}
+  .sun{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);
+    width:760px;height:760px;border-radius:50%;pointer-events:none;z-index:0;
+    background:radial-gradient(circle, var(--sun-1) 0%, var(--sun-2) 34%, transparent 62%);
+    filter:blur(2px)}
+  .horizon{position:absolute;left:50%;top:calc(46% + 1px);transform:translateX(-50%);
+    width:520px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-bright),transparent);
+    opacity:.32;z-index:0}
+  .hero-inner{position:relative;z-index:2}
+  .hero .he{font-family:"Frank Ruhl Libre",serif;font-weight:300;font-size:clamp(22px,3.2vw,30px);
+    letter-spacing:.22em;color:var(--gold);margin-bottom:26px}
+  .hero h1{font-family:"Cormorant Garamond",serif;font-weight:600;
+    font-size:clamp(44px,7.2vw,82px);line-height:1.04;letter-spacing:.005em;color:var(--ink)}
+  .hero h1 em{font-family:"Cinzel",serif;font-style:normal;font-weight:700;
+    text-transform:uppercase;letter-spacing:.02em;color:var(--gold);font-size:.92em}
+  .hero .lede{max-width:540px;margin:28px auto 0;font-size:18.5px;color:var(--muted)}
+  .hero .actions{margin-top:40px;display:flex;gap:22px;justify-content:center;align-items:center;flex-wrap:wrap}
+  .btn{font-size:13px;letter-spacing:.08em;text-decoration:none;border-radius:2px;transition:all .2s}
+  .btn-solid{background:var(--ink);color:var(--bone);padding:15px 34px}
+  .btn-solid:hover{background:#000}
+  .btn-ghost{color:var(--ink);border-bottom:1px solid var(--gold);padding:0 1px 4px}
+  .btn-ghost:hover{color:var(--gold)}
+
+  /* ---- section header ---- */
+  .meta{display:flex;justify-content:space-between;align-items:baseline;
+    padding:24px 0 6px;border-bottom:1px solid var(--ink)}
+  .meta h2{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:30px}
+  .meta span{font-family:"Frank Ruhl Libre",serif;font-size:20px;color:var(--gold);font-weight:400}
+
+  /* ---- stacked tribe rows ---- */
+  .row{display:grid;grid-template-columns:96px 1fr 1.05fr auto;gap:32px;align-items:center;
+    padding:30px 24px 30px 18px;border-bottom:1px solid var(--hair);
+    text-decoration:none;color:var(--ink);position:relative;transition:background .22s,box-shadow .22s,padding-left .22s}
+  .row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);
+    transform:scaleY(0);transition:transform .22s;transform-origin:center}
+  .row:hover{background:#fff;box-shadow:0 22px 40px -30px rgba(28,27,24,.5);padding-left:26px;border-bottom-color:transparent}
+  .row:hover::before{transform:scaleY(1)}
+
+  .he-col{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+  .he-col .he{font-family:"Frank Ruhl Libre",serif;font-weight:500;font-size:46px;line-height:.9;color:var(--accent)}
+  .he-col .idx{font-size:11px;letter-spacing:.18em;color:var(--faint);font-variant-numeric:tabular-nums}
+
+  .name-col h3{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:30px;line-height:1.02}
+  .name-col .sign{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:18px;color:var(--muted);margin-top:1px}
+  .name-col .keys{margin-top:11px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+
+  .scr{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:18px;color:var(--muted);line-height:1.45;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .scr .ref{display:block;font-style:normal;font-family:"Inter";font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint);margin-top:7px}
+
+  .end{display:flex;align-items:center;gap:16px;justify-self:end}
+  .tag{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+    border:1px solid var(--hair);border-radius:99px;padding:5px 12px;white-space:nowrap}
+  .arrow{color:var(--hair);font-size:20px;transition:color .2s,transform .2s}
+  .row:hover .arrow{color:var(--accent);transform:translateX(5px)}
+
+  @media(max-width:820px){
+    .row{grid-template-columns:74px 1fr auto;gap:20px}
+    .scr{display:none}
+    .he-col .he{font-size:38px}
+  }
+  @media(max-width:520px){
+    .end .tag{display:none}
+    .name-col h3{font-size:25px}
+  }
+
+  /* ---- closing ---- */
+  .closing{position:relative;text-align:center;padding:120px 0 110px;overflow:hidden}
+  .closing .sun{width:620px;height:620px;top:50%}
+  .closing blockquote{position:relative;z-index:2;font-family:"Cormorant Garamond",serif;font-style:italic;
+    font-size:clamp(26px,4vw,42px);font-weight:500;max-width:760px;margin:0 auto;line-height:1.28}
+  .closing cite{position:relative;z-index:2;display:block;margin-top:22px;font-style:normal;font-size:12px;
+    letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  footer{border-top:1px solid var(--hair);padding:34px 0;font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--faint);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="brand">Tribe<span>·</span>Index</div>
+    <div class="links"><a href="#twelve">The Twelve</a><a href="#twelve">The Assessment</a><a href="#twelve">About</a></div>
+  </nav>
+</div>
+
+<header class="hero">
+  <div class="sun"></div>
+  <div class="horizon"></div>
+  <div class="wrap hero-inner">
+    <div class="he">שִׁבְטֵי יִשְׂרָאֵל</div>
+    <h1>The world handed you<br>a role. Heaven wrote<br>you a <em>name</em>.</h1>
+    <p class="lede">An identity you did not choose and cannot earn — only step into.
+      Twelve ancient archetypes to help you find it.</p>
+    <div class="actions">
+      <a class="btn btn-solid" href="#twelve">Take the Assessment</a>
+      <a class="btn btn-ghost" href="#twelve">Explore the tribes</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section id="twelve">
+    <div class="meta"><h2>The Twelve Tribes</h2><span>הַשְּׁבָטִים</span></div>
+    <div id="list"></div>
+  </section>
+</div>
+
+<section class="closing">
+  <div class="sun"></div>
+  <blockquote>“They understood the times, and knew what they were to do.”</blockquote>
+  <cite>1 Chronicles 12:32</cite>
+</section>
+
+<footer>Tribe Index — A framework for self-discovery, calling &amp; the celebration of strength</footer>
+
+<script>
+const tribes=[
+  {n:1,name:"Judah",he:"יְהוּדָה",sign:"The Lion",color:"#b8860b",status:"",keys:"Honor · Courage · Authority",scr:"The scepter shall not depart from Judah, nor the ruler's staff from between his feet.",ref:"Genesis 49:10"},
+  {n:2,name:"Levi",he:"לֵוִי",sign:"The Priest",color:"#7c5cbf",status:"",keys:"Worship · Teaching · Consecration",scr:"They shall teach Jacob your rules and Israel your law.",ref:"Deuteronomy 33:10"},
+  {n:3,name:"Issachar",he:"יִשָּׂשכָר",sign:"The Sage",color:"#2f6fb0",status:"",keys:"Discernment · Timing · Wisdom",scr:"They understood the times and knew what Israel should do.",ref:"1 Chronicles 12:32"},
+  {n:4,name:"Zebulun",he:"זְבוּלֻן",sign:"The Merchant",color:"#2f8f63",status:"",keys:"Enterprise · Abundance · Influence",scr:"Blessed to go out, create abundance, and draw people in.",ref:"Deuteronomy 33:18"},
+  {n:5,name:"Joseph",he:"יוֹסֵף",sign:"The Bull",color:"#c2691f",status:"",keys:"Resilience · Order · Fortitude",scr:"But his bow remained steady, his strong arms stayed limber.",ref:"Genesis 49:24"},
+  {n:6,name:"Benjamin",he:"בִּנְיָמִין",sign:"The Wolf",color:"#b23535",status:"",keys:"Ferocity · Loyalty · Cunning",scr:"In the morning he devours the prey, in the evening he divides the spoils.",ref:"Genesis 49:27"},
+  {n:7,name:"Dan",he:"דָּן",sign:"The Serpent",color:"#6b7280",status:"Disqualified",keys:"Vigilance · Strategy · Discernment",scr:"Dan shall be a serpent in the way, a horned snake in the path.",ref:"Genesis 49:17"},
+  {n:8,name:"Naphtali",he:"נַפְתָּלִי",sign:"The Deer",color:"#1f97aa",status:"",keys:"Freedom · Beauty · Healing",scr:"Naphtali is a doe set free that bears beautiful fawns.",ref:"Genesis 49:21"},
+  {n:9,name:"Asher",he:"אָשֵׁר",sign:"The Olive Tree",color:"#6f9420",status:"",keys:"Hospitality · Nourishment · Generosity",scr:"Most blessed of sons is Asher; he will provide delicacies fit for a king.",ref:"Genesis 49:20"},
+  {n:10,name:"Gad",he:"גָּד",sign:"The Raider",color:"#7c7c85",status:"Disqualified Arc",keys:"Grit · Endurance · Resistance",scr:"Gad shall be raided by raiders, but he shall raid at their heels.",ref:"Genesis 49:19"},
+  {n:11,name:"Reuben",he:"רְאוּבֵן",sign:"The Firstborn",color:"#b8961a",status:"Warning",keys:"Potential · Leadership · Capacity",scr:"My might, and the first fruits of my strength, excelling in honor and power.",ref:"Genesis 49:3"},
+  {n:12,name:"Simeon",he:"שִׁמְעוֹן",sign:"The Blade",color:"#bf3a52",status:"Disqualified",keys:"Conviction · Zeal · Justice",scr:"Zeal for holiness — conviction that must learn the heart behind the law.",ref:"Genesis 49:5"},
+];
+document.getElementById("list").innerHTML=tribes.map(t=>`
+  <a class="row" href="#" style="--accent:${t.color}">
+    <div class="he-col">
+      <span class="he">${t.he.replace(/[֑-ׇ]/g,"").charAt(0)}</span>
+      <span class="idx">${String(t.n).padStart(2,"0")} / 12</span>
+    </div>
+    <div class="name-col">
+      <h3>${t.name}</h3>
+      <div class="sign">${t.sign} · ${t.he}</div>
+      <div class="keys">${t.keys}</div>
+    </div>
+    <div class="scr">“${t.scr}”<span class="ref">${t.ref}</span></div>
+    <div class="end">
+      <span class="arrow">→</span>
+    </div>
+  </a>`).join("");
+</script>
+</body>
+</html>
