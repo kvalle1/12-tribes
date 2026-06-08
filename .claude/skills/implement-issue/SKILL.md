@@ -118,15 +118,14 @@ Steps:
    - If it's a nit you choose not to address → reply explaining why.
 4. After pushing fixes, re-dispatch Phase 5 (the /pr-review agent) so the automated check stays current. Loop until automated review returns clean **and** all human comments are addressed.
 
-## Phase 7 — Handoff to human merge
+## Phase 7 — Merge
 
 When (a) the automated review is clean and (b) all human comments are addressed:
 
 1. Post a final comment on the PR summarizing what was changed in response to feedback.
-2. **Stop.** A human reviews and merges unless the user explicitly tells you to merge.
+2. Merge PR
 3. Kill the background poller and cancel any pending ScheduleWakeup.
-4. If/when the user confirms the PR is merged:
-   - Linear: `state: "Done"`
+4. Finally
    - GitHub: nothing extra needed (the `Closes` keyword handles the issue).
 
 ## Guardrails
