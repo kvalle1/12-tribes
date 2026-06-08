@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { tribes } from "@/lib/tribes";
+import { AuthNav } from "@/components/auth-nav";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
@@ -19,6 +20,7 @@ export default function Home() {
             <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
             <Link href="#twelve" className="transition-colors hover:text-ink">The Assessment</Link>
             <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
+            <AuthNav />
           </div>
         </nav>
       </div>
