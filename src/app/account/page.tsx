@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { ClientSession } from "@/components/client-session";
+import { SignOutButton } from "@/components/sign-out-button";
 
 /**
  * Authenticated landing page. Demonstrates that the session is readable on the
@@ -43,20 +44,9 @@ export default async function AccountPage() {
           <ClientSession />
         </div>
 
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/" });
-          }}
-          className="mt-8"
-        >
-          <button
-            type="submit"
-            className="rounded-[2px] border border-ink px-[28px] py-[12px] text-[13px] tracking-[0.08em] text-ink transition-colors hover:bg-ink hover:text-bone"
-          >
-            Sign out
-          </button>
-        </form>
+        <div className="mt-8">
+          <SignOutButton />
+        </div>
       </div>
     </main>
   );
