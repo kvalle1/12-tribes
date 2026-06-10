@@ -1,0 +1,3 @@
+# Passwordless auth: Auth.js magic-link via Resend
+
+Accounts use passwordless email magic-link authentication: Auth.js (NextAuth v5) with its Drizzle adapter storing users and sessions in our existing Postgres, and Resend sending the sign-in emails. Resend also carries the phase's transactional email (result and observer-link emails), so a single email dependency serves both. We chose magic-link over email+password to avoid owning password storage, hashing, and reset flows, and over a hosted provider (e.g. Clerk) to keep user data in our own Postgres with no per-MAU cost. The lock-in worth recording: identity and sessions live in our database via the Auth.js adapter, and Resend is the sole email sender — swapping either is a meaningful migration, not a config change.

@@ -1,0 +1,3 @@
+# Normalized tribe scoring
+
+The word list maps unevenly to tribes (Dan and Issachar have 10 words each; Simeon, Levi, and Zebulun have 6), so a raw sum of points would structurally favor high-coverage tribes regardless of fit. We score each tribe as the fraction of *its* available points the respondent hit — `points earned for tribe ÷ total points available for that tribe` — so every tribe competes fairly. This deviates from `ASSESSMENT_DESIGN.md`, which describes shared words as scoring "0.5 each" and implies a raw sum; the 0.5 split is preserved as the per-word weight feeding the numerator, but the final tribe score is normalized.
