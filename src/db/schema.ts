@@ -4,8 +4,13 @@ import {
   text,
   primaryKey,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+// Relative (not the `@/` alias) so drizzle-kit's schema loader resolves it.
+// Type-only import — erased at runtime, so no scoring/interview code is pulled
+// into the migration toolchain.
+import type { InterviewStatus, InterviewTurn } from "../lib/interview/session";
 
 /**
  * Auth.js (NextAuth v5) core tables for the Drizzle adapter.
@@ -69,3 +74,33 @@ export const verificationTokens = pgTable(
     }),
   ],
 );
+
+/**
+ * Interview Session — the server-authoritative, resumable state of one
+ * Interview (ADR-0009, ADR-0011). Written every Turn so a refresh or closed tab
+ * resumes where the participant left off. `profile` is a placeholder in the
+ * walking skeleton (no scoring yet); the later slices grow it. The client never
+ * holds or mutates any of this.
+ */
+export const interviewSessions = pgTable("interview_session", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  // Ties the Session to the account model when present (ADR-0011). Nullable in
+  // the skeleton so the flow is demonstrable before auth-gating is wired.
+  userId: text("userId").references(() => users.id, { onDelete: "cascade" }),
+  // Running Strength Profile — empty placeholder until the scoring slices land.
+  profile: jsonb("profile")
+    .$type<Record<string, number>>()
+    .notNull()
+    .default({}),
+  // Per-Turn history, enough to reconstruct the Session mid-flight.
+  turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
+  turnCount: integer("turnCount").notNull().default(0),
+  status: text("status")
+    .$type<InterviewStatus>()
+    .notNull()
+    .default("in_progress"),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});
