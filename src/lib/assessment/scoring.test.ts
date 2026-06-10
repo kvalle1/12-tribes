@@ -29,6 +29,17 @@ describe("score", () => {
     for (const t of tribes) expect(scores[t.slug]).toBe(0);
   });
 
+  it("ignores words that are not in the list", () => {
+    // Unknown or wrong-case strings contribute nothing (exact-match contract).
+    expect(score(["notaword", "courageous"]).judah).toBe(0);
+  });
+
+  it("deduplicates repeated selections", () => {
+    expect(score(["Courageous", "Courageous"]).judah).toBe(
+      score(["Courageous"]).judah,
+    );
+  });
+
   it("splits a two-tribe shared word 0.5 to each tribe", () => {
     // "Courageous" is judah-only (full point); "Bold" is judah+reuben (half).
     // Normalized by the same judah denominator, the shared word is worth half.
@@ -60,14 +71,23 @@ describe("score", () => {
 describe("deriveResult", () => {
   it("always returns a Primary, even for an all-zero score map", () => {
     const result = deriveResult(makeScores({}));
-    expect(result.primary).toBeTruthy();
-    expect(tribes.some((t) => t.slug === result.primary)).toBe(true);
+    // Deterministic tie-break by tribe number → Judah (#1) wins on an all-zero map.
+    expect(result.primary).toBe("judah");
     expect(result.secondary).toBeNull();
   });
 
   it("returns a Secondary when it is near the Primary and clearly ahead of the third", () => {
     const result = deriveResult(
       makeScores({ judah: 1.0, reuben: 0.9, levi: 0.2 }),
+    );
+    expect(result.primary).toBe("judah");
+    expect(result.secondary).toBe("reuben");
+  });
+
+  it("includes the Secondary exactly at the 80% boundary", () => {
+    // second is exactly 20% below primary, third clearly behind → qualifies.
+    const result = deriveResult(
+      makeScores({ judah: 1.0, reuben: 0.8, levi: 0.2 }),
     );
     expect(result.primary).toBe("judah");
     expect(result.secondary).toBe("reuben");

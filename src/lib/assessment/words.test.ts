@@ -42,6 +42,7 @@ describe("word data", () => {
     const byWord = (word: string) =>
       WORDS.find((w) => w.word === word) as AssessmentWord;
     expect(byWord("Bold").tribes).toEqual(["judah", "reuben"]);
+    expect(byWord("Fervent").tribes).toEqual(["simeon", "judah"]);
     expect(byWord("Zealous").tribes).toEqual(["judah", "benjamin", "simeon"]);
   });
 });
