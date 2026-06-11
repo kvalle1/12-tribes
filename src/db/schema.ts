@@ -4,8 +4,14 @@ import {
   text,
   primaryKey,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+import type {
+  SessionStatus,
+  StrengthProfile,
+  Turn,
+} from "@/lib/interview/session";
 
 /**
  * Auth.js (NextAuth v5) core tables for the Drizzle adapter.
@@ -69,3 +75,28 @@ export const verificationTokens = pgTable(
     }),
   ],
 );
+
+/**
+ * Interview Session — the server-authoritative state of one Interview run
+ * (CONTEXT.md "Session"; ADR-0009). Persisted every Turn so a refresh or closed
+ * tab resumes where the participant left off (ADR-0011): `profile`, `turns`, and
+ * `turnCount` together reconstruct the run mid-flight, not just the final result.
+ *
+ * `userId` ties a run to an Account when one is signed in (the Interview
+ * consumes the broader product's identity model rather than defining it,
+ * ADR-0011); it is nullable so the walking-skeleton flow works before auth is
+ * wired into the Interview. The running profile and Turn history are server-only
+ * and never shipped to the client.
+ */
+export const interviewSessions = pgTable("interview_session", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("userId").references(() => users.id, { onDelete: "set null" }),
+  status: text("status").$type<SessionStatus>().notNull().default("in_progress"),
+  profile: jsonb("profile").$type<StrengthProfile>().notNull().default({}),
+  turns: jsonb("turns").$type<Turn[]>().notNull().default([]),
+  turnCount: integer("turnCount").notNull().default(0),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});
