@@ -92,11 +92,25 @@ describe("validateMarkerCatalog", () => {
     expect(() => validateMarkerCatalog(broken)).toThrow(/duplicate/i);
   });
 
-  it("throws on an out-of-bounds weight", () => {
+  it("throws on an over-weight marker", () => {
     const broken: Marker[] = markerCatalog.map((m, i) =>
       i === 0 ? { ...m, weight: 99 } : m,
     );
     expect(() => validateMarkerCatalog(broken)).toThrow(/weight/i);
+  });
+
+  it("throws on an under-weight (zero or negative) marker", () => {
+    const broken: Marker[] = markerCatalog.map((m, i) =>
+      i === 0 ? { ...m, weight: 0 } : m,
+    );
+    expect(() => validateMarkerCatalog(broken)).toThrow(/weight/i);
+  });
+
+  it("throws on a marker with an empty signal", () => {
+    const broken: Marker[] = markerCatalog.map((m, i) =>
+      i === 0 ? { ...m, signal: "" } : m,
+    );
+    expect(() => validateMarkerCatalog(broken)).toThrow(/signal/i);
   });
 
   it("respects an explicit coverage tolerance", () => {

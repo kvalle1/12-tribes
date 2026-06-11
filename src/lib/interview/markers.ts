@@ -47,6 +47,11 @@ export const MARKER_TYPES = [
  * Coverage is even across all 12 tribes (ADR-0010) — every tribe gets the same
  * number of Markers so none is harder to surface. This deliberately breaks the
  * uneven word-list precedent; do not "normalize" the catalog to it.
+ *
+ * This is the count the authored catalog actually uses. The validator enforces
+ * the looser invariant — that the *spread* between tribes stays within
+ * `COVERAGE_TOLERANCE` — rather than a hard "exactly 6", so the catalog can grow
+ * evenly over time without a code change. The tests assert the exact count.
  */
 export const MARKERS_PER_TRIBE = 6;
 
@@ -130,7 +135,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "strength",
     signal: "Mediates between God and people through worship; what pleases God is their native language.",
     weight: WEIGHT_BY_TYPE.strength,
-    exemplar: "John the Baptist preparing the way and refusing to compromise.",
+    exemplar: "Aaron bearing Israel's names into the Holy Place on the priestly breastpiece (Exodus 28).",
   },
   {
     id: "levi-strength-teach",
@@ -580,7 +585,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "strength",
     signal: "Holds a firstborn anointing meant to carry and bless others.",
     weight: WEIGHT_BY_TYPE.strength,
-    exemplar: "Caleb's capacity held under constraint, then fully released.",
+    exemplar: "Solomon beginning his reign with divine anointing and maximum capacity.",
   },
   {
     id: "reuben-strength-instinct",
@@ -699,6 +704,9 @@ export function validateMarkerCatalog(
     }
     seenIds.add(marker.id);
 
+    if (!marker.signal) {
+      throw new MarkerCatalogError(`Marker ${marker.id} has an empty signal.`);
+    }
     if (!MARKER_TYPES.includes(marker.type)) {
       throw new MarkerCatalogError(
         `Marker ${marker.id} has an invalid type: ${String(marker.type)}`,
