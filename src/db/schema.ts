@@ -4,8 +4,14 @@ import {
   text,
   primaryKey,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+import type {
+  InterviewStatus,
+  RunningProfile,
+  Turn,
+} from "@/lib/interview/session";
 
 /**
  * Auth.js (NextAuth v5) core tables for the Drizzle adapter.
@@ -69,3 +75,25 @@ export const verificationTokens = pgTable(
     }),
   ],
 );
+
+/**
+ * Interview Session (ADR-0009 server-authoritative, ADR-0011 resumable).
+ * The whole running state — Turn history, counts, and the placeholder running
+ * profile — is persisted every Turn so a refresh or reopened tab resumes where
+ * the participant left off. Scoring state lives here on the server, never on the
+ * client. `userId` is nullable: the walking skeleton resumes via an opaque
+ * session-id cookie and does not yet require sign-in; identity ties to the
+ * account model when later slices need it.
+ */
+export const interviewSessions = pgTable("interview_session", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("userId").references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").$type<InterviewStatus>().notNull().default("in_progress"),
+  turns: jsonb("turns").$type<Turn[]>().notNull().default([]),
+  profile: jsonb("profile").$type<RunningProfile>().notNull(),
+  turnCount: integer("turnCount").notNull().default(0),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});
