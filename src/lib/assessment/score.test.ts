@@ -71,6 +71,19 @@ describe("score", () => {
     const twice = scoreFor("judah", score(["Honorable", "Honorable"]));
     expect(twice).toBeCloseTo(once);
   });
+
+  it("ignores words that are not in the list", () => {
+    const scores = score(["NotAWord"]);
+    expect(scores).toHaveLength(12);
+    expect(scores.every((s) => s.score === 0)).toBe(true);
+  });
+
+  it("has positive available points for all 12 tribes (normalization never divides by zero)", () => {
+    expect(Object.keys(availablePointsByTribe)).toHaveLength(12);
+    for (const tribe of tribes) {
+      expect(availablePointsByTribe[tribe.slug]).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe("deriveResult", () => {
@@ -106,5 +119,21 @@ describe("deriveResult", () => {
     const result = deriveResult(tableFrom({ judah: 0.6 }));
     expect(result.primary.slug).toBe("judah");
     expect(result.secondary).toBeUndefined();
+  });
+
+  it("shows a near Secondary when no third tribe scored", () => {
+    const result = deriveResult(tableFrom({ judah: 1.0, levi: 0.9 }));
+    expect(result.primary.slug).toBe("judah");
+    expect(result.secondary?.slug).toBe("levi");
+  });
+});
+
+describe("score → deriveResult (end to end)", () => {
+  it("names the dominant tribe Primary from a realistic selection", () => {
+    // A spread of Judah-leaning words, all solo-mapped to Judah.
+    const result = deriveResult(
+      score(["Authoritative", "Courageous", "Honorable", "Sacrificial"]),
+    );
+    expect(result.primary.slug).toBe("judah");
   });
 });
