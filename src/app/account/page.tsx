@@ -42,6 +42,18 @@ export default async function AccountPage() {
           </div>
 
           <ClientSession />
+
+          <Link
+            href="/interview"
+            className="rounded-[2px] border border-hair p-5 transition-colors hover:border-gold"
+          >
+            <div className="text-[11px] uppercase tracking-[0.16em] text-faint">
+              Instrument
+            </div>
+            <div className="mt-2 font-serif text-[18px]">
+              Take <span className="text-gold">the Interview</span> →
+            </div>
+          </Link>
         </div>
 
         <div className="mt-8">

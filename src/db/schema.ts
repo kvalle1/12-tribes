@@ -4,8 +4,11 @@ import {
   text,
   primaryKey,
   integer,
+  jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+import type { Turn } from "@/lib/interview/session";
 
 /**
  * Auth.js (NextAuth v5) core tables for the Drizzle adapter.
@@ -68,4 +71,37 @@ export const verificationTokens = pgTable(
       columns: [verificationToken.identifier, verificationToken.token],
     }),
   ],
+);
+
+/**
+ * Interview Session — the server-authoritative state of one Interview run
+ * (ADR-0009), persisted every Turn so a refresh or closed tab resumes where the
+ * participant left off (ADR-0011). The running `profile` is server-only and is
+ * never shipped to the client. Shape mirrors `InterviewSession` in
+ * `src/lib/interview/session.ts`; `turns` and `profile` are stored as JSONB.
+ */
+export const interviewSessions = pgTable(
+  "interview_session",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "in_progress" | "complete" (see SessionStatus in the domain module).
+    status: text("status").notNull().default("in_progress"),
+    // Completed Q&A exchanges, in order.
+    turns: jsonb("turns").$type<Turn[]>().notNull().default([]),
+    // The question awaiting an answer; null when none is pending / complete.
+    pendingPrompt: text("pendingPrompt"),
+    // Running Strength Profile placeholder (server-only). Empty in this slice.
+    profile: jsonb("profile")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("interview_session_userId_idx").on(table.userId)],
 );
