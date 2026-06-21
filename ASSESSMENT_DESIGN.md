@@ -56,7 +56,7 @@ Righteous · Sacrificial · Skeptical · Steady · Strategic · Strong ·
 Supportive · Territorial · Tough · Uncompromising · Vigilant · Watchful ·
 Welcoming · Wise · Zealous
 
-**Total: 73 words**
+**Total: 74 words**
 
 ---
 
