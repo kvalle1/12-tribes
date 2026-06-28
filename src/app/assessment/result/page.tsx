@@ -4,6 +4,7 @@ import type { Tribe } from "@/lib/tribes";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { resolveHeadline } from "@/lib/assessment/result";
+import { ShareLink } from "./share-link";
 
 /**
  * The Subject's saved current result (ADR-0004). Login-gated; an unauthenticated
@@ -53,7 +54,22 @@ export default async function AssessmentResultPage() {
           </>
         )}
 
-        <div className="mt-14 flex flex-wrap items-center gap-[22px] border-t border-hair pt-8">
+        {/* 360 observer link — invite others to give an outside read (issue #8). */}
+        <section className="mt-14 border-t border-hair pt-8">
+          <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
+            Get an outside read
+          </p>
+          <p className="mt-3 max-w-[560px] text-[15px] text-muted">
+            Send this link to 3–5 people who know you. They&rsquo;ll pick the
+            words that describe you — anonymously — and you&rsquo;ll see how their
+            read compares with your own.
+          </p>
+          <div className="mt-4">
+            <ShareLink path={`/a/${row.shareToken}`} />
+          </div>
+        </section>
+
+        <div className="mt-12 flex flex-wrap items-center gap-[22px] border-t border-hair pt-8">
           <Link
             href="/assessment"
             className="rounded-[2px] bg-ink px-[30px] py-[13px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"

@@ -116,6 +116,27 @@ export const assessmentResults = pgTable("assessment_result", {
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
 
+/**
+ * A single anonymous 360 Observer response (issue #8, ADR-0003). An Observer
+ * opens a Subject's shareable link and selects the words that describe that
+ * Subject; one row is written per submission. Deliberately anonymous — no name,
+ * relationship, or any Observer identity is stored, only `subjectId` (the
+ * Subject being described) and the selected `words`. One Subject has many
+ * responses; the equal-weight aggregation into a comparison report is issue #9.
+ */
+export const observerResponses = pgTable("observer_response", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  // The Subject being described (the user who owns the shared result).
+  subjectId: text("subjectId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // The words this Observer selected, sanitized to the same 8–15 gate as the Subject.
+  words: jsonb("words").$type<string[]>().notNull(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+});
+
 export const interviewSessions = pgTable("interview_session", {
   id: text("id")
     .primaryKey()

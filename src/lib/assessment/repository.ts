@@ -2,8 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults } from "@/db/schema";
-import { WORDS } from "./words";
-import { isWithinSelectionRange } from "./selection";
+import { normalizeSelection } from "./selection";
 import { deriveResult, score } from "./score";
 
 /**
@@ -14,8 +13,6 @@ import { deriveResult, score } from "./score";
  */
 
 export type AssessmentResultRow = typeof assessmentResults.$inferSelect;
-
-const KNOWN_WORDS = new Set(WORDS.map((w) => w.word));
 
 /**
  * Compute the result for a Subject's selected words and save it as the Account's
@@ -31,8 +28,8 @@ export async function saveCurrentResult(
   userId: string,
   selectedWords: readonly string[],
 ): Promise<AssessmentResultRow | null> {
-  const words = [...new Set(selectedWords)].filter((w) => KNOWN_WORDS.has(w));
-  if (!isWithinSelectionRange(words.length)) return null;
+  const words = normalizeSelection(selectedWords);
+  if (!words) return null;
 
   const { primary, secondary } = deriveResult(score(words));
 

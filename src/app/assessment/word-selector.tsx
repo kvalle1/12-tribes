@@ -7,16 +7,31 @@ import {
   isWithinSelectionRange,
 } from "@/lib/assessment/constants";
 import { cn } from "@/lib/utils";
-import { submitAssessment } from "./actions";
 
 /**
- * The flat word-selection grid. Words arrive pre-shuffled from the server and
- * unlabeled — no tribe mapping ever reaches the client (ADR-0009). The Subject
- * toggles words; a live counter tracks progress and the submit button stays
- * disabled until the selection is within the 8–15 range. The selected words ride
- * to the server as hidden `words` inputs, scored and saved by the action.
+ * The flat word-selection grid, shared by the Self Assessment and the 360
+ * observer flow (issue #8). Words arrive pre-shuffled from the server and
+ * unlabeled — no tribe mapping ever reaches the client (ADR-0009). The
+ * participant toggles words; a live counter tracks progress and the submit
+ * button stays disabled until the selection is within the 8–15 range. The
+ * selected words ride to the server as hidden `words` inputs, scored and saved
+ * by the supplied `action`.
+ *
+ * `action` and `submitLabel` are passed in so the same grid serves the Subject
+ * ("See my result") and an Observer ("Submit"). `hidden` carries any extra
+ * form fields the action needs — the observer flow uses it for the share token.
  */
-export function WordSelector({ words }: { words: string[] }) {
+export function WordSelector({
+  words,
+  action,
+  submitLabel,
+  hidden,
+}: {
+  words: string[];
+  action: (formData: FormData) => void | Promise<void>;
+  submitLabel: string;
+  hidden?: Record<string, string>;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggle = (word: string) => {
@@ -32,7 +47,11 @@ export function WordSelector({ words }: { words: string[] }) {
   const canSubmit = isWithinSelectionRange(count);
 
   return (
-    <form action={submitAssessment} className="mt-10">
+    <form action={action} className="mt-10">
+      {hidden &&
+        Object.entries(hidden).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
       {[...selected].map((word) => (
         <input key={word} type="hidden" name="words" value={word} />
       ))}
@@ -84,7 +103,7 @@ export function WordSelector({ words }: { words: string[] }) {
               : "cursor-not-allowed bg-hair text-faint",
           )}
         >
-          See my result
+          {submitLabel}
         </button>
       </div>
     </form>

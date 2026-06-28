@@ -1,5 +1,6 @@
 import "server-only";
 import { WORDS } from "./words";
+import { isWithinSelectionRange } from "./constants";
 
 /**
  * Server-only helpers for presenting the word list. `shuffledWordList` reads the
@@ -10,6 +11,25 @@ import { WORDS } from "./words";
  */
 
 export { isWithinSelectionRange } from "./constants";
+
+const KNOWN_WORDS = new Set(WORDS.map((w) => w.word));
+
+/**
+ * Sanitize a raw word selection posted from the client into a clean, submittable
+ * list: collapse duplicates, drop any word not in the known list, then gate the
+ * count to the 8–15 range. Returns the cleaned words, or `null` if out of range.
+ *
+ * Shared by the Self Assessment (`saveCurrentResult`) and the 360 observer flow
+ * (issue #8) so self and observer selections are sanitized identically and their
+ * scores stay comparable. Keeping it here means the 8–15 constraint is enforced
+ * in exactly one place, server-side, and the client UI gate is never trusted.
+ */
+export function normalizeSelection(
+  selectedWords: readonly string[],
+): string[] | null {
+  const words = [...new Set(selectedWords)].filter((w) => KNOWN_WORDS.has(w));
+  return isWithinSelectionRange(words.length) ? words : null;
+}
 
 /**
  * Fisher–Yates shuffle returning a new array; the input is never mutated. The

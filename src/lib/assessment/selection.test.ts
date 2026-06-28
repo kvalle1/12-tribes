@@ -2,9 +2,15 @@ import { describe, it, expect } from "vitest";
 import { MAX_WORDS, MIN_WORDS, WORDS } from "./words";
 import {
   isWithinSelectionRange,
+  normalizeSelection,
   shuffle,
   shuffledWordList,
 } from "./selection";
+
+/** The first `n` real words from the list — a guaranteed-valid selection. */
+function validWords(n: number): string[] {
+  return WORDS.slice(0, n).map((w) => w.word);
+}
 
 describe("isWithinSelectionRange", () => {
   it("rejects fewer than the minimum", () => {
@@ -58,6 +64,38 @@ describe("shuffledWordList", () => {
     for (const entry of list) {
       expect(typeof entry).toBe("string");
     }
+  });
+});
+
+describe("normalizeSelection", () => {
+  it("returns the cleaned words for an in-range selection", () => {
+    const words = validWords(MIN_WORDS);
+    expect(normalizeSelection(words)).toEqual(words);
+  });
+
+  it("drops words that are not in the known list", () => {
+    const words = [...validWords(MIN_WORDS), "definitely-not-a-real-word"];
+    expect(normalizeSelection(words)).toEqual(validWords(MIN_WORDS));
+  });
+
+  it("collapses duplicate selections before counting", () => {
+    const eight = validWords(MIN_WORDS);
+    const withDupes = [...eight, ...eight];
+    expect(normalizeSelection(withDupes)).toEqual(eight);
+  });
+
+  it("rejects a selection that falls below the minimum after cleaning", () => {
+    const tooFew = [...validWords(MIN_WORDS - 1), "bogus", "bogus"];
+    expect(normalizeSelection(tooFew)).toBeNull();
+  });
+
+  it("rejects a selection above the maximum", () => {
+    expect(normalizeSelection(validWords(MAX_WORDS + 1))).toBeNull();
+  });
+
+  it("accepts the inclusive upper bound", () => {
+    const words = validWords(MAX_WORDS);
+    expect(normalizeSelection(words)).toEqual(words);
   });
 });
 
