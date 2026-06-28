@@ -134,7 +134,11 @@ function RankRow({ row }: { row: RankedTribe }) {
         {isSecondary && <RankTag>2nd</RankTag>}
       </div>
 
-      <div className="h-[10px] overflow-hidden rounded-[2px] bg-stone">
+      <div
+        className="h-[10px] overflow-hidden rounded-[2px] bg-stone"
+        role="img"
+        aria-label={`${tribe.name}: ${Math.round(widthPct)}%`}
+      >
         <div
           className="h-full rounded-[2px] transition-[width]"
           style={{
