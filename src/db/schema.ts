@@ -4,8 +4,14 @@ import {
   text,
   primaryKey,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+import type {
+  InterviewTurn,
+  StrengthProfile,
+  StubResult,
+} from "@/lib/interview/types";
 
 /**
  * Auth.js (NextAuth v5) core tables for the Drizzle adapter.
@@ -69,3 +75,33 @@ export const verificationTokens = pgTable(
     }),
   ],
 );
+
+/**
+ * Interview Session — server-authoritative state for the AI Agent Interview
+ * (PRD #13, slice #14). The client never holds or mutates scoring state
+ * (ADR-0009); every Turn is persisted here so a refresh can resume (ADR-0011).
+ *
+ * `profile` and `result` are placeholders in the walking-skeleton slice; real
+ * scoring fills them in later. `userId` is optional so the skeleton works for
+ * anonymous sessions (a session is resumed via an opaque cookie id), while
+ * leaving the door open to tie a Session to an account.
+ */
+export const interviewSessions = pgTable("interview_session", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("userId").references(() => users.id, { onDelete: "cascade" }),
+  status: text("status")
+    .$type<"in_progress" | "complete">()
+    .notNull()
+    .default("in_progress"),
+  // Running strength profile (placeholder this slice).
+  profile: jsonb("profile").$type<StrengthProfile>().notNull(),
+  // Completed Turns, oldest first.
+  turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
+  turnCount: integer("turnCount").notNull().default(0),
+  // Stub result, set once the flow completes.
+  result: jsonb("result").$type<StubResult>(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});
