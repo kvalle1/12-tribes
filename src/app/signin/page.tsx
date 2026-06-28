@@ -9,9 +9,16 @@ import { signIn } from "@/auth";
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string }>;
+  searchParams: Promise<{ sent?: string; callbackUrl?: string }>;
 }) {
-  const { sent } = await searchParams;
+  const { sent, callbackUrl } = await searchParams;
+
+  // Only honor relative, same-origin callback paths to avoid an open redirect;
+  // anything else falls back to the account page.
+  const redirectTo =
+    callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/account";
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -45,7 +52,7 @@ export default async function SignInPage({
               "use server";
               await signIn("resend", {
                 email: String(formData.get("email")),
-                redirectTo: "/account",
+                redirectTo,
               });
             }}
             className="mt-8 flex flex-col gap-3"
