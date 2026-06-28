@@ -191,7 +191,14 @@ function ScoreBar({
           {Math.round(scoreValue * 100)}%
         </span>
       </div>
-      <div className="mt-2 h-[7px] w-full overflow-hidden rounded-full bg-stone">
+      <div
+        className="mt-2 h-[7px] w-full overflow-hidden rounded-full bg-stone"
+        role="progressbar"
+        aria-label={`${name} fit`}
+        aria-valuenow={Math.round(scoreValue * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <div
           className="h-full rounded-full"
           style={{
