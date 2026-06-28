@@ -71,6 +71,15 @@ describe("buildRanking", () => {
     expect(ranked.every((r) => r.fraction === 0)).toBe(true);
   });
 
+  it("clamps the bar fill at zero, never negative", () => {
+    // Defensive: scoring never emits negatives today, but the 0–1 contract holds
+    // even if a future change did.
+    const scores = scoresFor({ levi: 0.6 });
+    scores.find((s) => s.slug === "judah")!.score = -0.3;
+    const ranked = buildRanking(scores, "levi");
+    expect(ranked.every((r) => r.fraction >= 0)).toBe(true);
+  });
+
   it("breaks score ties in canonical tribe order", () => {
     // Judah (#1) and Levi (#2) tie; canonical order puts Judah first.
     const ranked = buildRanking(scoresFor({ judah: 0.5, levi: 0.5 }), "judah");

@@ -65,7 +65,7 @@ export function buildRanking(
     name: s.name,
     color: tribeBySlug.get(s.slug)?.color ?? "",
     score: s.score,
-    fraction: max > 0 ? s.score / max : 0,
+    fraction: max > 0 ? Math.max(0, s.score / max) : 0,
     isPrimary: s.slug === primarySlug,
     isSecondary: secondarySlug != null && s.slug === secondarySlug,
   }));
