@@ -86,6 +86,36 @@ export const verificationTokens = pgTable(
  * anonymous sessions (a session is resumed via an opaque cookie id), while
  * leaving the door open to tie a Session to an account.
  */
+/**
+ * The Account's single current Self Assessment result (ADR-0004). One row per
+ * user — `userId` is the primary key, so retaking the assessment overwrites the
+ * previous result rather than accumulating history.
+ *
+ * Stores the Subject's selected `words` plus the computed result (the Primary
+ * and optional Secondary tribe slugs). The full 12-tribe ranking shown on the
+ * result page (issue #6) is recomputed from `words` by the pure scoring core, so
+ * `words` stays the source of truth and the derived ranking can never drift from
+ * it. `shareToken` is an opaque, unguessable id minted with the result; it backs
+ * the 360 observer link built in issue #8.
+ */
+export const assessmentResults = pgTable("assessment_result", {
+  userId: text("userId")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // The words the Subject selected, in selection order.
+  words: jsonb("words").$type<string[]>().notNull(),
+  // Computed headline result (slugs into `tribes`).
+  primarySlug: text("primarySlug").notNull(),
+  secondarySlug: text("secondarySlug"),
+  // Opaque shareable token backing the future 360 observer link (issue #8).
+  shareToken: text("shareToken")
+    .notNull()
+    .unique()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});
+
 export const interviewSessions = pgTable("interview_session", {
   id: text("id")
     .primaryKey()

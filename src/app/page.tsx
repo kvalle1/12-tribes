@@ -18,7 +18,7 @@ export default function Home() {
           </div>
           <div className="flex gap-7 text-[12px] uppercase tracking-[0.18em] text-muted">
             <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
-            <Link href="#twelve" className="transition-colors hover:text-ink">The Assessment</Link>
+            <Link href="/assessment" className="transition-colors hover:text-ink">The Assessment</Link>
             <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
             <AuthNav />
           </div>
@@ -49,7 +49,7 @@ export default function Home() {
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-[22px]">
             <Link
-              href="#twelve"
+              href="/assessment"
               className="rounded-[2px] bg-ink px-[34px] py-[15px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
             >
               Take the Assessment
