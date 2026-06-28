@@ -77,6 +77,36 @@ export const verificationTokens = pgTable(
 );
 
 /**
+ * The Account's single current Self-Assessment result (ADR-0004: one current
+ * result per Account, overwritten on retake — no history). Tied 1:1 to a user
+ * via the `userId` primary key, so retaking is a plain upsert.
+ *
+ * Only the selected `words` are stored: the tribe scores and Primary/Secondary
+ * are derived from them by the pure scoring core (`assessment/score`), which is
+ * deterministic, so `words` is the single source of truth and the derived
+ * result can never drift from it. The same recomputation powers the 360
+ * self-vs-others comparison later (#9).
+ *
+ * `token` is an opaque, unguessable handle minted once and kept stable across
+ * retakes, so the 360 observer share link (#8) survives a Subject retaking the
+ * assessment.
+ */
+export const selfAssessmentResults = pgTable("self_assessment_result", {
+  userId: text("userId")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // The words the Subject selected (the source of truth; result is derived).
+  words: jsonb("words").$type<string[]>().notNull(),
+  // Opaque shareable handle for the 360 observer link (#8); stable across retakes.
+  token: text("token")
+    .notNull()
+    .unique()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});
+
+/**
  * Interview Session — server-authoritative state for the AI Agent Interview
  * (PRD #13, slice #14). The client never holds or mutates scoring state
  * (ADR-0009); every Turn is persisted here so a refresh can resume (ADR-0011).
