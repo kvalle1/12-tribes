@@ -4,6 +4,7 @@ import { WORDS } from "./words";
 import {
   score,
   deriveResult,
+  rankScores,
   availablePointsByTribe,
   type TribeScore,
 } from "./score";
@@ -143,6 +144,40 @@ describe("deriveResult", () => {
     const result = deriveResult(tableFrom({ judah: 0.8, benjamin: 0.8 }));
     expect(result.primary.slug).toBe("judah");
     expect(result.secondary?.slug).toBe("benjamin");
+  });
+});
+
+describe("rankScores", () => {
+  it("orders all 12 tribes from highest to lowest score", () => {
+    const ranked = rankScores(tableFrom({ levi: 0.4, judah: 0.9, reuben: 0.6 }));
+    expect(ranked).toHaveLength(12);
+    expect(ranked.slice(0, 3).map((s) => s.slug)).toEqual([
+      "judah",
+      "reuben",
+      "levi",
+    ]);
+    for (let i = 1; i < ranked.length; i++) {
+      expect(ranked[i - 1].score).toBeGreaterThanOrEqual(ranked[i].score);
+    }
+  });
+
+  it("breaks ties by canonical tribe order (stable)", () => {
+    // judah (#1) and benjamin (#6) tie; judah comes first by canonical order.
+    const ranked = rankScores(tableFrom({ benjamin: 0.5, judah: 0.5 }));
+    expect(ranked[0].slug).toBe("judah");
+    expect(ranked[1].slug).toBe("benjamin");
+  });
+
+  it("does not mutate the input array", () => {
+    const input = tableFrom({ judah: 0.2, levi: 0.9 });
+    const before = input.map((s) => s.slug);
+    rankScores(input);
+    expect(input.map((s) => s.slug)).toEqual(before);
+  });
+
+  it("ranks a real selection with the Primary at the top", () => {
+    const ranked = rankScores(score(wordsForTribe("levi")));
+    expect(ranked[0].slug).toBe("levi");
   });
 });
 
