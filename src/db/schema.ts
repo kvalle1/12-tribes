@@ -12,6 +12,7 @@ import type {
   StrengthProfile,
   StubResult,
 } from "@/lib/interview/types";
+import type { DerivedResult } from "@/lib/assessment/score";
 
 /**
  * Auth.js (NextAuth v5) core tables for the Drizzle adapter.
@@ -102,6 +103,34 @@ export const interviewSessions = pgTable("interview_session", {
   turnCount: integer("turnCount").notNull().default(0),
   // Stub result, set once the flow completes.
   result: jsonb("result").$type<StubResult>(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});
+
+/**
+ * The Account's single current Self Assessment result (PRD #3, slice #5;
+ * ADR-0004: one current result, overwritten on retake — no history).
+ *
+ * Keyed by `userId` so each account has exactly one row; retaking the
+ * assessment upserts it. `words` is the selection the participant submitted
+ * (the source of truth — every tribe's score is recomputable from it), and
+ * `result` is the derived headline snapshot. `token` is an opaque shareable
+ * handle minted once and preserved across retakes; the 360 observer flow
+ * (issue #8) hangs anonymous observer responses off it.
+ */
+export const assessmentResults = pgTable("assessment_result", {
+  userId: text("userId")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // The submitted word selection — the source of truth for (re)scoring.
+  words: jsonb("words").$type<string[]>().notNull(),
+  // The derived headline result (Primary + optional Secondary).
+  result: jsonb("result").$type<DerivedResult>().notNull(),
+  // Opaque shareable handle, minted on first save and kept stable on retake.
+  token: text("token")
+    .notNull()
+    .unique()
+    .$defaultFn(() => crypto.randomUUID()),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });

@@ -15,6 +15,13 @@
       "when": 1781178053706,
       "tag": "0001_mean_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782621724759,
+      "tag": "0002_rare_maelstrom",
+      "breakpoints": true
     }
   ]
 }
