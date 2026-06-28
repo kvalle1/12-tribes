@@ -109,7 +109,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Confuses visibility and influence with significance, and fears becoming insignificant.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Asa leaning on political alliances instead of God late in life.",
+    exemplar: "Asa leaning on political alliances instead of God late in life.",
   },
   {
     id: "judah-fall-power",
@@ -117,7 +117,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Uses position and power to consume what belongs to others.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "David taking Bathsheba and arranging Uriah's death.",
+    exemplar: "David taking Bathsheba and arranging Uriah's death.",
   },
 
   // ── Levi · The Priest ─────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Slides into legalism and spiritual elitism, guarding access to God instead of having it.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Aaron caving to build the golden calf when the crowd got loud.",
+    exemplar: "Aaron caving to build the golden calf when the crowd got loud.",
   },
   {
     id: "levi-fall-gatekeep",
@@ -167,7 +167,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Wields Scripture as a weapon and gatekeeps access to God — religion without relationship.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "The Pharisees keeping the position after losing the presence.",
+    exemplar: "The Pharisees keeping the position after losing the presence.",
   },
 
   // ── Issachar · The Sage ───────────────────────────────────────────────────
@@ -209,7 +209,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Over-analyzes and demands every risk be eliminated before obeying.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Turning to astrology and trends to read the times once cut off from God.",
+    exemplar: "Turning to astrology and trends to read the times once cut off from God.",
   },
   {
     id: "issachar-fall-silence",
@@ -217,7 +217,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Sees and knows what to do but stays silent out of fear of being wrong.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "Paralysis from the fear of misdiagnosing the moment.",
+    exemplar: "Paralysis from the fear of misdiagnosing the moment.",
   },
 
   // ── Zebulun · The Merchant ────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Settles for half-obedience, stopping short in the very area of their gift.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Zebulun leaving Canaanites in the land instead of driving them all out.",
+    exemplar: "Zebulun leaving Canaanites in the land instead of driving them all out.",
   },
   {
     id: "zebulun-fall-greed",
@@ -267,7 +267,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Monetizes what should never have a price and measures everything by financial return.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "Demas loving the present world and abandoning the mission.",
+    exemplar: "Demas loving the present world and abandoning the mission.",
   },
 
   // ── Joseph · The Bull ─────────────────────────────────────────────────────
@@ -309,7 +309,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Turns pain into coldness, bitterness, cynicism, and held resentment.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Joseph's lingering coldness toward his brothers even after forgiving them.",
+    exemplar: "Joseph's lingering coldness toward his brothers even after forgiving them.",
   },
   {
     id: "joseph-fall-detach",
@@ -317,7 +317,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Cuts off from the source until resilience hardens into isolation and detachment.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "Manasseh's collapse into idolatry before his prison repentance.",
+    exemplar: "Manasseh's collapse into idolatry before his prison repentance.",
   },
 
   // ── Benjamin · The Wolf ───────────────────────────────────────────────────
@@ -359,7 +359,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Avoids looking weak at all costs and stays addicted to conflict even when no war was commissioned.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Saul's paranoid, self-made war against David.",
+    exemplar: "Saul's paranoid, self-made war against David.",
   },
   {
     id: "benjamin-fall-devour",
@@ -367,7 +367,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Turns on and devours the very people they were meant to protect.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "The Benjamites at Gibeah turning on their own people.",
+    exemplar: "The Benjamites at Gibeah turning on their own people.",
   },
 
   // ── Dan · The Serpent ─────────────────────────────────────────────────────
@@ -409,7 +409,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Trusts their own vigilance over God until discernment calcifies into cynicism.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Jeroboam's fear of deception building the architecture of deception.",
+    exemplar: "Jeroboam's fear of deception building the architecture of deception.",
   },
   {
     id: "dan-fall-idolatry",
@@ -417,7 +417,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Lets corrupted judgment harden into idolatry and self-deception.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "The serpent using discernment to sow doubt — \"Did God really say?\"",
+    exemplar: "The serpent using discernment to sow doubt — \"Did God really say?\"",
   },
 
   // ── Naphtali · The Deer ───────────────────────────────────────────────────
@@ -459,7 +459,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Avoids the very pain that qualifies them, fearing captivity and heaviness.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Miriam's criticism of Moses as the gift turns inward.",
+    exemplar: "Miriam's criticism of Moses as the gift turns inward.",
   },
   {
     id: "naphtali-fall-escapism",
@@ -467,7 +467,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Turns the gift of beauty inward into escapism and self-display.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "Running away from pain rather than carrying others out of it.",
+    exemplar: "Running away from pain rather than carrying others out of it.",
   },
 
   // ── Asher · The Olive Tree ────────────────────────────────────────────────
@@ -509,7 +509,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Sinks into comfort, passivity, and people-pleasing that mainly serves their own ease.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Martha's anxious over-function missing the one thing needed.",
+    exemplar: "Martha's anxious over-function missing the one thing needed.",
   },
   {
     id: "asher-fall-enabler",
@@ -517,7 +517,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Avoids friction at all costs until the peacemaker becomes an enabler.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "Abigail bound to Nabal's dysfunction.",
+    exemplar: "Abigail bound to Nabal's dysfunction.",
   },
 
   // ── Gad · The Raider ──────────────────────────────────────────────────────
@@ -559,7 +559,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Driven by a fear of collapse and overwhelm despite being built to endure.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Treating rest as betrayal rather than survival.",
+    exemplar: "Treating rest as betrayal rather than survival.",
   },
   {
     id: "gad-fall-burnout",
@@ -567,7 +567,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Pushes past every limit because stopping feels like letting people down, until burnout forces collapse.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "Elijah's \"I have had enough, Lord\" under the juniper tree.",
+    exemplar: "Elijah's \"I have had enough, Lord\" under the juniper tree.",
   },
 
   // ── Reuben · The Firstborn ────────────────────────────────────────────────
@@ -609,7 +609,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Unstable and impulsive, giving away authority through a lack of restraint.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "Early Saul's overzealous, impulsive decisions.",
+    exemplar: "Early Saul's overzealous, impulsive decisions.",
   },
   {
     id: "reuben-fall-immorality",
@@ -617,7 +617,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Forfeits the blessing — the most to gain — through the appetite they could not contain.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "Samson's maximum potential lost to having zero container.",
+    exemplar: "Samson's maximum potential lost to having zero container.",
   },
 
   // ── Simeon · The Blade ────────────────────────────────────────────────────
@@ -659,7 +659,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "shadow",
     signal: "Holds conviction with zero mercy, grasping the rules of God but not His intent.",
     weight: WEIGHT_BY_TYPE.shadow,
-    counterExemplar: "The Pharisees' passionate conviction without compassion.",
+    exemplar: "The Pharisees' passionate conviction without compassion.",
   },
   {
     id: "simeon-fall-cruelty",
@@ -667,7 +667,7 @@ export const markerCatalog: readonly Marker[] = [
     type: "fallLine",
     signal: "Lets conviction curdle into cruelty, even premeditated deception to enable it.",
     weight: WEIGHT_BY_TYPE.fallLine,
-    counterExemplar: "The Shechem massacre — deception followed by violence.",
+    exemplar: "The Shechem massacre — deception followed by violence.",
   },
 ];
 
@@ -704,7 +704,7 @@ export function validateMarkerCatalog(
     }
     seenIds.add(marker.id);
 
-    if (!marker.signal) {
+    if (!marker.signal || !marker.signal.trim()) {
       throw new MarkerCatalogError(`Marker ${marker.id} has an empty signal.`);
     }
     if (!MARKER_TYPES.includes(marker.type)) {

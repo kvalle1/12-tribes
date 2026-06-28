@@ -113,6 +113,13 @@ describe("validateMarkerCatalog", () => {
     expect(() => validateMarkerCatalog(broken)).toThrow(/signal/i);
   });
 
+  it("throws on a marker with a whitespace-only signal", () => {
+    const broken: Marker[] = markerCatalog.map((m, i) =>
+      i === 0 ? { ...m, signal: "   " } : m,
+    );
+    expect(() => validateMarkerCatalog(broken)).toThrow(/signal/i);
+  });
+
   it("respects an explicit coverage tolerance", () => {
     const broken = markerCatalog.slice(1); // spread of 1
     expect(() => validateMarkerCatalog(broken, undefined, 1)).not.toThrow();
