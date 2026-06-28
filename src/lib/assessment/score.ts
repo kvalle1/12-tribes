@@ -121,9 +121,9 @@ export function rankScores(scores: TribeScore[]): TribeScore[] {
  * one.
  */
 export function deriveResult(scores: TribeScore[]): DerivedResult {
-  // Stable sort by score desc; ties keep the input's canonical order.
-  const ranked = [...scores].sort((a, b) => b.score - a.score);
-  const [primary, secondary, third] = ranked;
+  // Reuse the display ranking so the headline and the bar chart can never
+  // disagree on order (ties keep canonical tribe order via the stable sort).
+  const [primary, secondary, third] = rankScores(scores);
 
   if (!secondary || secondary.score === 0) {
     return { primary };
