@@ -33,4 +33,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/signin",
     verifyRequest: "/signin?sent=1",
   },
+  callbacks: {
+    // With the database strategy the second arg is the adapter user (incl. id).
+    // Expose the id on the session so server code can key the Account's current
+    // result to it (ADR-0004).
+    session({ session, user }) {
+      if (session.user) session.user.id = user.id;
+      return session;
+    },
+  },
 });

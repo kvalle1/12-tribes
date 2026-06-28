@@ -9,9 +9,18 @@ import { signIn } from "@/auth";
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string }>;
+  searchParams: Promise<{ sent?: string; callbackUrl?: string }>;
 }) {
-  const { sent } = await searchParams;
+  const { sent, callbackUrl } = await searchParams;
+
+  // Where to land after the magic link is clicked. Only same-site relative paths
+  // are honored (no open redirects); anything else falls back to /account. The
+  // leading `/` must not be followed by `/` or `\` — both can be normalized by
+  // browsers into a protocol-relative ("//evil.com") off-site redirect. Auth.js
+  // re-validates `redirectTo` against its trusted origins too; this is defense in
+  // depth.
+  const redirectTo =
+    callbackUrl && /^\/(?![/\\])/.test(callbackUrl) ? callbackUrl : "/account";
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -45,7 +54,7 @@ export default async function SignInPage({
               "use server";
               await signIn("resend", {
                 email: String(formData.get("email")),
-                redirectTo: "/account",
+                redirectTo,
               });
             }}
             className="mt-8 flex flex-col gap-3"

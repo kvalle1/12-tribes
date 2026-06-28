@@ -1,4 +1,10 @@
+import "server-only";
 import { tribes } from "@/lib/tribes";
+
+// Selection constants live in the client-safe `constants.ts` so a client
+// component can read them without importing this mapping-bearing module; we
+// re-export them here for server-side callers that already import from `words`.
+export { MIN_WORDS, MAX_WORDS, isWithinSelectionRange } from "./constants";
 
 /**
  * The flat word-selection list for the Tribe Index assessment, transcribed from
@@ -25,18 +31,6 @@ export interface AssessmentWord {
   /** Tribe slugs this word maps to (1–3). */
   readonly tribes: readonly string[];
 }
-
-/**
- * Selection constraints for how many words a participant picks.
- *
- * PRODUCT DECISION — not transcribed from `ASSESSMENT_DESIGN.md`, which
- * specifies no selection count. These bounds gate submission (too few words
- * yields a noisy result; too many flattens the signal). They live here as the
- * single source of truth for the selection UI and the submission guard, and are
- * intended to be tuned with real data.
- */
-export const MIN_WORDS = 8;
-export const MAX_WORDS = 15;
 
 export const WORDS: readonly AssessmentWord[] = [
   { word: "Aggressive", tribes: ["benjamin"] },
