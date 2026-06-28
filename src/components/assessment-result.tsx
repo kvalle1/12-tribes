@@ -97,10 +97,12 @@ export function AssessmentResult({
               <li key={tribe.slug}>
                 <Link
                   href={`/tribes/${tribe.slug}`}
+                  aria-label={`${tribe.name}: ${percent}% — read the full profile`}
                   className="group grid grid-cols-[110px_1fr_42px] items-center gap-4 transition-opacity hover:opacity-100"
                   style={{ opacity: emphasized ? 1 : 0.78 }}
                 >
                   <span
+                    aria-hidden="true"
                     className={`font-serif text-[16px] leading-tight ${
                       emphasized ? "font-semibold" : "text-muted"
                     }`}
@@ -108,7 +110,11 @@ export function AssessmentResult({
                   >
                     {tribe.name}
                   </span>
-                  <span className="relative h-[7px] rounded-full bg-stone">
+                  {/* Decorative score bar; the percent is conveyed by aria-label. */}
+                  <span
+                    aria-hidden="true"
+                    className="relative h-[7px] rounded-full bg-stone"
+                  >
                     <span
                       className="absolute inset-y-0 left-0 rounded-full transition-[width]"
                       style={{
@@ -118,7 +124,10 @@ export function AssessmentResult({
                       }}
                     />
                   </span>
-                  <span className="text-right text-[12px] tabular-nums text-faint">
+                  <span
+                    aria-hidden="true"
+                    className="text-right text-[12px] tabular-nums text-faint"
+                  >
                     {percent}%
                   </span>
                 </Link>
