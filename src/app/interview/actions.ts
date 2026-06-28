@@ -3,7 +3,6 @@
 import { redirect } from "next/navigation";
 import {
   createInterviewSession,
-  getInterviewSession,
   recordInterviewAnswer,
 } from "@/lib/interview/repository";
 import {
@@ -36,15 +35,4 @@ export async function submitAnswer(formData: FormData): Promise<void> {
   if (!updated) redirect("/interview");
 
   redirect(updated.status === "complete" ? "/interview/result" : "/interview");
-}
-
-/**
- * Resolve the current Session from the cookie, or null when there isn't one
- * (or the cookie points at a Session that no longer exists). Read by the
- * Interview pages to decide what to render — the basis for resume.
- */
-export async function currentSession() {
-  const id = await getSessionCookie();
-  if (!id) return null;
-  return getInterviewSession(id);
 }

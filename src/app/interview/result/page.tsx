@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { stubResult } from "@/lib/interview/flow";
-import { currentSession } from "../actions";
+import { currentSession } from "@/lib/interview/session";
+import { startInterview } from "../actions";
 
 /**
  * Stub result page for the walking-skeleton slice. Real scoring (Strength
@@ -49,6 +50,21 @@ export default async function InterviewResultPage() {
             {session.turnCount === 1 ? "question" : "questions"}.
           </p>
         </div>
+
+        {/*
+          A completed Session otherwise dead-ends here: /interview redirects a
+          complete Session straight back to this page, so the start screen is
+          unreachable. This starts a fresh Session (overwriting the cookie) so
+          the participant can go again.
+        */}
+        <form action={startInterview} className="mt-8">
+          <button
+            type="submit"
+            className="rounded-[2px] bg-ink px-[34px] py-[14px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+          >
+            Start a new interview
+          </button>
+        </form>
       </div>
     </main>
   );

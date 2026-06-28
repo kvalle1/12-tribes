@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { nextTurn } from "@/lib/interview/flow";
-import { currentSession, startInterview, submitAnswer } from "./actions";
+import { currentSession } from "@/lib/interview/session";
+import { startInterview, submitAnswer } from "./actions";
 
 /**
  * Interview hub. The view is derived purely from the server-side Session, so a
