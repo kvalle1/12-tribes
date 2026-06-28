@@ -97,6 +97,31 @@ export function score(selectedWords: readonly string[]): TribeScore[] {
   });
 }
 
+export interface RankedTribeScore extends TribeScore {
+  /**
+   * Bar width as a 0–1 fraction of the top-scoring tribe's score, so the
+   * leader fills the bar and the rest stay proportional to it. Ratios between
+   * bars equal the ratios between normalized scores. 0 for every tribe when
+   * nothing scored (no divide-by-zero).
+   */
+  barFraction: number;
+}
+
+/**
+ * Rank a set of tribe scores highest-first for the result view's proportional
+ * bars (issue #6). Ranking ties keep canonical (tribe `number`) order — the same
+ * stable ordering `deriveResult` uses — so the Primary always heads the list.
+ * Pure: takes scores and returns a view model, no DB or content lookups.
+ */
+export function rankForDisplay(scores: TribeScore[]): RankedTribeScore[] {
+  const ranked = [...scores].sort((a, b) => b.score - a.score);
+  const max = ranked.length > 0 ? ranked[0].score : 0;
+  return ranked.map((s) => ({
+    ...s,
+    barFraction: max > 0 ? s.score / max : 0,
+  }));
+}
+
 /**
  * Derive the headline result from a set of tribe scores. Always returns a
  * Primary (the highest score). Returns a Secondary only when it both scores near

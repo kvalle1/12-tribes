@@ -4,6 +4,7 @@ import { WORDS } from "./words";
 import {
   score,
   deriveResult,
+  rankForDisplay,
   availablePointsByTribe,
   type TribeScore,
 } from "./score";
@@ -143,6 +144,44 @@ describe("deriveResult", () => {
     const result = deriveResult(tableFrom({ judah: 0.8, benjamin: 0.8 }));
     expect(result.primary.slug).toBe("judah");
     expect(result.secondary?.slug).toBe("benjamin");
+  });
+});
+
+describe("rankForDisplay", () => {
+  it("returns all 12 tribes sorted by score descending", () => {
+    const ranked = rankForDisplay(
+      tableFrom({ levi: 0.2, judah: 0.9, reuben: 0.5 }),
+    );
+    expect(ranked).toHaveLength(12);
+    const scores = ranked.map((r) => r.score);
+    expect(scores).toEqual([...scores].sort((a, b) => b - a));
+    expect(ranked[0].slug).toBe("judah");
+  });
+
+  it("gives the top tribe a full bar and others a proportional fraction", () => {
+    const ranked = rankForDisplay(tableFrom({ judah: 0.8, reuben: 0.4 }));
+    expect(ranked[0].barFraction).toBeCloseTo(1);
+    // reuben at half of judah's score → half-width bar.
+    const reuben = ranked.find((r) => r.slug === "reuben")!;
+    expect(reuben.barFraction).toBeCloseTo(0.5);
+  });
+
+  it("preserves the normalized score alongside the bar fraction", () => {
+    const ranked = rankForDisplay(tableFrom({ judah: 0.8, reuben: 0.4 }));
+    expect(ranked[0].score).toBeCloseTo(0.8);
+  });
+
+  it("yields all-zero bar fractions for an empty score table (no divide by zero)", () => {
+    const ranked = rankForDisplay(tableFrom({}));
+    expect(ranked).toHaveLength(12);
+    expect(ranked.every((r) => r.barFraction === 0)).toBe(true);
+  });
+
+  it("breaks ties by canonical tribe order (matches deriveResult)", () => {
+    // judah (#1) and benjamin (#6) tie; judah ranks first by canonical order.
+    const ranked = rankForDisplay(tableFrom({ judah: 0.8, benjamin: 0.8 }));
+    const tied = ranked.filter((r) => r.score === 0.8).map((r) => r.slug);
+    expect(tied).toEqual(["judah", "benjamin"]);
   });
 });
 
