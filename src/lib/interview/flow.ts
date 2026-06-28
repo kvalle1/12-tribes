@@ -1,41 +1,27 @@
 import { tribes } from "@/lib/tribes";
+import { applyDeltas, derivePrimarySlug, normalizeProfile, type MarkerLookup } from "./scoring";
 import type {
+  InterviewResult,
   InterviewState,
-  InterviewTurn,
   NextTurn,
+  ScoreDelta,
   StrengthProfile,
-  StubResult,
 } from "./types";
 
 /**
- * Pure Interview flow logic for the walking-skeleton slice (issue #14).
+ * Pure Interview flow logic (PRD #13).
  *
- * No LLM and no real scoring yet: the questions are hardcoded and the result is
- * a placeholder. This module is the testable seam — given a Session's state it
- * decides what to show next and how to fold in a new answer — so the end-to-end
- * UI → server → persistence path can be proven before any model is wired in.
+ * The questions are now LLM-produced and answers are scored against the Marker
+ * Catalog (slice #16) — but this module stays pure: the agent call and the
+ * catalog live in `agent`/`markers`, and the deltas they produce are *injected*
+ * here. This keeps "what to show next" and "how to fold an answer in" a testable
+ * seam, free of the LLM and DB.
  *
- * Later slices replace the hardcoded question list and stub result with the
- * Funnel planner, Marker scoring, and Confidence/Stop evaluator (ADRs 0005/0006).
+ * This slice scores a single open-ended Turn and then completes; the multi-Turn
+ * loop and Confidence/Stop evaluator arrive in slice #17.
  */
 
-/**
- * The hardcoded questions for this slice. A single open-ended Turn is enough to
- * prove the loop; keeping it an array means later slices generalize the flow
- * without changing its shape.
- */
-export const QUESTIONS: readonly string[] = [
-  "To begin, tell me about a recent time you felt most like yourself. What were you doing, and what made it feel right?",
-];
-
-export const TOTAL_QUESTIONS = QUESTIONS.length;
-
-const STUB_RESULT: StubResult = {
-  headline: "Your interview is complete.",
-  note: "Scoring isn't wired in yet — this is a placeholder result. A future slice will read your answers and report your tribe.",
-};
-
-/** A fresh, zeroed strength profile covering all 12 tribes (placeholder this slice). */
+/** A fresh, zeroed Strength Profile covering all 12 tribes, keyed by slug. */
 export function emptyProfile(): StrengthProfile {
   const profile: StrengthProfile = {};
   for (const tribe of tribes) {
@@ -44,54 +30,83 @@ export function emptyProfile(): StrengthProfile {
   return profile;
 }
 
-/** The initial server-authoritative state for a newly created Session. */
-export function initialState(): InterviewState {
-  return { status: "in_progress", turns: [], profile: emptyProfile() };
+/**
+ * The initial server-authoritative state for a newly created Session. The
+ * opening question is LLM-produced, so it is passed in and parked as the pending
+ * question; a refresh re-derives the same question from this persisted state.
+ */
+export function initialState(openingQuestion: string): InterviewState {
+  return {
+    status: "in_progress",
+    turns: [],
+    profile: emptyProfile(),
+    trace: [],
+    pendingQuestion: openingQuestion,
+  };
 }
 
 /**
  * Decide what to show the participant next, derived purely from current state.
- * This is what makes the flow resumable: a reload re-derives the right view
- * from the persisted Session rather than trusting anything held on the client.
+ * This is what makes the flow resumable: a reload re-derives the right view from
+ * the persisted Session rather than trusting anything held on the client.
  */
 export function nextTurn(state: InterviewState): NextTurn {
-  if (state.status === "complete" || state.turns.length >= TOTAL_QUESTIONS) {
+  if (state.status === "complete") {
     return { kind: "result" };
   }
+  if (state.pendingQuestion) {
+    return {
+      kind: "question",
+      prompt: state.pendingQuestion,
+      questionNumber: state.turns.length + 1,
+    };
+  }
+  // In progress but no pending question is a degenerate state (a Session is
+  // always created with an opening question); treat it as needing to restart.
+  return { kind: "result" };
+}
+
+/**
+ * Fold a free-text answer and the Markers the agent cited for it into the state,
+ * returning a new state (no mutation). Records the Turn against the question
+ * that was pending, applies the cited deltas to the Strength Profile via the
+ * pure scoring engine, appends to the trace, and — in this single-Turn slice —
+ * marks the Session complete. A completed Session ignores further answers.
+ */
+export function recordScoredAnswer(
+  state: InterviewState,
+  answer: string,
+  deltas: readonly ScoreDelta[],
+  lookup: MarkerLookup,
+): InterviewState {
+  if (state.status === "complete" || !state.pendingQuestion) {
+    return state;
+  }
+
+  const turnIndex = state.turns.length;
+  const { profile, entries } = applyDeltas(state.profile, deltas, {
+    turnIndex,
+    lookup,
+  });
+
   return {
-    kind: "question",
-    prompt: QUESTIONS[state.turns.length],
-    questionNumber: state.turns.length + 1,
-    totalQuestions: TOTAL_QUESTIONS,
+    status: "complete",
+    turns: [...state.turns, { question: state.pendingQuestion, answer }],
+    profile,
+    trace: [...state.trace, ...entries],
+    pendingQuestion: null,
   };
 }
 
 /**
- * Fold a free-text answer into the state, returning a new state (no mutation).
- * Records the Turn against the question that was actually being asked and marks
- * the Session complete once the (single, in this slice) question is answered.
+ * The Interview result for a completed Session: the normalized Strength Profile
+ * (display percentages, ADR-0002) plus the Primary tribe. Throws if asked before
+ * completion.
  */
-export function appendAnswer(state: InterviewState, answer: string): InterviewState {
-  if (state.status === "complete" || state.turns.length >= TOTAL_QUESTIONS) {
-    // Already done — answering again is a no-op rather than corrupting history.
-    return state;
-  }
-
-  const turn: InterviewTurn = {
-    question: QUESTIONS[state.turns.length],
-    answer,
-  };
-  const turns = [...state.turns, turn];
-  const status: InterviewState["status"] =
-    turns.length >= TOTAL_QUESTIONS ? "complete" : "in_progress";
-
-  return { ...state, turns, status };
-}
-
-/** The stub result for a completed Session. Throws if asked before completion. */
-export function stubResult(state: InterviewState): StubResult {
+export function deriveResult(state: InterviewState): InterviewResult {
   if (state.status !== "complete") {
     throw new Error("Result requested for an Interview that is not complete.");
   }
-  return STUB_RESULT;
+  const primarySlug = derivePrimarySlug(state.profile) ?? tribes[0].slug;
+  return { primarySlug, normalized: normalizeProfile(state.profile) };
 }

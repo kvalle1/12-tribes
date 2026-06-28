@@ -27,6 +27,8 @@ export default async function InterviewPage() {
         status: session.status,
         turns: session.turns,
         profile: session.profile,
+        trace: session.trace,
+        pendingQuestion: session.pendingQuestion,
       })
     : null;
 
@@ -62,7 +64,7 @@ export default async function InterviewPage() {
         ) : (
           <>
             <div className="mt-8 text-[11px] uppercase tracking-[0.16em] text-faint">
-              Question {turn.questionNumber} of {turn.totalQuestions}
+              Question {turn.questionNumber}
             </div>
             <p className="mt-4 font-serif text-[22px] leading-[1.4]">
               {turn.prompt}

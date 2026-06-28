@@ -31,8 +31,30 @@ export async function submitAnswer(formData: FormData): Promise<void> {
   const answer = String(formData.get("answer") ?? "").trim();
   if (!answer) redirect("/interview");
 
-  const updated = await recordInterviewAnswer(id, answer);
-  if (!updated) redirect("/interview");
+  // Scoring calls the LLM and can fail (e.g. a transient API error). Recording
+  // throws back to the hub rather than to an error page, leaving the Session
+  // in progress on the same question so the participant can retry. The redirect
+  // itself throws internally, so it runs outside the try.
+  let complete = false;
+  try {
+    const updated = await recordInterviewAnswer(id, answer);
+    if (!updated) redirect("/interview");
+    complete = updated.status === "complete";
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    redirect("/interview");
+  }
 
-  redirect(updated.status === "complete" ? "/interview/result" : "/interview");
+  redirect(complete ? "/interview/result" : "/interview");
+}
+
+/** Next.js signals a redirect by throwing; let those propagate, swallow the rest. */
+function isRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
 }
