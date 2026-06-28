@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { MAX_WORDS, MIN_WORDS } from "@/lib/assessment/words";
-import { isWithinSelectionRange } from "@/lib/assessment/selection";
+import {
+  MAX_WORDS,
+  MIN_WORDS,
+  isWithinSelectionRange,
+} from "@/lib/assessment/constants";
 import { cn } from "@/lib/utils";
 import { submitAssessment } from "./actions";
 

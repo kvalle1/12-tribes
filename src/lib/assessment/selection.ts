@@ -1,22 +1,15 @@
-import { MAX_WORDS, MIN_WORDS, WORDS } from "./words";
+import "server-only";
+import { WORDS } from "./words";
 
 /**
- * Pure helpers for presenting the word list and gating submission. Kept separate
- * from the scoring core (`score.ts`) and the word data (`words.ts`) so the
- * selection UI and the server-side submission guard share one source of truth
- * and can be unit-tested without React, the DB, or auth.
+ * Server-only helpers for presenting the word list. `shuffledWordList` reads the
+ * mapping-bearing `WORDS` array, so this module must never reach the client
+ * (ADR-0009) — the client gets the already-shuffled plain strings as props. The
+ * client-safe submission gate lives in `constants.ts` and is re-exported here
+ * for server-side callers that already import from `selection`.
  */
 
-/**
- * Whether a selection of `count` words may be submitted. The Subject must pick
- * within the soft range (`MIN_WORDS`–`MAX_WORDS`): too few yields a noisy result,
- * too many flattens the signal. The same gate is applied client-side (to enable
- * the submit button) and server-side (to reject out-of-range submissions), so it
- * lives here once.
- */
-export function isWithinSelectionRange(count: number): boolean {
-  return count >= MIN_WORDS && count <= MAX_WORDS;
-}
+export { isWithinSelectionRange } from "./constants";
 
 /**
  * Fisher–Yates shuffle returning a new array; the input is never mutated. The

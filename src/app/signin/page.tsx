@@ -14,11 +14,13 @@ export default async function SignInPage({
   const { sent, callbackUrl } = await searchParams;
 
   // Where to land after the magic link is clicked. Only same-site relative paths
-  // are honored (no open redirects); anything else falls back to /account.
+  // are honored (no open redirects); anything else falls back to /account. The
+  // leading `/` must not be followed by `/` or `\` — both can be normalized by
+  // browsers into a protocol-relative ("//evil.com") off-site redirect. Auth.js
+  // re-validates `redirectTo` against its trusted origins too; this is defense in
+  // depth.
   const redirectTo =
-    callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
-      ? callbackUrl
-      : "/account";
+    callbackUrl && /^\/(?![/\\])/.test(callbackUrl) ? callbackUrl : "/account";
 
   return (
     <main className="min-h-screen bg-bone text-ink">
