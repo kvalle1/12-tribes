@@ -42,7 +42,10 @@ export async function submitAnswer(formData: FormData): Promise<void> {
     complete = updated.status === "complete";
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    redirect("/interview");
+    // Scoring failed (e.g. the LLM call errored). Bounce back to the same
+    // question with a flag so the hub can tell the participant to retry,
+    // rather than silently re-showing the question with no feedback.
+    redirect("/interview?error=score");
   }
 
   redirect(complete ? "/interview/result" : "/interview");
