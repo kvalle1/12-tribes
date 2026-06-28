@@ -98,6 +98,17 @@ export function score(selectedWords: readonly string[]): TribeScore[] {
 }
 
 /**
+ * Rank scores highest-first for display (the 12-tribe bars on the result page,
+ * issue #6). The sort is stable, so tribes with equal scores keep their canonical
+ * (tribe `number`) input order — the same tie rule `deriveResult` uses, so the
+ * bar chart and the headline can never disagree on which tribe leads. The input
+ * array is not mutated.
+ */
+export function rankScores(scores: TribeScore[]): TribeScore[] {
+  return [...scores].sort((a, b) => b.score - a.score);
+}
+
+/**
  * Derive the headline result from a set of tribe scores. Always returns a
  * Primary (the highest score). Returns a Secondary only when it both scores near
  * the Primary AND is clearly ahead of the third tribe — otherwise the result is

@@ -4,6 +4,7 @@ import { WORDS } from "./words";
 import {
   score,
   deriveResult,
+  rankScores,
   availablePointsByTribe,
   type TribeScore,
 } from "./score";
@@ -143,6 +144,39 @@ describe("deriveResult", () => {
     const result = deriveResult(tableFrom({ judah: 0.8, benjamin: 0.8 }));
     expect(result.primary.slug).toBe("judah");
     expect(result.secondary?.slug).toBe("benjamin");
+  });
+});
+
+describe("rankScores", () => {
+  it("orders all 12 tribes highest score first", () => {
+    const ranked = rankScores(tableFrom({ levi: 0.4, judah: 0.9, reuben: 0.6 }));
+    expect(ranked).toHaveLength(12);
+    expect(ranked.slice(0, 3).map((s) => s.slug)).toEqual([
+      "judah",
+      "reuben",
+      "levi",
+    ]);
+  });
+
+  it("breaks ties by canonical tribe order, matching deriveResult", () => {
+    // judah (#1) and benjamin (#6) tie; judah ranks first, as deriveResult picks
+    // it for Primary — the bars and the headline must never disagree.
+    const ranked = rankScores(tableFrom({ benjamin: 0.7, judah: 0.7 }));
+    const judahIdx = ranked.findIndex((s) => s.slug === "judah");
+    const benjaminIdx = ranked.findIndex((s) => s.slug === "benjamin");
+    expect(judahIdx).toBeLessThan(benjaminIdx);
+  });
+
+  it("leaves the input array untouched (returns a copy)", () => {
+    const input = tableFrom({ levi: 0.2, judah: 0.9 });
+    const before = input.map((s) => s.slug);
+    rankScores(input);
+    expect(input.map((s) => s.slug)).toEqual(before);
+  });
+
+  it("agrees with deriveResult on the Primary", () => {
+    const scores = score([...wordsForTribe("levi"), "Courageous"]);
+    expect(rankScores(scores)[0].slug).toBe(deriveResult(scores).primary.slug);
   });
 });
 

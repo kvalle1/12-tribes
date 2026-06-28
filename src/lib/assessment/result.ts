@@ -10,6 +10,12 @@ export interface ResultHeadline {
   secondary?: Tribe;
 }
 
+/** A scored tribe with its full `Tribe` object attached, ready to render. */
+export interface RankedTribe {
+  tribe: Tribe;
+  score: number;
+}
+
 const tribeBySlug = new Map(tribes.map((t) => [t.slug, t]));
 
 export function resolveHeadline(
@@ -24,4 +30,22 @@ export function resolveHeadline(
     ? tribeBySlug.get(secondarySlug)
     : undefined;
   return { primary, secondary };
+}
+
+/**
+ * Attach the full `Tribe` object to each scored slug for rendering the 12-tribe
+ * ranking bars (issue #6), preserving the input order so a pre-ranked list stays
+ * ranked. Pure and client-safe — it resolves against the `tribes` source of
+ * truth and does no scoring (the scoring core stays server-only). Throws on an
+ * unknown slug so a stale stored result surfaces loudly rather than rendering a
+ * gap.
+ */
+export function resolveRanked(
+  scores: readonly { slug: string; score: number }[],
+): RankedTribe[] {
+  return scores.map(({ slug, score }) => {
+    const tribe = tribeBySlug.get(slug);
+    if (!tribe) throw new Error(`Unknown tribe slug "${slug}"`);
+    return { tribe, score };
+  });
 }
