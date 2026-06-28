@@ -194,11 +194,11 @@ _Avoid_: reviewer, rater, respondent
 ### Scoring
 
 **Word**:
-An adjective on the flat selection list. Each Word maps to one or two Tribes. The list is presented unlabeled and in random order.
+An adjective on the flat selection list. Each Word maps to one to three Tribes (all but one map to one or two; "Zealous" maps to three). The list is presented unlabeled and in random order.
 _Avoid_: trait, attribute, adjective (in code)
 
 **Shared word**:
-A Word mapped to two Tribes. Contributes half weight (0.5) to each rather than full weight (1.0) to one.
+A Word mapped to more than one Tribe. Contributes 1/N weight to each of its N Tribes (0.5 each for a two-Tribe word, 1/3 each for the three-Tribe word) rather than full weight (1.0) to one — conserving exactly one point per Word. See ADR-0001.
 _Avoid_: split word, dual word
 
 **Tribe score**:
