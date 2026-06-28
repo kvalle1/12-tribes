@@ -14,10 +14,14 @@ export default async function SignInPage({
   const { sent, callbackUrl } = await searchParams;
 
   // Where the magic link lands after sign-in. Only allow same-site relative
-  // paths (no protocol-relative "//host") to avoid an open-redirect; default to
-  // the account page when no valid callback is given.
+  // paths to avoid an open-redirect: it must start with a single "/", and must
+  // contain no backslash (browsers normalize "/\\evil.com" to a "//evil.com"
+  // protocol-relative URL). Default to the account page otherwise.
   const redirectTo =
-    callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+    callbackUrl &&
+    callbackUrl.startsWith("/") &&
+    !callbackUrl.startsWith("//") &&
+    !callbackUrl.includes("\\")
       ? callbackUrl
       : "/account";
 
