@@ -6,20 +6,20 @@ import { resolveHeadline } from "@/lib/assessment/result";
 import { ResultView } from "@/components/result-view";
 
 /**
- * The Subject's saved current result (ADR-0004). Login-gated; an unauthenticated
- * visitor is routed through sign-in, and a signed-in user who hasn't taken the
- * assessment is sent to start it.
+ * The Subject's profile — a stable place that represents their tribe (PRD story
+ * 17, ADR-0004). It shows the Account's single current result via the shared
+ * `ResultView`, so it renders identically to the post-submit `/assessment/result`
+ * page.
  *
- * This slice shows the headline only — the Primary (and Secondary when one
- * qualifies) with call sign, essence, and Hebrew. The 12-tribe ranking bars,
- * the selected words, and the profile links are added in the next slice (#6).
- * The rendering lives in the shared `ResultView` so this page and the profile
- * page (#18) stay identical.
+ * Login-gated: a signed-out visitor is routed through magic-link sign-in and
+ * returned here. A signed-in user who hasn't taken the assessment is sent to
+ * start it (the home-page "View your results" entry only appears once a result
+ * exists, so this is the rare direct-navigation case).
  */
-export default async function AssessmentResultPage() {
+export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/result")}`);
+    redirect(`/signin?callbackUrl=${encodeURIComponent("/profile")}`);
   }
 
   const row = await getCurrentResult(session.user.id);
