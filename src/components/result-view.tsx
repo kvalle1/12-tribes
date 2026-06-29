@@ -1,7 +1,11 @@
 import Link from "next/link";
 import type { Tribe } from "@/lib/tribes";
 import { score } from "@/lib/assessment/score";
-import { buildRanking, resolveHeadline } from "@/lib/assessment/result";
+import {
+  buildRanking,
+  resolveHeadline,
+  type RankedTribe,
+} from "@/lib/assessment/result";
 
 /**
  * The enriched Self Assessment result view (#6): the Primary (and Secondary when
@@ -148,7 +152,7 @@ function RankingBar({
   entry,
   highlighted,
 }: {
-  entry: { tribe: Tribe; percent: number };
+  entry: Pick<RankedTribe, "tribe" | "percent">;
   highlighted: boolean;
 }) {
   const { tribe, percent } = entry;
