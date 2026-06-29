@@ -1,23 +1,14 @@
 import Link from "next/link";
-import { tribes } from "@/lib/tribes";
+import { tribes, accentHex } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
-import { auth } from "@/auth";
-import { getCurrentResult } from "@/lib/assessment/repository";
+import { ViewResultsLink } from "@/components/view-results-link";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default async function Home() {
-  // Surface a "View your results" entry only for a signed-in user who has a
-  // saved result (#18). Signed-out visitors do no DB work — the common path for
-  // a public home page — and the entry stays hidden until the assessment is taken.
-  const session = await auth();
-  const hasResult = session?.user?.id
-    ? Boolean(await getCurrentResult(session.user.id))
-    : false;
-
+export default function Home() {
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -70,14 +61,7 @@ export default async function Home() {
             >
               Explore the tribes
             </Link>
-            {hasResult && (
-              <Link
-                href="/profile"
-                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
-              >
-                View your results
-              </Link>
-            )}
+            <ViewResultsLink />
           </div>
         </div>
       </header>
@@ -159,23 +143,4 @@ export default async function Home() {
       </footer>
     </main>
   );
-}
-
-/** Maps a tribe's Tailwind color name to the accent hex used for the row bar + initial. */
-function accentHex(color: string): string {
-  const map: Record<string, string> = {
-    amber: "#b8860b",
-    violet: "#7c5cbf",
-    blue: "#2f6fb0",
-    emerald: "#2f8f63",
-    orange: "#c2691f",
-    red: "#b23535",
-    slate: "#6b7280",
-    cyan: "#1f97aa",
-    lime: "#6f9420",
-    zinc: "#7c7c85",
-    yellow: "#b8961a",
-    rose: "#bf3a52",
-  };
-  return map[color] ?? "#a9842f";
 }

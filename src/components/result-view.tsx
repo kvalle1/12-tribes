@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Tribe } from "@/lib/tribes";
+import { accentHex, type Tribe } from "@/lib/tribes";
 import type { ResultHeadline } from "@/lib/assessment/result";
 
 /**
@@ -70,23 +70,4 @@ function TribeHeadline({ tribe }: { tribe: Tribe }) {
       </div>
     </div>
   );
-}
-
-/** Maps a tribe's Tailwind color name to its accent hex (mirrors page.tsx / the detail page). */
-function accentHex(color: string): string {
-  const map: Record<string, string> = {
-    amber: "#b8860b",
-    violet: "#7c5cbf",
-    blue: "#2f6fb0",
-    emerald: "#2f8f63",
-    orange: "#c2691f",
-    red: "#b23535",
-    slate: "#6b7280",
-    cyan: "#1f97aa",
-    lime: "#6f9420",
-    zinc: "#7c7c85",
-    yellow: "#b8961a",
-    rose: "#bf3a52",
-  };
-  return map[color] ?? "#a9842f";
 }
