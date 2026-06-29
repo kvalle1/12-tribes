@@ -1,12 +1,11 @@
 /**
  * Per-tribe accent color: maps a tribe's Tailwind color name (the `color` field
  * in `tribes.ts`) to the hex used for the `--accent` CSS variable. A color with
- * no entry falls back to brass, matching the home and tribe-detail pages.
+ * no entry falls back to brass.
  *
- * The home page (`page.tsx`) and the tribe detail page keep their own inline
- * copies of this map; this shared helper is used by the assessment result view
- * so the enrichment slice doesn't add a fourth copy. When adding a tribe or
- * color, keep the entries here in sync with those maps.
+ * This is the single source of the accent map — the home page, the tribe detail
+ * page, and the assessment result view all import it. When adding a tribe or
+ * color, add the matching key here once.
  */
 const ACCENT_HEX: Record<string, string> = {
   amber: "#b8860b",

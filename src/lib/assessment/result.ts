@@ -1,4 +1,4 @@
-import { tribes, type Tribe } from "@/lib/tribes";
+import { getTribeBySlug, type Tribe } from "@/lib/tribes";
 
 /**
  * Resolve a stored result's tribe slugs into the full `Tribe` objects the
@@ -10,18 +10,16 @@ export interface ResultHeadline {
   secondary?: Tribe;
 }
 
-const tribeBySlug = new Map(tribes.map((t) => [t.slug, t]));
-
 export function resolveHeadline(
   primarySlug: string,
   secondarySlug?: string | null,
 ): ResultHeadline {
-  const primary = tribeBySlug.get(primarySlug);
+  const primary = getTribeBySlug(primarySlug);
   if (!primary) {
     throw new Error(`Unknown primary tribe slug "${primarySlug}"`);
   }
   const secondary = secondarySlug
-    ? tribeBySlug.get(secondarySlug)
+    ? getTribeBySlug(secondarySlug)
     : undefined;
   return { primary, secondary };
 }

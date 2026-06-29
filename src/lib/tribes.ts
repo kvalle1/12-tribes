@@ -583,6 +583,8 @@ export const statusLabels: Record<TribeStatus, string> = {
   "disqualified-arc": "Disqualified Arc",
 };
 
+const tribeBySlug = new Map(tribes.map((t) => [t.slug, t]));
+
 export function getTribeBySlug(slug: string): Tribe | undefined {
-  return tribes.find((t) => t.slug === slug);
+  return tribeBySlug.get(slug);
 }

@@ -29,6 +29,9 @@ export function ResultView({
 }: ResultViewProps) {
   const { primary, secondary } = resolveHeadline(primarySlug, secondarySlug);
   const ranked = rankTribes(words);
+  const headlineSlugs = new Set(
+    [primary.slug, secondary?.slug].filter((s): s is string => Boolean(s)),
+  );
 
   return (
     <div className="mx-auto max-w-[680px] px-8 py-[100px]">
@@ -43,14 +46,14 @@ export function ResultView({
         Your tribe
       </p>
 
-      <TribeHeadline tribe={primary} />
+      <TribeHeadline tribe={primary} as="h1" />
 
       {secondary && (
         <>
           <p className="mt-12 text-[12px] uppercase tracking-[0.2em] text-faint">
             With a strong secondary
           </p>
-          <TribeHeadline tribe={secondary} />
+          <TribeHeadline tribe={secondary} as="h2" />
         </>
       )}
 
@@ -62,12 +65,13 @@ export function ResultView({
         <ol className="mt-6 flex flex-col gap-[14px]">
           {ranked.map((row, i) => {
             const accent = accentHex(row.tribe.color);
-            const isHeadline =
-              row.tribe.slug === primary.slug ||
-              row.tribe.slug === secondary?.slug;
+            const isHeadline = headlineSlugs.has(row.tribe.slug);
             return (
               <li
                 key={row.tribe.slug}
+                aria-label={`Rank ${i + 1}: ${row.tribe.name}, ${Math.round(
+                  row.score * 100,
+                )} percent`}
                 className="grid grid-cols-[26px_1fr_44px] items-center gap-3"
               >
                 <span className="text-right font-serif text-[14px] tabular-nums text-faint">
@@ -91,12 +95,14 @@ export function ResultView({
                     className="mt-[6px] h-[6px] w-full overflow-hidden rounded-full bg-hair"
                     role="presentation"
                   >
+                    {/* Full opacity for every bar: dimming non-headline rows
+                        dropped the accent/track contrast below the WCAG 3:1
+                        floor. Headline emphasis lives in the tribe-name color. */}
                     <div
                       className="h-full rounded-full"
                       style={{
                         width: `${Math.round(row.fraction * 100)}%`,
                         backgroundColor: accent,
-                        opacity: isHeadline ? 1 : 0.55,
                       }}
                     />
                   </div>
@@ -154,15 +160,18 @@ export function ResultView({
   );
 }
 
-function TribeHeadline({ tribe }: { tribe: Tribe }) {
+function TribeHeadline({ tribe, as }: { tribe: Tribe; as: "h1" | "h2" }) {
+  // Both the Primary and an optional Secondary render as headlines; the Secondary
+  // is an h2 so the heading outline stays meaningful for screen readers.
+  const Heading = as;
   return (
     <div
       className="mt-4"
       style={{ "--accent": accentHex(tribe.color) } as React.CSSProperties}
     >
-      <h1 className="font-serif text-[clamp(40px,7vw,68px)] font-semibold leading-[1.02]">
+      <Heading className="font-serif text-[clamp(40px,7vw,68px)] font-semibold leading-[1.02]">
         <span style={{ color: "var(--accent)" }}>{tribe.name}</span>
-      </h1>
+      </Heading>
       <div className="mt-1 font-serif text-[22px] italic text-muted">
         {tribe.callSign} ·{" "}
         <span className="font-hebrew not-italic">{tribe.hebrew}</span>

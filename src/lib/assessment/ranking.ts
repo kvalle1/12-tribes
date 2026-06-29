@@ -1,4 +1,4 @@
-import { tribes, type Tribe } from "@/lib/tribes";
+import { getTribeBySlug, type Tribe } from "@/lib/tribes";
 import { score } from "./score";
 
 /**
@@ -24,14 +24,13 @@ export interface RankedTribe {
   fraction: number;
 }
 
-const tribeBySlug = new Map(tribes.map((t) => [t.slug, t]));
-
 export function rankTribes(words: readonly string[]): RankedTribe[] {
-  const ranked = [...score(words)].sort((a, b) => b.score - a.score);
+  // score() returns a fresh array; sort it in place (no extra copy needed).
+  const ranked = score(words).sort((a, b) => b.score - a.score);
   const max = ranked[0]?.score ?? 0;
 
   return ranked.map((s) => {
-    const tribe = tribeBySlug.get(s.slug);
+    const tribe = getTribeBySlug(s.slug);
     if (!tribe) throw new Error(`Unknown tribe slug "${s.slug}"`);
     return {
       tribe,
