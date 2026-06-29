@@ -10,10 +10,12 @@ import type { ResultHeadline } from "@/lib/assessment/result";
  * profile page(s).
  *
  * Purely presentational and client-safe — it takes the already-computed headline,
- * the 12 `TribeScore`s, and the selected words, and never imports the scoring core
- * or the word→tribe mapping (both `server-only`). The result page computes those on
- * the server and hands them down, so this same view can be reused verbatim by the
- * profile page (#18) without crossing the ADR-0009 trust boundary.
+ * the 12 `TribeScore`s, and the selected words. Its only reference to the
+ * `server-only` scoring core is a type-only `TribeScore` import (erased at build),
+ * so neither the scoring core nor the word→tribe mapping it imports is ever bundled
+ * here. The result page computes those on the server and hands them down, so this
+ * same view can be reused verbatim by the profile page (#18) without crossing the
+ * ADR-0009 trust boundary.
  */
 export interface ResultViewProps {
   headline: ResultHeadline;
@@ -75,7 +77,7 @@ export function ResultView({ headline, scores, words }: ResultViewProps) {
       {/* The words the Subject picked, connecting their choices to the outcome. */}
       <section className="mt-16">
         <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
-          The {words.length} words you chose
+          The {words.length} {words.length === 1 ? "word" : "words"} you chose
         </p>
         <ul className="mt-5 flex flex-wrap gap-[10px]">
           {words.map((word) => (
@@ -170,7 +172,11 @@ function RankingBar({
       >
         {tribeScore.name}
       </Link>
-      <div className="h-[8px] overflow-hidden rounded-full bg-stone">
+      {/* Decorative — the adjacent percentage text already conveys the value to AT. */}
+      <div
+        aria-hidden="true"
+        className="h-[8px] overflow-hidden rounded-full bg-stone"
+      >
         <div
           className="h-full rounded-full transition-[width]"
           style={{

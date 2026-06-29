@@ -1,3 +1,4 @@
+import "server-only";
 import { tribes } from "@/lib/tribes";
 import { WORDS, type AssessmentWord } from "./words";
 
