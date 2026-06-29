@@ -99,7 +99,7 @@ function RankBar({ row }: { row: RankedTribe }) {
     <li style={{ "--accent": accent } as React.CSSProperties}>
       <Link
         href={`/tribes/${tribe.slug}`}
-        className="group block rounded-[2px] px-2 py-1.5 transition-colors hover:bg-white"
+        className="block rounded-[2px] px-2 py-1.5 transition-colors hover:bg-white"
       >
         <div className="flex items-baseline justify-between gap-4">
           <div className="flex items-baseline gap-2.5">
