@@ -589,9 +589,10 @@ export function getTribeBySlug(slug: string): Tribe | undefined {
 
 /**
  * Maps a tribe's Tailwind `color` name to the accent hex used for its initial,
- * row bar, and result bars. An unknown color falls back to brass (so a missing
- * key degrades quietly rather than erroring — see CLAUDE.md). The home page and
- * tribe detail page keep their own inline copies; the result view uses this one.
+ * row bar, and result bars. The single source of truth for the mapping — the
+ * home page, tribe detail page, and result view all call this. An unknown color
+ * falls back to brass (so a missing key degrades quietly rather than erroring —
+ * see CLAUDE.md); when adding a tribe or color, add its key to the map below.
  */
 const ACCENT_HEX: Record<string, string> = {
   amber: "#b8860b",
