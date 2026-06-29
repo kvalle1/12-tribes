@@ -127,7 +127,12 @@ function RankedBar({ row, rank }: { row: RankedTribe; rank: number }) {
             )}
           </Link>
         </div>
-        <div className="h-[7px] w-full overflow-hidden rounded-full bg-hair/60">
+        {/* Decorative: the value is conveyed by the adjacent `{pct}%` text,
+            so the bar is hidden from assistive tech to avoid a duplicate read. */}
+        <div
+          aria-hidden="true"
+          className="h-[7px] w-full overflow-hidden rounded-full bg-hair/60"
+        >
           <div
             className="h-full rounded-full"
             style={{

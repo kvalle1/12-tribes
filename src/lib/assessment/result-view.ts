@@ -45,6 +45,13 @@ export function buildResultView(input: {
     input.secondarySlug,
   );
 
+  // The `isPrimary`/`isSecondary` flags below match the *stored* slugs against
+  // the freshly recomputed ranking. This relies on the invariant that the
+  // stored Primary/Secondary were derived from these same words by
+  // `score`/`deriveResult` (see `saveCurrentResult`). If those thresholds ever
+  // change, stored rows must be re-derived (migrated) or the flags could land
+  // on a row that is no longer the top two under the new rules.
+
   const scores = score(input.words);
   const maxScore = scores.reduce((m, s) => Math.max(m, s.score), 0);
 
