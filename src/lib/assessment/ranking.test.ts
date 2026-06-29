@@ -37,6 +37,14 @@ describe("rankScores", () => {
     expect(ranked[ranked.length - 1].score).toBe(0);
   });
 
+  it("breaks ties by canonical (tribe number) order via a stable sort", () => {
+    // judah (#1) precedes levi (#3) in canonical order, so an equal score keeps it ahead.
+    const ranked = rankScores(tableFrom({ judah: 0.3, levi: 0.3 }));
+    const judahRank = ranked.find((r) => r.slug === "judah")!.rank;
+    const leviRank = ranked.find((r) => r.slug === "levi")!.rank;
+    expect(judahRank).toBeLessThan(leviRank);
+  });
+
   it("keeps canonical (tribe number) order for an all-zero selection", () => {
     const ranked = rankScores(tableFrom({}));
     expect(ranked.every((r) => r.score === 0)).toBe(true);
