@@ -32,7 +32,7 @@ This is **Tribe Index** — a Next.js App Router app presenting 12 biblical-trib
 
 **Design system.** The look is a light "sanctuary" theme. Palette tokens live in `globals.css` as CSS variables, exposed to Tailwind v4 via `@theme` (`bg-bone`, `text-gold`, `text-ink`, etc.). Fonts are loaded in `layout.tsx` with `next/font` and exposed as CSS variables: Inter (body, `--font-inter`), Cormorant Garamond (serif headings), Cinzel (the carved display word in the hero), Frank Ruhl Libre (Hebrew — needs the `hebrew` subset). The hero "sun" bloom and the animated per-tribe accent bar on tribe rows are the `.sun` / `.tribe-row` classes in `globals.css`.
 
-**Per-tribe accent color** comes from the `color` field (a Tailwind color name like `"amber"`), mapped to a hex by an `accentHex` lookup duplicated in `page.tsx` and the detail page, then passed in as the `--accent` CSS variable via inline `style`. **When adding a tribe or color, add the matching key to both `accentHex` maps** — a missing key falls back to brass with no error.
+**Per-tribe accent color** comes from the `color` field (a Tailwind color name like `"amber"`), mapped to a hex by the shared `accentHex(color)` helper in `tribes.ts` (used by `page.tsx`, the detail page, and the assessment result view), then passed in as the `--accent` CSS variable via inline `style`. **When adding a tribe or color, add the matching key to the `accentHex` map in `tribes.ts`** — a missing key falls back to brass with no error.
 
 **Tribe `status`** (`active` / `disqualified` / `warning` / `disqualified-arc`): the home page does **not** surface it. The detail page renders non-`active` statuses as an in-depth section using `statusLabels` (`tribes.ts`) + `statusNote` (detail page).
 
