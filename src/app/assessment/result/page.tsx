@@ -173,7 +173,7 @@ function RankingBar({ bar }: { bar: TribeBar }) {
         <div
           className="h-full rounded-[2px]"
           style={{
-            width: `${Math.round(bar.fraction * 100)}%`,
+            width: `${percent}%`,
             backgroundColor: "var(--accent)",
             opacity: emphasized ? 1 : 0.5,
           }}

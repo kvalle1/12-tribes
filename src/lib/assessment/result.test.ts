@@ -32,17 +32,17 @@ describe("rankedBars", () => {
     expect(tied).toEqual(["judah", "levi"]);
   });
 
-  it("scales bar fractions relative to the top tribe", () => {
+  it("carries each tribe's normalized score through unchanged", () => {
     const bars = rankedBars(tableFrom({ levi: 0.8, judah: 0.4 }), "levi");
-    expect(bars[0].fraction).toBeCloseTo(1);
-    expect(bars[1].fraction).toBeCloseTo(0.5);
-    // Zero-scoring tribes have a zero-width bar.
-    expect(bars.at(-1)!.fraction).toBe(0);
+    expect(bars[0].score).toBeCloseTo(0.8);
+    expect(bars[1].score).toBeCloseTo(0.4);
+    expect(bars.at(-1)!.score).toBe(0);
   });
 
-  it("does not divide by zero when every score is zero", () => {
+  it("returns all 12 bars even when every score is zero", () => {
     const bars = rankedBars(tableFrom({}), "judah");
-    expect(bars.every((b) => b.fraction === 0)).toBe(true);
+    expect(bars).toHaveLength(tribes.length);
+    expect(bars.every((b) => b.score === 0)).toBe(true);
   });
 
   it("flags the primary and secondary tribes", () => {
