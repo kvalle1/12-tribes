@@ -586,3 +586,28 @@ export const statusLabels: Record<TribeStatus, string> = {
 export function getTribeBySlug(slug: string): Tribe | undefined {
   return tribes.find((t) => t.slug === slug);
 }
+
+/**
+ * Per-tribe accent hex, keyed by a tribe's Tailwind `color` name. Single source
+ * of truth for the home rows, the tribe detail page, and the result view — when
+ * adding a tribe or color, add its key here once. An unknown color falls back to
+ * brass (the default gold accent).
+ */
+const ACCENT_HEX: Record<string, string> = {
+  amber: "#b8860b",
+  violet: "#7c5cbf",
+  blue: "#2f6fb0",
+  emerald: "#2f8f63",
+  orange: "#c2691f",
+  red: "#b23535",
+  slate: "#6b7280",
+  cyan: "#1f97aa",
+  lime: "#6f9420",
+  zinc: "#7c7c85",
+  yellow: "#b8961a",
+  rose: "#bf3a52",
+};
+
+export function accentHex(color: string): string {
+  return ACCENT_HEX[color] ?? "#a9842f";
+}

@@ -1,21 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getTribeBySlug, tribes, statusLabels } from "@/lib/tribes";
-
-const accentHex: Record<string, string> = {
-  amber: "#b8860b",
-  violet: "#7c5cbf",
-  blue: "#2f6fb0",
-  emerald: "#2f8f63",
-  orange: "#c2691f",
-  red: "#b23535",
-  slate: "#6b7280",
-  cyan: "#1f97aa",
-  lime: "#6f9420",
-  zinc: "#7c7c85",
-  yellow: "#b8961a",
-  rose: "#bf3a52",
-};
+import { getTribeBySlug, tribes, statusLabels, accentHex } from "@/lib/tribes";
 
 const statusNote: Record<string, string> = {
   disqualified:
@@ -39,7 +24,7 @@ export default async function TribePage({
   const tribe = getTribeBySlug(slug);
   if (!tribe) notFound();
 
-  const accent = accentHex[tribe.color] ?? "#a9842f";
+  const accent = accentHex(tribe.color);
   const prev = tribe.number > 1 ? tribes[tribe.number - 2] : null;
   const next = tribe.number < 12 ? tribes[tribe.number] : null;
 
