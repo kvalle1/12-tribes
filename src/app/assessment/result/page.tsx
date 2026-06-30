@@ -4,15 +4,18 @@ import type { Tribe } from "@/lib/tribes";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { resolveHeadline } from "@/lib/assessment/result";
+import { rankProfile } from "@/lib/assessment/profile";
 
 /**
  * The Subject's saved current result (ADR-0004). Login-gated; an unauthenticated
  * visitor is routed through sign-in, and a signed-in user who hasn't taken the
  * assessment is sent to start it.
  *
- * This slice shows the headline only — the Primary (and Secondary when one
- * qualifies) with call sign, essence, and Hebrew. The 12-tribe ranking bars,
- * the selected words, and the profile links are added in the next slice (#6).
+ * This is the full result view (issue #6): the headline Primary (and Secondary
+ * when one qualifies), the ranked normalized scores for all 12 tribes as bars,
+ * the words the Subject picked, and prominent links to the full tribe profile
+ * page(s). The submit action redirects here, so the same view is shown both
+ * right after submitting and when revisiting the saved result.
  */
 export default async function AssessmentResultPage() {
   const session = await auth();
@@ -26,6 +29,12 @@ export default async function AssessmentResultPage() {
   const { primary, secondary } = resolveHeadline(
     row.primarySlug,
     row.secondarySlug,
+  );
+  // Recomputed from the stored words by the pure scoring core, so the ranking
+  // can never drift from the saved Primary/Secondary.
+  const ranked = rankProfile(row.words);
+  const headlineSlugs = new Set(
+    [primary.slug, secondary?.slug].filter(Boolean) as string[],
   );
 
   return (
@@ -53,7 +62,52 @@ export default async function AssessmentResultPage() {
           </>
         )}
 
-        <div className="mt-14 flex flex-wrap items-center gap-[22px] border-t border-hair pt-8">
+        {/* Prominent links into the full profile page(s). */}
+        <div className="mt-12 flex flex-col gap-3">
+          <ProfileLink tribe={primary} label="Primary" />
+          {secondary && <ProfileLink tribe={secondary} label="Secondary" />}
+        </div>
+
+        {/* How every one of the 12 tribes scored, ranked, as proportional bars. */}
+        <section className="mt-16">
+          <h2 className="text-[12px] uppercase tracking-[0.2em] text-faint">
+            How every tribe scored
+          </h2>
+          <ol className="mt-6 flex flex-col gap-[14px]">
+            {ranked.map(({ tribe, score, barFraction }) => (
+              <ScoreBar
+                key={tribe.slug}
+                tribe={tribe}
+                score={score}
+                barFraction={barFraction}
+                highlighted={headlineSlugs.has(tribe.slug)}
+              />
+            ))}
+          </ol>
+        </section>
+
+        {/* The words the Subject picked. */}
+        <section className="mt-16">
+          <h2 className="text-[12px] uppercase tracking-[0.2em] text-faint">
+            The words you picked
+            <span className="ml-2 tabular-nums text-hair">·</span>
+            <span className="ml-2 normal-case tracking-normal text-muted">
+              {row.words.length}
+            </span>
+          </h2>
+          <ul className="mt-6 flex flex-wrap gap-[10px]">
+            {row.words.map((word) => (
+              <li
+                key={word}
+                className="rounded-[2px] border border-hair px-[14px] py-[7px] text-[14px] text-ink"
+              >
+                {word}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <div className="mt-16 flex flex-wrap items-center gap-[22px] border-t border-hair pt-8">
           <Link
             href="/assessment"
             className="rounded-[2px] bg-ink px-[30px] py-[13px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
@@ -89,6 +143,78 @@ function TribeHeadline({ tribe }: { tribe: Tribe }) {
         {tribe.essence}
       </div>
     </div>
+  );
+}
+
+/** A prominent link from the result into a tribe's full `/tribes/[slug]` profile. */
+function ProfileLink({ tribe, label }: { tribe: Tribe; label: string }) {
+  return (
+    <Link
+      href={`/tribes/${tribe.slug}`}
+      className="group flex items-center gap-4 rounded-[2px] border border-hair px-5 py-4 transition-colors hover:border-ink"
+      style={{ "--accent": accentHex(tribe.color) } as React.CSSProperties}
+    >
+      <span
+        aria-hidden="true"
+        className="h-9 w-[3px] rounded-full"
+        style={{ backgroundColor: "var(--accent)" }}
+      />
+      <span className="flex-1">
+        <span className="block text-[11px] uppercase tracking-[0.16em] text-faint">
+          Read the full {label} profile
+        </span>
+        <span className="font-serif text-[20px] font-semibold leading-tight">
+          {tribe.name}
+          <span className="ml-2 font-sans text-[13px] font-normal not-italic text-muted">
+            {tribe.callSign}
+          </span>
+        </span>
+      </span>
+      <span className="text-[18px] text-hair transition-colors group-hover:text-ink">
+        →
+      </span>
+    </Link>
+  );
+}
+
+/** One ranked tribe as a labelled, proportional bar. */
+function ScoreBar({
+  tribe,
+  score,
+  barFraction,
+  highlighted,
+}: {
+  tribe: Tribe;
+  score: number;
+  barFraction: number;
+  highlighted: boolean;
+}) {
+  return (
+    <li
+      className="grid grid-cols-[140px_1fr_42px] items-center gap-4 max-[520px]:grid-cols-[100px_1fr_38px]"
+      style={{ "--accent": accentHex(tribe.color) } as React.CSSProperties}
+    >
+      <span
+        className={`font-serif text-[17px] leading-tight ${
+          highlighted ? "font-semibold text-ink" : "text-muted"
+        }`}
+      >
+        {tribe.name}
+      </span>
+      <span className="h-[10px] w-full overflow-hidden rounded-[2px] bg-hair/50">
+        <span
+          className="block h-full rounded-[2px]"
+          style={{
+            width: `${Math.max(barFraction * 100, score > 0 ? 2 : 0)}%`,
+            backgroundColor: "var(--accent)",
+            opacity: highlighted ? 1 : 0.55,
+          }}
+        />
+      </span>
+      <span className="text-right text-[12px] tabular-nums text-faint">
+        {Math.round(score * 100)}%
+      </span>
+    </li>
   );
 }
 
