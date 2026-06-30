@@ -7,16 +7,26 @@ import {
   isWithinSelectionRange,
 } from "@/lib/assessment/constants";
 import { cn } from "@/lib/utils";
-import { submitAssessment } from "./actions";
 
 /**
- * The flat word-selection grid. Words arrive pre-shuffled from the server and
- * unlabeled — no tribe mapping ever reaches the client (ADR-0009). The Subject
+ * The flat word-selection grid, shared by the Self Assessment and the 360
+ * Observer flow. Words arrive pre-shuffled from the server and unlabeled — no
+ * tribe mapping ever reaches the client (ADR-0009). The Subject (or Observer)
  * toggles words; a live counter tracks progress and the submit button stays
  * disabled until the selection is within the 8–15 range. The selected words ride
- * to the server as hidden `words` inputs, scored and saved by the action.
+ * to the server as hidden `words` inputs, scored and saved by the `action` —
+ * which differs per flow (`submitAssessment` vs. the bound observer action), so
+ * it and the button label are props rather than a hard-wired import.
  */
-export function WordSelector({ words }: { words: string[] }) {
+export function WordSelector({
+  words,
+  action,
+  submitLabel,
+}: {
+  words: string[];
+  action: (formData: FormData) => void | Promise<void>;
+  submitLabel: string;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggle = (word: string) => {
@@ -32,7 +42,7 @@ export function WordSelector({ words }: { words: string[] }) {
   const canSubmit = isWithinSelectionRange(count);
 
   return (
-    <form action={submitAssessment} className="mt-10">
+    <form action={action} className="mt-10">
       {[...selected].map((word) => (
         <input key={word} type="hidden" name="words" value={word} />
       ))}
@@ -84,7 +94,7 @@ export function WordSelector({ words }: { words: string[] }) {
               : "cursor-not-allowed bg-hair text-faint",
           )}
         >
-          See my result
+          {submitLabel}
         </button>
       </div>
     </form>

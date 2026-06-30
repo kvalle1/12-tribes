@@ -116,6 +116,27 @@ export const assessmentResults = pgTable("assessment_result", {
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
 
+/**
+ * A single anonymous 360 Observer response (issue #8, ADR-0003). One Subject has
+ * many responses. Deliberately carries **no** observer identity — no name, no
+ * relationship label, nothing linking a row back to who submitted it — so an
+ * Observer can answer candidly. `subjectId` is the Subject's user id, resolved
+ * from the opaque `shareToken` on their `assessmentResults` row; the Observer
+ * never authenticates. `words` are the selected words, gated to the same 8–15
+ * range as the Self Assessment so observer and self scores stay comparable. The
+ * equal-weight "others" aggregation that consumes these rows is issue #9.
+ */
+export const observerResponses = pgTable("observer_response", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  subjectId: text("subjectId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  words: jsonb("words").$type<string[]>().notNull(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+});
+
 export const interviewSessions = pgTable("interview_session", {
   id: text("id")
     .primaryKey()

@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Tribe } from "@/lib/tribes";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { resolveHeadline } from "@/lib/assessment/result";
+import { ObserverShareLink } from "@/components/observer-share-link";
 
 /**
  * The Subject's saved current result (ADR-0004). Login-gated; an unauthenticated
@@ -27,6 +29,16 @@ export default async function AssessmentResultPage() {
     row.primarySlug,
     row.secondarySlug,
   );
+
+  // Compose the absolute observer link from the request host so it copies as a
+  // full URL behind a proxy (Vercel sets x-forwarded-proto); fall back to a
+  // relative path if the host header is somehow absent.
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const shareUrl = host
+    ? `${proto}://${host}/a/${row.shareToken}`
+    : `/a/${row.shareToken}`;
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -67,6 +79,21 @@ export default async function AssessmentResultPage() {
             Read the full {primary.name} profile
           </Link>
         </div>
+
+        <section className="mt-14 border-t border-hair pt-8">
+          <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
+            Get a 360 read
+          </p>
+          <h2 className="mt-2 font-serif text-[22px] font-semibold leading-snug">
+            See how others see you
+          </h2>
+          <p className="mt-2 max-w-[520px] text-[15px] text-muted">
+            Send this link to 3–5 people who know you well. Each one anonymously
+            picks the words that describe you, and once at least three respond
+            you&rsquo;ll see how their read compares with your own.
+          </p>
+          <ObserverShareLink url={shareUrl} />
+        </section>
       </div>
     </main>
   );
