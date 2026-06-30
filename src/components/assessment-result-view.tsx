@@ -94,7 +94,14 @@ export function AssessmentResultView({
                       </span>
                     )}
                   </div>
-                  <div className="mt-1.5 h-2 rounded-full bg-hair/60">
+                  <div
+                    className="mt-1.5 h-2 rounded-full bg-hair/60"
+                    role="progressbar"
+                    aria-label={`${row.name} relative score`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(row.barPercent)}
+                  >
                     <div
                       className="h-full rounded-full transition-[width]"
                       style={{
@@ -116,9 +123,11 @@ export function AssessmentResultView({
             The words you chose
           </h2>
           <div className="mt-6 flex flex-wrap gap-2.5">
-            {words.map((word) => (
+            {words.map((word, i) => (
               <span
-                key={word}
+                // `words` is unique today (deduped on save), but key by index too
+                // so a future caller passing un-deduped words can't collide.
+                key={`${word}-${i}`}
                 className="rounded-[2px] border border-gold bg-gold/10 px-4 py-2 text-[15px] text-ink"
               >
                 {word}
