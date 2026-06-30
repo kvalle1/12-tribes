@@ -201,7 +201,10 @@ function ScoreBar({
       >
         {tribe.name}
       </span>
-      <span className="h-[10px] w-full overflow-hidden rounded-[2px] bg-hair/50">
+      <span
+        aria-hidden="true"
+        className="h-[10px] w-full overflow-hidden rounded-[2px] bg-hair/50"
+      >
         <span
           className="block h-full rounded-[2px]"
           style={{
