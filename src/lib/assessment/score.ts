@@ -98,6 +98,17 @@ export function score(selectedWords: readonly string[]): TribeScore[] {
 }
 
 /**
+ * Rank tribe scores for display — highest score first. Ties keep the input's
+ * canonical (tribe `number`) order, since `Array.prototype.sort` is stable, so
+ * the 12-tribe ranking on the result page (issue #6) is deterministic and the
+ * top of the ranking always agrees with `deriveResult`'s Primary. Returns a new
+ * array; the input is left untouched.
+ */
+export function rankByScore(scores: TribeScore[]): TribeScore[] {
+  return [...scores].sort((a, b) => b.score - a.score);
+}
+
+/**
  * Derive the headline result from a set of tribe scores. Always returns a
  * Primary (the highest score). Returns a Secondary only when it both scores near
  * the Primary AND is clearly ahead of the third tribe — otherwise the result is
@@ -110,9 +121,8 @@ export function score(selectedWords: readonly string[]): TribeScore[] {
  * one.
  */
 export function deriveResult(scores: TribeScore[]): DerivedResult {
-  // Stable sort by score desc; ties keep the input's canonical order.
-  const ranked = [...scores].sort((a, b) => b.score - a.score);
-  const [primary, secondary, third] = ranked;
+  // Rank by score desc; ties keep the input's canonical order.
+  const [primary, secondary, third] = rankByScore(scores);
 
   if (!secondary || secondary.score === 0) {
     return { primary };
