@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { shuffledWordList } from "@/lib/assessment/selection";
-import { WordSelector } from "./word-selector";
+import { WordSelector } from "@/components/word-selector";
+import { submitAssessment } from "./actions";
 
 /**
  * The login-gated Self Assessment (ADR-0004). Reading the session opts this route
@@ -37,7 +38,11 @@ export default async function AssessmentPage() {
           order is shuffled each time.
         </p>
 
-        <WordSelector words={words} />
+        <WordSelector
+          words={words}
+          action={submitAssessment}
+          submitLabel="See my result"
+        />
       </div>
     </main>
   );
