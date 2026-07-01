@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import { observerShareUrl } from "@/lib/observer/share-url";
 import { MIN_OBSERVERS_FOR_REPORT } from "@/lib/assessment/aggregateObservers";
 import { ResultView } from "@/components/result-view";
@@ -29,7 +29,7 @@ export default async function AssessmentResultPage() {
   if (!row) redirect("/assessment");
 
   const shareUrl = await observerShareUrl(row.shareToken);
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = await countObserverResponses(session.user.id);
   const reportUnlocked = observerCount >= MIN_OBSERVERS_FOR_REPORT;
 
   return (
