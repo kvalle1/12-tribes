@@ -21,3 +21,12 @@ export const MAX_WORDS = 15;
 export function isWithinSelectionRange(count: number): boolean {
   return count >= MIN_WORDS && count <= MAX_WORDS;
 }
+
+/**
+ * The number of anonymous Observer responses required before a Subject's 360
+ * comparison report unlocks (issue #9, ADR-0003). Below this the "others"
+ * profile stays hidden — both so the equal-weight average is meaningful and so
+ * no single Observer can be individually identified. Client-safe (it drives the
+ * locked-state copy) and re-checked on the server before the aggregate is built.
+ */
+export const OBSERVER_UNLOCK_THRESHOLD = 3;
