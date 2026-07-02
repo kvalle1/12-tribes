@@ -46,7 +46,7 @@ export function emptyProfile(): StrengthProfile {
 
 /** The initial server-authoritative state for a newly created Session. */
 export function initialState(): InterviewState {
-  return { status: "in_progress", turns: [], profile: emptyProfile() };
+  return { status: "in_progress", turns: [], profile: emptyProfile(), trace: [] };
 }
 
 /**
