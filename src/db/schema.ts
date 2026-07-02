@@ -8,9 +8,9 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
+  InterviewResult,
   InterviewTurn,
   StrengthProfile,
-  StubResult,
 } from "@/lib/interview/types";
 
 /**
@@ -85,6 +85,11 @@ export const verificationTokens = pgTable(
  * scoring fills them in later. `userId` is optional so the skeleton works for
  * anonymous sessions (a session is resumed via an opaque cookie id), while
  * leaving the door open to tie a Session to an account.
+ *
+ * As of the real-scoring slice (#16): `profile` holds the running per-tribe
+ * Strength Profile (independent scores), `turns` carry each answer's cited
+ * Marker trace, `nextQuestion` holds the agent-produced follow-up, and `result`
+ * holds the derived, display-normalized ranking once the flow completes.
  */
 /**
  * The Account's single current Self Assessment result (ADR-0004). One row per
@@ -148,11 +153,13 @@ export const interviewSessions = pgTable("interview_session", {
     .default("in_progress"),
   // Running strength profile (placeholder this slice).
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
-  // Completed Turns, oldest first.
+  // Completed Turns, oldest first (each carries its cited Marker trace).
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
-  // Stub result, set once the flow completes.
-  result: jsonb("result").$type<StubResult>(),
+  // The agent-produced next question, set when the last answer was scored.
+  nextQuestion: text("nextQuestion"),
+  // Derived, display-normalized result, set once the flow completes.
+  result: jsonb("result").$type<InterviewResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });

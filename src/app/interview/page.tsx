@@ -15,7 +15,12 @@ import { startInterview, submitAnswer } from "./actions";
  * Reading the session cookie opts this route into dynamic rendering, so it's
  * always evaluated against the live Session rather than statically prerendered.
  */
-export default async function InterviewPage() {
+export default async function InterviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const session = await currentSession();
 
   if (session && session.status === "complete") {
@@ -27,6 +32,7 @@ export default async function InterviewPage() {
         status: session.status,
         turns: session.turns,
         profile: session.profile,
+        nextQuestion: session.nextQuestion,
       })
     : null;
 
@@ -61,6 +67,12 @@ export default async function InterviewPage() {
           </>
         ) : (
           <>
+            {error === "score" && (
+              <div className="mt-8 rounded-[2px] border border-red-300 bg-red-50 px-4 py-3 text-[14px] text-red-700">
+                Something went wrong scoring that answer. Your place is saved —
+                please submit it again.
+              </div>
+            )}
             <div className="mt-8 text-[11px] uppercase tracking-[0.16em] text-faint">
               Question {turn.questionNumber} of {turn.totalQuestions}
             </div>
