@@ -29,6 +29,13 @@
       "when": 1782851840574,
       "tag": "0003_fair_talon",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782999788475,
+      "tag": "0004_talented_gressill",
+      "breakpoints": true
     }
   ]
 }

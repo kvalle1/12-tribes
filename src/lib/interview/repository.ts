@@ -2,21 +2,31 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { interviewSessions } from "@/db/schema";
-import { appendAnswer, emptyProfile, stubResult } from "./flow";
+import { scoreInterviewAnswer } from "./agent";
+import {
+  emptyProfile,
+  OPENING_QUESTION,
+  recordScoredTurn,
+  stubResult,
+} from "./flow";
+import { applyScoring } from "./score";
+import { getMarkerById } from "./markers";
 import type { InterviewState } from "./types";
 
 /**
- * Server-only persistence for Interview Sessions (ADR-0009 trust boundary).
+ * Server-only persistence + scoring orchestration for Interview Sessions
+ * (ADR-0009 trust boundary).
  *
  * The `server-only` import makes importing this from a client bundle a build
- * error, so scoring state can never leak to or be mutated by the client. All
- * decisions about state transitions live in the pure `flow` module; this layer
- * only loads, applies, and saves.
+ * error, so the Marker Catalog, scoring state, and API key never leak to or are
+ * mutated by the client. Each Turn: the agent interprets the answer into cited
+ * Marker deltas, the pure scoring engine applies them, and the pure flow folds
+ * the result into the Session — this layer just loads, coordinates, and saves.
  */
 
 export type InterviewSessionRow = typeof interviewSessions.$inferSelect;
 
-/** Create a fresh in-progress Session and return its row (incl. generated id). */
+/** Create a fresh in-progress Session (starting at the opening question). */
 export async function createInterviewSession(
   userId?: string | null,
 ): Promise<InterviewSessionRow> {
@@ -28,6 +38,7 @@ export async function createInterviewSession(
       profile: emptyProfile(),
       turns: [],
       turnCount: 0,
+      currentQuestion: OPENING_QUESTION,
     })
     .returning();
   return row;
@@ -47,14 +58,21 @@ export async function getInterviewSession(
 
 /** Project a persisted row onto the pure flow state. */
 function toState(row: InterviewSessionRow): InterviewState {
-  return { status: row.status, turns: row.turns, profile: row.profile };
+  return {
+    status: row.status,
+    turns: row.turns,
+    profile: row.profile,
+    // Older rows (pre-#16) have no stored question; fall back to the opener.
+    currentQuestion: row.currentQuestion ?? OPENING_QUESTION,
+  };
 }
 
 /**
- * Record a participant's free-text answer against a Session and persist the
- * resulting state. Returns the updated row. If the Session is already complete
- * the answer is ignored (the pure flow treats it as a no-op) and the existing
- * row is returned unchanged.
+ * Score a participant's free-text answer against the Marker Catalog and persist
+ * the resulting state. The single LLM call interprets/scores the answer and
+ * chooses the next question (ADR-0009); the pure engine applies the cited deltas
+ * to the Strength Profile. If the Session is already complete the answer is
+ * ignored (the pure flow treats it as a no-op) and the row is returned unchanged.
  */
 export async function recordInterviewAnswer(
   id: string,
@@ -63,7 +81,29 @@ export async function recordInterviewAnswer(
   const row = await getInterviewSession(id);
   if (!row) return null;
 
-  const next = appendAnswer(toState(row), answer);
+  const state = toState(row);
+  // A completed Session takes no more answers — skip the (costly) scoring call
+  // and let the pure flow treat a stray submit as a no-op below.
+  if (state.status === "complete") return row;
+
+  const agentTurn = await scoreInterviewAnswer({
+    question: state.currentQuestion,
+    answer,
+    priorQuestions: state.turns.map((t) => t.question),
+  });
+
+  const { profile, applied } = applyScoring(
+    state.profile,
+    agentTurn.deltas,
+    getMarkerById,
+  );
+
+  const next = recordScoredTurn(state, {
+    answer,
+    trace: applied,
+    profile,
+    nextQuestion: agentTurn.nextQuestion,
+  });
   const result = next.status === "complete" ? stubResult(next) : null;
 
   const [updated] = await db
@@ -73,6 +113,7 @@ export async function recordInterviewAnswer(
       turns: next.turns,
       turnCount: next.turns.length,
       profile: next.profile,
+      currentQuestion: next.currentQuestion,
       result,
       updatedAt: new Date(),
     })

@@ -146,11 +146,15 @@ export const interviewSessions = pgTable("interview_session", {
     .$type<"in_progress" | "complete">()
     .notNull()
     .default("in_progress"),
-  // Running strength profile (placeholder this slice).
+  // Running strength profile, updated each Turn from cited-Marker deltas (#16).
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
-  // Completed Turns, oldest first.
+  // Completed Turns (each carrying its score trace), oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
+  // The question currently being asked. The opener is fixed; later questions are
+  // produced by the agent alongside each answer's score (ADR-0009), so the
+  // current question is persisted rather than derived from a static list (#16).
+  currentQuestion: text("currentQuestion"),
   // Stub result, set once the flow completes.
   result: jsonb("result").$type<StubResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),

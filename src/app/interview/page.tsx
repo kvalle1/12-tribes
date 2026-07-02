@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { nextTurn } from "@/lib/interview/flow";
+import { nextTurn, OPENING_QUESTION } from "@/lib/interview/flow";
 import { currentSession } from "@/lib/interview/session";
 import { startInterview, submitAnswer } from "./actions";
 
@@ -27,6 +27,7 @@ export default async function InterviewPage() {
         status: session.status,
         turns: session.turns,
         profile: session.profile,
+        currentQuestion: session.currentQuestion ?? OPENING_QUESTION,
       })
     : null;
 

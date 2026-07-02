@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { stubResult } from "@/lib/interview/flow";
+import { OPENING_QUESTION, stubResult } from "@/lib/interview/flow";
 import { currentSession } from "@/lib/interview/session";
 import { startInterview } from "../actions";
 
@@ -23,6 +23,7 @@ export default async function InterviewResultPage() {
     status: session.status,
     turns: session.turns,
     profile: session.profile,
+    currentQuestion: session.currentQuestion ?? OPENING_QUESTION,
   });
 
   return (
