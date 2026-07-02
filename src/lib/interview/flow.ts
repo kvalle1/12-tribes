@@ -1,97 +1,134 @@
-import { tribes } from "@/lib/tribes";
+import { emptyProfile, rankedProfile, scoreTurn } from "./score";
 import type {
+  InterviewResult,
   InterviewState,
   InterviewTurn,
+  MarkerDelta,
   NextTurn,
-  StrengthProfile,
-  StubResult,
 } from "./types";
 
+// Re-exported so persistence can seed a fresh profile without reaching past the
+// flow into the scoring engine.
+export { emptyProfile };
+
 /**
- * Pure Interview flow logic for the walking-skeleton slice (issue #14).
+ * Pure Interview flow logic (issue #16).
  *
- * No LLM and no real scoring yet: the questions are hardcoded and the result is
- * a placeholder. This module is the testable seam — given a Session's state it
- * decides what to show next and how to fold in a new answer — so the end-to-end
- * UI → server → persistence path can be proven before any model is wired in.
+ * Slice 1 hardcoded a single question and a stub result. Now the questions are
+ * LLM-produced and answers are scored against the Marker Catalog: the flow holds
+ * the current `pendingQuestion` (the opener, then whatever the agent asks next),
+ * folds each scored answer into the profile and trace, and reports a result from
+ * the ranked profile.
  *
- * Later slices replace the hardcoded question list and stub result with the
- * Funnel planner, Marker scoring, and Confidence/Stop evaluator (ADRs 0005/0006).
+ * The *scoring* stays in the pure `score` engine and the *LLM call* in the
+ * `agent` client; this module only sequences Turns, so it remains testable
+ * without either. The Confidence/Stop evaluator that decides when to stop is
+ * slice 4 (#17) — until then a fixed cap bounds the Interview.
  */
 
 /**
- * The hardcoded questions for this slice. A single open-ended Turn is enough to
- * prove the loop; keeping it an array means later slices generalize the flow
- * without changing its shape.
+ * The fixed calibration opener — broad and neutral, touching everyone's
+ * territory at low resolution so nothing is anchored before the agent narrows.
+ * There is no answer to score yet, so it is seeded rather than agent-produced.
  */
-export const QUESTIONS: readonly string[] = [
-  "To begin, tell me about a recent time you felt most like yourself. What were you doing, and what made it feel right?",
-];
+export const OPENING_QUESTION =
+  "To begin, tell me about a recent time you felt most like yourself. What were you doing, and what made it feel right?";
 
-export const TOTAL_QUESTIONS = QUESTIONS.length;
-
-const STUB_RESULT: StubResult = {
-  headline: "Your interview is complete.",
-  note: "Scoring isn't wired in yet — this is a placeholder result. A future slice will read your answers and report your tribe.",
-};
-
-/** A fresh, zeroed strength profile covering all 12 tribes (placeholder this slice). */
-export function emptyProfile(): StrengthProfile {
-  const profile: StrengthProfile = {};
-  for (const tribe of tribes) {
-    profile[tribe.slug] = 0;
-  }
-  return profile;
-}
+/**
+ * Placeholder Turn cap for this slice. The real Stop Condition (min floor,
+ * evidence-relative margin, ranking stability, hard cap) is the Confidence/Stop
+ * evaluator in slice 4 (#17); this constant just bounds the walking loop until
+ * then.
+ */
+export const MAX_TURNS = 3;
 
 /** The initial server-authoritative state for a newly created Session. */
 export function initialState(): InterviewState {
-  return { status: "in_progress", turns: [], profile: emptyProfile() };
+  return {
+    status: "in_progress",
+    turns: [],
+    profile: emptyProfile(),
+    trace: [],
+    pendingQuestion: OPENING_QUESTION,
+  };
 }
 
 /**
- * Decide what to show the participant next, derived purely from current state.
- * This is what makes the flow resumable: a reload re-derives the right view
- * from the persisted Session rather than trusting anything held on the client.
+ * Decide what to show next, derived purely from current state — a reload
+ * re-derives the right view from the persisted Session rather than trusting the
+ * client (ADR-0011).
  */
 export function nextTurn(state: InterviewState): NextTurn {
-  if (state.status === "complete" || state.turns.length >= TOTAL_QUESTIONS) {
+  if (state.status === "complete") {
     return { kind: "result" };
   }
   return {
     kind: "question",
-    prompt: QUESTIONS[state.turns.length],
+    prompt: state.pendingQuestion,
     questionNumber: state.turns.length + 1,
-    totalQuestions: TOTAL_QUESTIONS,
+    totalQuestions: MAX_TURNS,
   };
 }
 
 /**
- * Fold a free-text answer into the state, returning a new state (no mutation).
- * Records the Turn against the question that was actually being asked and marks
- * the Session complete once the (single, in this slice) question is answered.
+ * Fold a scored answer into the state (no mutation): apply the cited Marker
+ * deltas to the profile, append the Turn and its score trace, and advance to the
+ * agent's next question. Completes once the Turn cap is reached; answering a
+ * complete Session is a no-op rather than corrupting history.
  */
-export function appendAnswer(state: InterviewState, answer: string): InterviewState {
-  if (state.status === "complete" || state.turns.length >= TOTAL_QUESTIONS) {
-    // Already done — answering again is a no-op rather than corrupting history.
+export function recordScoredTurn(
+  state: InterviewState,
+  scored: { answer: string; deltas: MarkerDelta[]; nextQuestion: string },
+): InterviewState {
+  if (state.status === "complete") {
     return state;
   }
 
-  const turn: InterviewTurn = {
-    question: QUESTIONS[state.turns.length],
-    answer,
-  };
-  const turns = [...state.turns, turn];
-  const status: InterviewState["status"] =
-    turns.length >= TOTAL_QUESTIONS ? "complete" : "in_progress";
+  const question = state.pendingQuestion;
+  const { profile, trace } = scoreTurn(
+    { profile: state.profile, trace: state.trace },
+    { question, answer: scored.answer, deltas: scored.deltas },
+  );
 
-  return { ...state, turns, status };
+  const turn: InterviewTurn = { question, answer: scored.answer };
+  const turns = [...state.turns, turn];
+  const complete = turns.length >= MAX_TURNS;
+
+  // Fall back to the current question if the agent didn't supply a usable one,
+  // so a resume never lands on an empty prompt.
+  const nextQuestion =
+    complete || !scored.nextQuestion ? question : scored.nextQuestion;
+
+  return {
+    status: complete ? "complete" : "in_progress",
+    turns,
+    profile,
+    trace,
+    pendingQuestion: nextQuestion,
+  };
 }
 
-/** The stub result for a completed Session. Throws if asked before completion. */
-export function stubResult(state: InterviewState): StubResult {
+/**
+ * The result for a completed Session — the leading tribe by normalized strength.
+ * This is a provisional headline for this slice; the full Primary + Contenders
+ * result (with the Stop Condition behind it) is slice 4 (#17). Throws if asked
+ * before completion.
+ */
+export function interviewResult(state: InterviewState): InterviewResult {
   if (state.status !== "complete") {
     throw new Error("Result requested for an Interview that is not complete.");
   }
-  return STUB_RESULT;
+
+  const [leader] = rankedProfile(state.profile);
+  if (!leader || leader.raw === 0) {
+    return {
+      headline: "Your interview is complete.",
+      note: "Your answers didn't land clearly on any one tribe yet. As the Interview grows longer in a later slice, the read will sharpen.",
+    };
+  }
+
+  return {
+    headline: `Your strongest read is ${leader.name}.`,
+    note: `Based on how you answered, ${leader.name} scored highest so far (${Math.round(leader.percentage)}% of your profile). This is a provisional read — the full Primary and Contenders result, with the confidence logic behind it, arrives in a later slice.`,
+  };
 }

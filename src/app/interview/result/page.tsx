@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { stubResult } from "@/lib/interview/flow";
+import { interviewResult } from "@/lib/interview/flow";
 import { currentSession } from "@/lib/interview/session";
 import { startInterview } from "../actions";
 
 /**
- * Stub result page for the walking-skeleton slice. Real scoring (Strength
- * Profile, Primary + Contenders, Posture, score trace) replaces this in later
- * slices; here it confirms the end-to-end path completed and persisted.
+ * Interview result page. Shows a provisional read — the leading tribe by
+ * normalized strength from the scored profile (issue #16). The full Primary +
+ * Contenders result, Posture, and the score-trace view arrive in later slices.
  *
  * Reached only once the Session is complete — an in-progress or missing Session
  * routes back to the hub, so a refresh here still resolves to the right place.
@@ -19,10 +19,12 @@ export default async function InterviewResultPage() {
     redirect("/interview");
   }
 
-  const result = stubResult({
+  const result = interviewResult({
     status: session.status,
     turns: session.turns,
     profile: session.profile,
+    trace: session.trace,
+    pendingQuestion: session.pendingQuestion,
   });
 
   return (

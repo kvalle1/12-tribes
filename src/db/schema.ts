@@ -8,9 +8,10 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
+  InterviewResult,
   InterviewTurn,
   StrengthProfile,
-  StubResult,
+  TraceEntry,
 } from "@/lib/interview/types";
 
 /**
@@ -81,10 +82,11 @@ export const verificationTokens = pgTable(
  * (PRD #13, slice #14). The client never holds or mutates scoring state
  * (ADR-0009); every Turn is persisted here so a refresh can resume (ADR-0011).
  *
- * `profile` and `result` are placeholders in the walking-skeleton slice; real
- * scoring fills them in later. `userId` is optional so the skeleton works for
- * anonymous sessions (a session is resumed via an opaque cookie id), while
- * leaving the door open to tie a Session to an account.
+ * `profile` accumulates marker-cited strength and `trace` records why (issue
+ * #16); `pendingQuestion` holds the LLM-produced question currently being asked
+ * so a refresh resumes on the right prompt. `userId` is optional so the skeleton
+ * works for anonymous sessions (a session is resumed via an opaque cookie id),
+ * while leaving the door open to tie a Session to an account.
  */
 /**
  * The Account's single current Self Assessment result (ADR-0004). One row per
@@ -146,13 +148,17 @@ export const interviewSessions = pgTable("interview_session", {
     .$type<"in_progress" | "complete">()
     .notNull()
     .default("in_progress"),
-  // Running strength profile (placeholder this slice).
+  // Running strength profile — independent marker-cited strength per tribe.
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
   // Completed Turns, oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
-  // Stub result, set once the flow completes.
-  result: jsonb("result").$type<StubResult>(),
+  // Score trace: one entry per scored answer (answer → Markers → deltas).
+  trace: jsonb("trace").$type<TraceEntry[]>().notNull().default([]),
+  // The question currently being asked (the opener, then agent-produced).
+  pendingQuestion: text("pendingQuestion").notNull().default(""),
+  // Result headline, set once the flow completes.
+  result: jsonb("result").$type<InterviewResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
