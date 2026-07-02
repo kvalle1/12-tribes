@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -91,7 +91,24 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    // `id` is the tiebreaker so two responses in the same instant can't reorder
+    // between loads — the anonymous "Observer 1/2/3" numbering stays stable.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => row.words);
+}
+
+/**
+ * Count a Subject's Observer responses without loading their word payloads —
+ * for the report's ≥3 unlock gate and the progress meter on the result page.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.value ?? 0;
 }

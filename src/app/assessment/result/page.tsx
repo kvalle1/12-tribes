@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import {
   MIN_OBSERVERS_FOR_REPORT,
   hasEnoughObservers,
@@ -39,7 +39,7 @@ export default async function AssessmentResultPage() {
 
   // How many anonymous Observers have responded so far — drives the report's
   // locked/unlocked entry below (issue #9).
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = await countObserverResponses(session.user.id);
   const reportUnlocked = hasEnoughObservers(observerCount);
 
   return (
