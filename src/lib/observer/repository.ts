@@ -76,3 +76,22 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first — one entry
+ * per observer, each the words that observer selected. Returns just the word
+ * lists, nothing that could identify who responded (ADR-0003). These feed the
+ * equal-weight aggregation (`aggregateObservers`, issue #9); the comparison
+ * report unlocks once at least three exist.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+
+  return rows.map((row) => row.words);
+}
