@@ -3,6 +3,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverResponses } from "@/lib/observer/repository";
+import {
+  MIN_OBSERVERS_FOR_REPORT,
+  hasEnoughObservers,
+} from "@/lib/assessment/constants";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -31,6 +36,11 @@ export default async function AssessmentResultPage() {
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
   const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+
+  // How many anonymous Observers have responded so far — drives the report's
+  // locked/unlocked entry below (issue #9).
+  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const reportUnlocked = hasEnoughObservers(observerCount);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,6 +71,22 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[14px]">
+            {reportUnlocked ? (
+              <Link
+                href="/assessment/report"
+                className="border-b border-gold pb-1 tracking-[0.06em] text-ink transition-colors hover:text-gold"
+              >
+                View your 360 comparison →
+              </Link>
+            ) : (
+              <span className="text-muted">
+                {observerCount} of {MIN_OBSERVERS_FOR_REPORT} responses in — your
+                comparison unlocks at {MIN_OBSERVERS_FOR_REPORT}.
+              </span>
+            )}
+          </div>
         </section>
       </div>
     </main>

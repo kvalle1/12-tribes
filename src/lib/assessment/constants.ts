@@ -21,3 +21,15 @@ export const MAX_WORDS = 15;
 export function isWithinSelectionRange(count: number): boolean {
   return count >= MIN_WORDS && count <= MAX_WORDS;
 }
+
+/**
+ * The 360 comparison report unlocks only once at least this many Observers have
+ * responded (ADR-0003). The floor makes the equal-weight "others" average
+ * meaningful and keeps any individual Observer anonymous within the aggregate.
+ */
+export const MIN_OBSERVERS_FOR_REPORT = 3;
+
+/** Whether enough Observers have responded to unlock the comparison report. */
+export function hasEnoughObservers(count: number): boolean {
+  return count >= MIN_OBSERVERS_FOR_REPORT;
+}
