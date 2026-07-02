@@ -2,7 +2,7 @@ import Link from "next/link";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { score, type TribeScore } from "@/lib/assessment/score";
 import { rankScores } from "@/lib/assessment/ranking";
-import { aggregateObservers } from "@/lib/assessment/aggregateObservers";
+import { aggregateProfiles } from "@/lib/assessment/aggregateObservers";
 
 /**
  * The 360 self-vs-others comparison report (issue #9, ADR-0003). Shown to a
@@ -38,7 +38,10 @@ export function ComparisonReport({
   observerResponses: string[][];
 }) {
   const self = score(selfWords);
-  const others = aggregateObservers(observerResponses);
+  // Score each Observer once, then reuse those profiles for both the equal-weight
+  // aggregate and the per-Observer drill-down (no second scoring pass).
+  const observerProfiles = observerResponses.map((words) => score(words));
+  const others = aggregateProfiles(observerProfiles);
   const othersBySlug = new Map(others.map((s) => [s.slug, s.score]));
 
   // Merge into one row per tribe (canonical order from `self`), then order the
@@ -153,12 +156,8 @@ export function ComparisonReport({
           relationship — only the words they chose.
         </p>
         <ul className="mt-5 flex flex-col gap-2.5">
-          {observerResponses.map((words, i) => (
-            <ObserverDrilldown
-              key={i}
-              index={i + 1}
-              scores={score(words)}
-            />
+          {observerProfiles.map((scores, i) => (
+            <ObserverDrilldown key={i} index={i + 1} scores={scores} />
           ))}
         </ul>
       </section>

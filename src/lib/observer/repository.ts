@@ -92,7 +92,10 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    // `id` is a stable secondary sort so the cosmetic "Observer 1/2/3" labels
+    // stay in a fixed order across loads even if two rows share a timestamp.
+    // It's a random UUID, so it never leaks identity or submission order.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }

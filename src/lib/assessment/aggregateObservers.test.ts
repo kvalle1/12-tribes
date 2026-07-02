@@ -4,6 +4,7 @@ import { WORDS } from "./words";
 import { score } from "./score";
 import {
   aggregateObservers,
+  aggregateProfiles,
   isComparisonUnlocked,
   MIN_OBSERVERS_TO_UNLOCK,
 } from "./aggregateObservers";
@@ -81,6 +82,23 @@ describe("aggregateObservers", () => {
     const snapshot = JSON.stringify(responses);
     aggregateObservers(responses);
     expect(JSON.stringify(responses)).toBe(snapshot);
+  });
+});
+
+describe("aggregateProfiles", () => {
+  it("matches aggregateObservers when fed the same observers' scored profiles", () => {
+    // The report scores each observer once and feeds the profiles here directly,
+    // so the two entry points must agree exactly.
+    const responses = [wordsForTribe("judah"), wordsForTribe("reuben"), ["Bold"]];
+    const viaWords = aggregateObservers(responses);
+    const viaProfiles = aggregateProfiles(responses.map((w) => score(w)));
+    for (const t of tribes) {
+      expect(scoreFor(t.slug, viaProfiles)).toBeCloseTo(scoreFor(t.slug, viaWords));
+    }
+  });
+
+  it("returns an all-zero profile for no observers", () => {
+    expect(aggregateProfiles([]).every((s) => s.score === 0)).toBe(true);
   });
 });
 

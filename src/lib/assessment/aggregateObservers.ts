@@ -45,18 +45,32 @@ export function isComparisonUnlocked(observerCount: number): boolean {
 export function aggregateObservers(
   responses: readonly (readonly string[])[],
 ): TribeScore[] {
+  return aggregateProfiles(responses.map((words) => score(words)));
+}
+
+/**
+ * The equal-weight average of already-scored per-Observer profiles. This is the
+ * shared core `aggregateObservers` delegates to; callers that already need each
+ * Observer's profile (e.g. the comparison report's per-Observer drill-down)
+ * score each Observer once and feed the profiles here, avoiding a second scoring
+ * pass. Each profile is expected to cover all 12 tribes in canonical order (as
+ * `score` returns). An empty list yields an all-zero profile.
+ */
+export function aggregateProfiles(
+  profiles: readonly TribeScore[][],
+): TribeScore[] {
   // Canonical 12-tribe skeleton (all-zero) — `score([])` is the source of the
   // canonical slug/name ordering, so the output matches the Self profile shape.
   const canonical = score([]);
-  const observerCount = responses.length;
+  const observerCount = profiles.length;
 
   if (observerCount === 0) return canonical;
 
   const totals: Record<string, number> = {};
   for (const tribe of canonical) totals[tribe.slug] = 0;
 
-  for (const words of responses) {
-    for (const tribeScore of score(words)) {
+  for (const profile of profiles) {
+    for (const tribeScore of profile) {
       totals[tribeScore.slug] += tribeScore.score;
     }
   }
