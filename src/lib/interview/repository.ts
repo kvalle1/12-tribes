@@ -2,21 +2,28 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { interviewSessions } from "@/db/schema";
-import { appendAnswer, emptyProfile, stubResult } from "./flow";
+import { scoreAnswer } from "./agent";
+import {
+  OPENING_QUESTION,
+  deriveInterviewResult,
+  emptyStrengthProfile,
+  recordScoredTurn,
+} from "./flow";
 import type { InterviewState } from "./types";
 
 /**
  * Server-only persistence for Interview Sessions (ADR-0009 trust boundary).
  *
  * The `server-only` import makes importing this from a client bundle a build
- * error, so scoring state can never leak to or be mutated by the client. All
- * decisions about state transitions live in the pure `flow` module; this layer
- * only loads, applies, and saves.
+ * error, so scoring state and the Marker Catalog can never leak to or be mutated
+ * by the client. This layer orchestrates one Turn — load → score (Claude call in
+ * `agent.ts`) → apply (pure `flow.ts`) → save — while every state-transition
+ * decision stays in the pure modules.
  */
 
 export type InterviewSessionRow = typeof interviewSessions.$inferSelect;
 
-/** Create a fresh in-progress Session and return its row (incl. generated id). */
+/** Create a fresh in-progress Session (showing the opening question) and return its row. */
 export async function createInterviewSession(
   userId?: string | null,
 ): Promise<InterviewSessionRow> {
@@ -25,9 +32,11 @@ export async function createInterviewSession(
     .values({
       userId: userId ?? null,
       status: "in_progress",
-      profile: emptyProfile(),
+      profile: emptyStrengthProfile(),
       turns: [],
       turnCount: 0,
+      trace: [],
+      currentQuestion: OPENING_QUESTION,
     })
     .returning();
   return row;
@@ -47,14 +56,22 @@ export async function getInterviewSession(
 
 /** Project a persisted row onto the pure flow state. */
 function toState(row: InterviewSessionRow): InterviewState {
-  return { status: row.status, turns: row.turns, profile: row.profile };
+  return {
+    status: row.status,
+    turns: row.turns,
+    profile: row.profile,
+    trace: row.trace,
+    currentQuestion: row.currentQuestion,
+  };
 }
 
 /**
- * Record a participant's free-text answer against a Session and persist the
- * resulting state. Returns the updated row. If the Session is already complete
- * the answer is ignored (the pure flow treats it as a no-op) and the existing
- * row is returned unchanged.
+ * Score a participant's answer against the Marker Catalog and persist the
+ * resulting Session state. The Claude call runs first; only if it succeeds is
+ * the answer folded in and saved — so a failed model call leaves the Session
+ * resumable at the same question rather than recording an unscored Turn. If the
+ * Session is already complete (or has no pending question) the answer is ignored
+ * and the row is returned unchanged.
  */
 export async function recordInterviewAnswer(
   id: string,
@@ -63,8 +80,17 @@ export async function recordInterviewAnswer(
   const row = await getInterviewSession(id);
   if (!row) return null;
 
-  const next = appendAnswer(toState(row), answer);
-  const result = next.status === "complete" ? stubResult(next) : null;
+  const state = toState(row);
+  if (state.status === "complete" || !state.currentQuestion) return row;
+
+  const { deltas, nextQuestion } = await scoreAnswer({
+    question: state.currentQuestion,
+    answer,
+    history: state.turns,
+  });
+
+  const next = recordScoredTurn(state, { answer, deltas, nextQuestion });
+  const result = next.status === "complete" ? deriveInterviewResult(next) : null;
 
   const [updated] = await db
     .update(interviewSessions)
@@ -73,6 +99,8 @@ export async function recordInterviewAnswer(
       turns: next.turns,
       turnCount: next.turns.length,
       profile: next.profile,
+      trace: next.trace,
+      currentQuestion: next.currentQuestion,
       result,
       updatedAt: new Date(),
     })
