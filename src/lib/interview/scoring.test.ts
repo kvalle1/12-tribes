@@ -77,6 +77,18 @@ describe("applyDeltas — additive strength", () => {
     const { profile } = applyDeltas(emptyStrengthProfile(), [deltaFor(marker.id, 4)], 0);
     expect(profile.levi).toBe(marker.weight * 1);
   });
+
+  it("counts a repeated Marker citation once per Turn (no double-counting)", () => {
+    const marker = getMarkerById("judah-strength-front")!;
+    const { profile, trace } = applyDeltas(
+      emptyStrengthProfile(),
+      [deltaFor(marker.id, 1), deltaFor(marker.id, 1)],
+      0,
+    );
+    // One piece of evidence, cited twice, must not inflate the score.
+    expect(profile.judah).toBe(marker.weight * 1);
+    expect(trace).toHaveLength(1);
+  });
 });
 
 describe("applyDeltas — cite-only validation (ADR-0003)", () => {

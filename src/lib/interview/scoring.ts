@@ -71,6 +71,10 @@ export function applyDeltas(
   const next: StrengthProfile = { ...profile };
   const trace: TraceEntry[] = [];
   const byId = new Map(catalog.map((m) => [m.id, m]));
+  // One citation per Marker per Turn: a repeated (or hallucinated-duplicate)
+  // citation must not double-count the same piece of evidence, which would
+  // silently inflate a tribe's score past what one answer can support.
+  const cited = new Set<string>();
 
   for (const delta of deltas) {
     const marker = byId.get(delta.markerId);
@@ -78,11 +82,13 @@ export function applyDeltas(
     // Marker's real tribe. The catalog — not the agent — is authoritative.
     if (!marker) continue;
     if (delta.tribeSlug !== marker.tribeSlug) continue;
+    if (cited.has(marker.id)) continue;
 
     const contribution = marker.weight * clampDelta(delta.delta);
     // Additive only: never let a contribution lower a tribe's strength.
     if (contribution <= 0) continue;
 
+    cited.add(marker.id);
     next[marker.tribeSlug] = (next[marker.tribeSlug] ?? 0) + contribution;
     trace.push({
       turnIndex,

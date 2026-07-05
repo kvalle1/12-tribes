@@ -184,7 +184,7 @@ export async function scoreAnswer(input: ScoreAnswerInput): Promise<ScoreAnswerR
     max_tokens: 2048,
     system: SYSTEM,
     tools: [SCORING_TOOL],
-    tool_choice: { type: "tool", name: SCORING_TOOL.name },
+    tool_choice: { type: "tool", name: SCORING_TOOL.name, disable_parallel_tool_use: true },
     messages: [{ role: "user", content: buildTranscript(input) }],
   });
 
