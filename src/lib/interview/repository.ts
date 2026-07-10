@@ -2,7 +2,9 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { interviewSessions } from "@/db/schema";
+import { scoreAnswer } from "./agent";
 import { appendAnswer, emptyProfile, stubResult } from "./flow";
+import { applyDeltas } from "./score";
 import type { InterviewState } from "./types";
 
 /**
@@ -28,6 +30,7 @@ export async function createInterviewSession(
       profile: emptyProfile(),
       turns: [],
       turnCount: 0,
+      trace: [],
     })
     .returning();
   return row;
@@ -47,14 +50,23 @@ export async function getInterviewSession(
 
 /** Project a persisted row onto the pure flow state. */
 function toState(row: InterviewSessionRow): InterviewState {
-  return { status: row.status, turns: row.turns, profile: row.profile };
+  return {
+    status: row.status,
+    turns: row.turns,
+    profile: row.profile,
+    trace: row.trace,
+  };
 }
 
 /**
- * Record a participant's free-text answer against a Session and persist the
- * resulting state. Returns the updated row. If the Session is already complete
- * the answer is ignored (the pure flow treats it as a no-op) and the existing
- * row is returned unchanged.
+ * Record a participant's free-text answer against a Session, score it against
+ * the Marker Catalog, and persist the resulting state. Returns the updated row.
+ *
+ * The single scoring Turn (ADR-0009): record the answer, ask the agent for the
+ * cited-Marker deltas, fold them into the Strength Profile with the pure scoring
+ * engine, and append the score trace. All of this runs server-side; the client
+ * only ever submitted a string. If the Session is already complete the answer is
+ * a no-op (no wasted model call) and the existing row is returned unchanged.
  */
 export async function recordInterviewAnswer(
   id: string,
@@ -63,7 +75,19 @@ export async function recordInterviewAnswer(
   const row = await getInterviewSession(id);
   if (!row) return null;
 
-  const next = appendAnswer(toState(row), answer);
+  const prev = toState(row);
+  const withAnswer = appendAnswer(prev, answer);
+
+  // Only score when a new Turn was actually recorded (guards the complete no-op).
+  let next = withAnswer;
+  if (withAnswer.turns.length > prev.turns.length) {
+    const turnIndex = withAnswer.turns.length - 1;
+    const turn = withAnswer.turns[turnIndex];
+    const { deltas } = await scoreAnswer(turn.question, turn.answer);
+    const { profile, trace } = applyDeltas(withAnswer.profile, deltas, turnIndex);
+    next = { ...withAnswer, profile, trace: [...withAnswer.trace, ...trace] };
+  }
+
   const result = next.status === "complete" ? stubResult(next) : null;
 
   const [updated] = await db
@@ -73,6 +97,7 @@ export async function recordInterviewAnswer(
       turns: next.turns,
       turnCount: next.turns.length,
       profile: next.profile,
+      trace: next.trace,
       result,
       updatedAt: new Date(),
     })

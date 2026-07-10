@@ -1,0 +1,1 @@
+ALTER TABLE "interview_session" ADD COLUMN "trace" jsonb DEFAULT '[]'::jsonb NOT NULL;

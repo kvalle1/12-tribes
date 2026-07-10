@@ -32,7 +32,7 @@ export const TOTAL_QUESTIONS = QUESTIONS.length;
 
 const STUB_RESULT: StubResult = {
   headline: "Your interview is complete.",
-  note: "Scoring isn't wired in yet — this is a placeholder result. A future slice will read your answers and report your tribe.",
+  note: "Your answer has been read and scored against the Marker Catalog — the ranked strengths below are your early read. A future slice runs the full multi-Turn interview and names your Primary tribe.",
 };
 
 /** A fresh, zeroed strength profile covering all 12 tribes (placeholder this slice). */
@@ -46,7 +46,7 @@ export function emptyProfile(): StrengthProfile {
 
 /** The initial server-authoritative state for a newly created Session. */
 export function initialState(): InterviewState {
-  return { status: "in_progress", turns: [], profile: emptyProfile() };
+  return { status: "in_progress", turns: [], profile: emptyProfile(), trace: [] };
 }
 
 /**
