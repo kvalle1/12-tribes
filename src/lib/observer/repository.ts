@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,25 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load the anonymous Observer word selections recorded against a Subject, oldest
+ * first, for the equal-weight comparison aggregation (issue #9). Returns only the
+ * `words` arrays — no ids, timestamps, or anything else about who responded — so
+ * the aggregation and its per-Observer drill-down stay anonymous, the ordering
+ * (by `createdAt`, then `id` to break same-timestamp ties) being the only handle
+ * on a response. The stable order keeps the "Observer 1/2/3" labels consistent
+ * across page loads.
+ */
+export async function getObserverWords(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
