@@ -4,6 +4,13 @@ import { aggregateObservers } from "@/lib/assessment/aggregate";
 import type { TribeScore } from "@/lib/assessment/score";
 
 /**
+ * A self↔others gap smaller than this (on the normalized 0–1 scale) is treated
+ * as agreement — too slight to surface as a divergence worth the Subject's
+ * attention.
+ */
+const DIVERGENCE_THRESHOLD = 0.01;
+
+/**
  * The 360 comparison report (issue #9, ADR-0003): the Subject's own profile set
  * beside the equal-weight "others" profile aggregated from anonymous Observer
  * responses, with the sharpest alignments and divergences called out and an
@@ -53,7 +60,7 @@ export function ComparisonReport({
   // The sharpest divergences — where the "others" view most disagrees with the
   // self view, in either direction. This gap is where the 360's value lives.
   const divergences = [...rows]
-    .filter((r) => Math.abs(r.gap) > 0.01)
+    .filter((r) => Math.abs(r.gap) > DIVERGENCE_THRESHOLD)
     .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
     .slice(0, 3);
 

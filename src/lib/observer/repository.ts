@@ -78,13 +78,15 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load the anonymous Observer word selections recorded against a Subject, oldest
- * first, for the equal-weight comparison aggregation (issue #9). Returns only the
- * `words` arrays — no ids, timestamps, or anything else about who responded — so
- * the aggregation and its per-Observer drill-down stay anonymous, the ordering
- * (by `createdAt`, then `id` to break same-timestamp ties) being the only handle
- * on a response. The stable order keeps the "Observer 1/2/3" labels consistent
- * across page loads.
+ * Load the anonymous Observer word selections recorded against a Subject for the
+ * equal-weight comparison aggregation (issue #9). Returns only the `words`
+ * arrays — no ids, timestamps, or anything else about who responded — so the
+ * aggregation and its per-Observer drill-down stay anonymous, position in the
+ * list being the only handle on a response. Ordered by `createdAt` (oldest
+ * first), then by the row `id` as a deterministic tie-break: `id` is a random
+ * UUID, so for two responses sharing a timestamp it fixes an arbitrary but
+ * *stable* order rather than recovering true insertion order — enough to keep
+ * the "Observer 1/2/3" labels consistent across page loads.
  */
 export async function getObserverWords(
   subjectId: string,
