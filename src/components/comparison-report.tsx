@@ -107,7 +107,9 @@ export function ComparisonReport({
                 <span
                   className="font-serif text-[17px] leading-tight"
                   style={{
-                    color: isDivergent ? accentHex(tribeColor(row.slug)) : undefined,
+                    color: isDivergent
+                      ? accentHex(getTribeBySlug(row.slug)?.color ?? "")
+                      : undefined,
                   }}
                 >
                   {row.name}
@@ -234,8 +236,4 @@ function TribeName({ slug }: { slug: string }) {
       {name}
     </span>
   );
-}
-
-function tribeColor(slug: string): string {
-  return getTribeBySlug(slug)?.color ?? "";
 }

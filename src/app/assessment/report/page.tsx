@@ -26,10 +26,14 @@ export default async function ReportPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/report")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Both reads key off the same user id and are independent, so fetch in
+  // parallel — one round trip instead of two.
+  const [row, responses] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  const responses = await getObserverResponses(session.user.id);
   const unlocked = isReportUnlocked(responses.length);
 
   return (
