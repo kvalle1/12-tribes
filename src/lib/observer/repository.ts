@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,28 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/** A single anonymous Observer response, carrying only the selected words. */
+export interface ObserverResponseWords {
+  /** The words this Observer picked. Nothing here identifies the Observer. */
+  words: string[];
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first, exposing
+ * only the selected words. Ordering by creation time keeps the "Observer 1/2/3"
+ * drill-down labels stable across page loads (issue #9); no identity, timestamp,
+ * or row id is returned, so an Observer can never be singled out (ADR-0003).
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponseWords[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => ({ words: row.words }));
 }
