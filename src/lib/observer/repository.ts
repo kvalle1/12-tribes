@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,38 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * All of a Subject's anonymous Observer responses, oldest first, as bare word
+ * lists — the input to the equal-weight `aggregateObservers` and the per-Observer
+ * drill-down (issue #9). Only `words` are returned: no id, timestamp, or anything
+ * that could de-anonymize an Observer reaches the caller. The stable `createdAt`
+ * ordering keeps the anonymous "Observer 1…N" labels consistent across reloads.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+  return rows.map((r) => r.words);
+}
+
+/**
+ * How many Observers have responded for a Subject — the number the report's
+ * unlock gate (`isReportUnlocked`) is checked against. A dedicated count so a
+ * caller that only needs the gate (e.g. the result page's "see how others see
+ * you" entry) does not load every response's words.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+  return row?.count ?? 0;
 }
