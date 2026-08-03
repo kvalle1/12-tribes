@@ -84,10 +84,16 @@ export interface ObserverResponseWords {
 }
 
 /**
- * Load every anonymous Observer response for a Subject, oldest first, exposing
- * only the selected words. Ordering by creation time keeps the "Observer 1/2/3"
- * drill-down labels stable across page loads (issue #9); no identity, timestamp,
- * or row id is returned, so an Observer can never be singled out (ADR-0003).
+ * Load every anonymous Observer response for a Subject, exposing only the
+ * selected words (issue #9). No identity, timestamp, or row id is returned, so
+ * an Observer can never be singled out (ADR-0003).
+ *
+ * Rows are ordered by their opaque random `id`, not by creation time. This is
+ * deliberate: it gives the "Observer 1/2/3" drill-down a stable order across
+ * page loads (the `id` is unique, so there's no tie to break) while
+ * decorrelating list position from submission order — otherwise a Subject who
+ * knows when they contacted each person could deanonymize "Observer 1" from its
+ * position alone, without any database access.
  */
 export async function getObserverResponses(
   subjectId: string,
@@ -96,7 +102,7 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.id));
 
   return rows.map((row) => ({ words: row.words }));
 }
