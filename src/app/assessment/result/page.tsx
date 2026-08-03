@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverResponses } from "@/lib/observer/repository";
+import { isComparisonUnlocked, MIN_OBSERVERS } from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -25,6 +27,11 @@ export default async function AssessmentResultPage() {
 
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
+
+  // How many anonymous observers have responded so far — drives whether the
+  // comparison report is unlocked yet (issue #9).
+  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const comparisonUnlocked = isComparisonUnlocked(observerCount);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -61,6 +68,34 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-8 border-t border-hair pt-6">
+            {comparisonUnlocked ? (
+              <Link
+                href="/assessment/comparison"
+                className="inline-flex items-center gap-2 text-[14px] text-ink transition-colors hover:text-gold"
+              >
+                <span className="border-b border-gold pb-0.5">
+                  See how others see you
+                </span>
+                <span aria-hidden>→</span>
+              </Link>
+            ) : (
+              <p className="text-[14px] text-muted">
+                <span className="text-ink">
+                  {observerCount} of {MIN_OBSERVERS}
+                </span>{" "}
+                responses in — your{" "}
+                <Link
+                  href="/assessment/comparison"
+                  className="border-b border-gold pb-0.5 text-ink transition-colors hover:text-gold"
+                >
+                  comparison report
+                </Link>{" "}
+                unlocks at {MIN_OBSERVERS}.
+              </p>
+            )}
+          </div>
         </section>
       </div>
     </main>
