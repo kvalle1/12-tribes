@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -78,11 +78,16 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load every anonymous Observer response for a Subject, oldest first, as bare
- * word lists — the input the equal-weight aggregation (issue #9) consumes. Only
- * `words` is selected: the Observer's identity is never stored, and `createdAt`
- * ordering is used solely to keep the anonymous "Observer 1/2/3" labels stable
- * across renders, not to reveal who answered when.
+ * Load every anonymous Observer response for a Subject as bare word lists — the
+ * input the equal-weight aggregation (issue #9) consumes. Only `words` is
+ * selected: the Observer's identity is never stored.
+ *
+ * Ordering is by the row's random `id`, not `createdAt`, on purpose. The report
+ * labels responses "Observer 1/2/3" positionally; ordering by submission time
+ * would make "Observer 1" literally whoever answered first, letting a Subject
+ * who knows roughly when each person got the link correlate timing with the
+ * anonymous drill-down and deanonymize it. A random-UUID ordering is just as
+ * stable across renders but encodes nothing about who answered when (ADR-0003).
  */
 export async function getObserverResponses(
   subjectId: string,
@@ -91,5 +96,20 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.id));
+}
+
+/**
+ * Count a Subject's anonymous Observer responses without loading their words —
+ * enough to drive the "N of 3" unlock progress on the result page without
+ * pulling every response's payload (issue #9 unlock gate).
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+  return row?.value ?? 0;
 }

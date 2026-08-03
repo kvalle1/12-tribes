@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import { isComparisonUnlocked, MIN_OBSERVERS } from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
@@ -30,7 +30,7 @@ export default async function AssessmentResultPage() {
 
   // How many anonymous observers have responded so far — drives whether the
   // comparison report is unlocked yet (issue #9).
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = await countObserverResponses(session.user.id);
   const comparisonUnlocked = isComparisonUnlocked(observerCount);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
