@@ -114,8 +114,9 @@ export function ComparisonReport({
           Each observer, anonymously
         </p>
         <p className="mt-2 max-w-[520px] text-[14px] text-muted">
-          The tribes each response leaned toward. Responses are unlabeled and in
-          no particular order — there&rsquo;s no way to tell who is who.
+          The tribes each response leaned toward. Responses carry no name,
+          relationship, or timestamp &mdash; only the words, so there&rsquo;s no
+          way to tell who is who.
         </p>
         <ul className="mt-6 flex flex-col gap-4">
           {perObserver.map((profile, i) => (
