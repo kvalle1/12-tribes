@@ -92,7 +92,10 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    // `id` is the tiebreaker so the order (and therefore the anonymous
+    // "Observer N" labels) stays fixed even when two responses share a
+    // `createdAt` timestamp.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => ({ words: row.words }));
 }

@@ -108,6 +108,7 @@ export function ComparisonReport({
                 </div>
                 <div className="mt-2.5 flex flex-col gap-1.5">
                   <CompareBar
+                    tribeName={row.name}
                     label="You"
                     value={row.self}
                     max={sharedMax}
@@ -115,6 +116,7 @@ export function ComparisonReport({
                     solid
                   />
                   <CompareBar
+                    tribeName={row.name}
                     label="Others"
                     value={row.others}
                     max={sharedMax}
@@ -202,12 +204,14 @@ function Legend() {
  * outlined fill so the two read as distinct at a glance.
  */
 function CompareBar({
+  tribeName,
   label,
   value,
   max,
   accent,
   solid = false,
 }: {
+  tribeName: string;
   label: string;
   value: number;
   max: number;
@@ -224,7 +228,7 @@ function CompareBar({
       <div
         className="h-2.5 overflow-hidden rounded-full bg-hair/40"
         role="img"
-        aria-label={`${label}: ${Math.round(fraction * 100)}% of the strongest score`}
+        aria-label={`${tribeName}, ${label}: ${Math.round(fraction * 100)}% of the strongest tribe's score`}
       >
         <div
           className="h-full rounded-full transition-[width]"
@@ -264,8 +268,8 @@ function ObserverDrilldown({
           </span>
         </summary>
         <p className="mt-3 max-w-[520px] text-[14px] text-muted">
-          Each read below is anonymous — shown only as a number, in no
-          particular order, with nothing that identifies who gave it.
+          Each read below is anonymous — shown only as a number, with nothing
+          recorded about who gave it or how you know them.
         </p>
         <ul className="mt-6 flex flex-col gap-6">
           {perObserver.map((observer) => (
