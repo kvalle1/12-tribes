@@ -76,3 +76,22 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * All of a Subject's anonymous Observer responses — just the selected words of
+ * each, oldest first — feeding the equal-weight aggregation (issue #9). Only the
+ * words are returned; the rows carry no observer identity to expose (ADR-0003),
+ * and the stable ordering keeps the anonymous per-observer drill-down indices
+ * consistent within a render.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+
+  return rows.map((row) => row.words);
+}
