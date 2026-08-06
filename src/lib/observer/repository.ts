@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first. Only the
+ * selected `words` are returned — no id, no timestamp, nothing that identifies
+ * an Observer — so the caller (the comparison report, issue #9) can score and
+ * aggregate them but can never attribute a response to a person. The stable
+ * oldest-first order keeps the anonymous "Observer 1/2/3" drill-down labels
+ * consistent between renders.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<{ words: string[] }[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => ({ words: row.words }));
 }
