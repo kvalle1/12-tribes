@@ -210,7 +210,7 @@ function CompareBar({
     <div
       className="h-2 w-full overflow-hidden rounded-full bg-hair/50"
       role="img"
-      aria-label={`${label}: ${Math.round((value / max) * 100)}`}
+      aria-label={`${label}: ${Math.round((value / max) * 100)}% of the top score`}
     >
       <div
         className="h-full rounded-full transition-[width]"
