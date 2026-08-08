@@ -3,8 +3,12 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverResponses } from "@/lib/observer/repository";
+import { aggregateObservers } from "@/lib/observer/aggregate";
+import { score } from "@/lib/assessment/score";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
+import { ObserverComparison } from "@/components/observer-comparison";
 
 /**
  * The Subject's saved current result (ADR-0004). Login-gated; an unauthenticated
@@ -31,6 +35,14 @@ export default async function AssessmentResultPage() {
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
   const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+
+  // The 360 comparison: score the Subject's own words and aggregate their
+  // Observers into the equal-weight "others" read (issue #9). The report unlocks
+  // once at least three Observers have responded; before then it shows progress.
+  const selfScores = score(row.words);
+  const observerAggregate = aggregateObservers(
+    await getObserverResponses(session.user.id),
+  );
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,6 +73,11 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <ObserverComparison
+            selfScores={selfScores}
+            aggregate={observerAggregate}
+          />
         </section>
       </div>
     </main>
