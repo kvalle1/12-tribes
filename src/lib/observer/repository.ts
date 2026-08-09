@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,23 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Fetch a Subject's anonymous Observer responses for the equal-weight
+ * aggregation and comparison report (issue #9). Returns only each response's
+ * selected `words`, oldest first — never any observer identity (there is none to
+ * return; ADR-0003). The stable ordering makes the report's anonymous
+ * "Observer 1 / 2 / 3" drill-down labels deterministic across renders.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => row.words);
 }
