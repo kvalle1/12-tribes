@@ -31,10 +31,14 @@ export default async function ComparePage() {
     );
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // The self-result and observer responses are independent lookups, so fetch
+  // them together; the null-result redirect is still checked before either is
+  // rendered.
+  const [row, responses] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
-
-  const responses = await getObserverResponses(session.user.id);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
