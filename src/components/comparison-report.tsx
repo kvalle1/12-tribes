@@ -69,6 +69,25 @@ export function ComparisonReport({
     (a, b) => Math.abs(b.delta) - Math.abs(a.delta),
   )[0];
 
+  // Per-observer drill-down (PRD story 26): each anonymous Observer's strongest
+  // reads. Ordered by a content-derived key (the Observer's ranked tribes), not
+  // by when they responded, so the "Observer N" label leaks no submission-time
+  // signal — the individual stays unidentifiable, which is exactly what the ≥3
+  // unlock gate exists to protect (ADR-0003).
+  const drilldown = observerResponses
+    .map((words) => {
+      const top = rankScores(score(words))
+        .filter((t) => t.score > 0)
+        .slice(0, 3);
+      const orderKey = top
+        .map((t) =>
+          String(getTribeBySlug(t.slug)?.number ?? 99).padStart(2, "0"),
+        )
+        .join("-");
+      return { top, orderKey };
+    })
+    .sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+
   return (
     <div>
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -170,10 +189,7 @@ export function ComparisonReport({
           relationships.
         </p>
         <ul className="mt-6 flex flex-col gap-4">
-          {observerResponses.map((words, i) => {
-            const top = rankScores(score(words))
-              .filter((t) => t.score > 0)
-              .slice(0, 3);
+          {drilldown.map(({ top }, i) => {
             return (
               <li
                 key={i}

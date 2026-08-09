@@ -80,9 +80,10 @@ export async function recordObserverResponse(
 /**
  * Fetch a Subject's anonymous Observer responses for the equal-weight
  * aggregation and comparison report (issue #9). Returns only each response's
- * selected `words`, oldest first — never any observer identity (there is none to
- * return; ADR-0003). The stable ordering makes the report's anonymous
- * "Observer 1 / 2 / 3" drill-down labels deterministic across renders.
+ * selected `words` — never any observer identity (there is none to return;
+ * ADR-0003). Aggregation is order-independent, and the report derives its
+ * anonymous "Observer N" drill-down order from response *content*, not this
+ * fetch order, so no submission-time signal reaches the Subject.
  */
 export async function getObserverResponses(
   subjectId: string,
