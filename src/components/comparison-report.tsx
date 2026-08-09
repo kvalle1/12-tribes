@@ -60,8 +60,8 @@ export function ComparisonReport({
   return (
     <div>
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
-        Your 360 read · {observerCount}{" "}
-        {observerCount === 1 ? "observer" : "observers"}
+        {/* Only rendered once unlocked, so there are always ≥3 observers. */}
+        Your 360 read · {observerCount} observers
       </p>
       <h2 className="mt-2 font-serif text-[26px] font-semibold leading-snug">
         You, and how others see you
@@ -110,10 +110,12 @@ export function ComparisonReport({
         </ul>
       </section>
 
-      {/* Where the two reads meet and where they part. */}
-      <section className="mt-12 grid grid-cols-2 gap-4 max-[520px]:grid-cols-1">
+      {/* Where the two reads meet and where they part. `flex-wrap` with a min
+          width means a single present card fills the row instead of leaving a
+          blank column when the other callout has nothing to show. */}
+      <section className="mt-12 flex flex-wrap gap-4">
         {agreement && (
-          <div className="rounded-[2px] border border-hair p-5">
+          <div className="min-w-[240px] flex-1 rounded-[2px] border border-hair p-5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-faint">
               Strongest agreement
             </p>
@@ -124,7 +126,7 @@ export function ComparisonReport({
           </div>
         )}
         {divergence && (
-          <div className="rounded-[2px] border border-hair p-5">
+          <div className="min-w-[240px] flex-1 rounded-[2px] border border-hair p-5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-faint">
               Biggest divergence
             </p>
@@ -160,17 +162,22 @@ export function ComparisonReport({
   );
 }
 
-/** Legend distinguishing the "you" bar from the "observers" bar. */
+/**
+ * Legend for the paired bars. Each tribe keeps its own accent hue, so "you" vs
+ * "observers" is encoded by depth — the solid (upper) bar is you, the lighter
+ * (lower) bar is the observers' average. The swatches mirror that solid/faded
+ * contrast rather than any one tribe's color.
+ */
 function Legend() {
   return (
     <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] text-muted">
       <span className="flex items-center gap-2">
         <span className="h-2.5 w-6 rounded-full bg-ink" aria-hidden />
-        You
+        You (solid bar)
       </span>
       <span className="flex items-center gap-2">
         <span className="h-2.5 w-6 rounded-full bg-ink/40" aria-hidden />
-        Observers (average)
+        Observers, average (lighter bar)
       </span>
     </div>
   );
