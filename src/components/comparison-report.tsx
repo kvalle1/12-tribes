@@ -3,6 +3,13 @@ import type { TribeScore } from "@/lib/assessment/score";
 import type { TribeComparison } from "@/lib/observer/aggregate";
 
 /**
+ * A tribe counts as "seen by both" only when the self/others gap is within this
+ * fraction of the larger score — so agreement means genuine closeness, not merely
+ * the smallest gap in an otherwise divergent profile.
+ */
+const AGREEMENT_PROXIMITY = 0.25;
+
+/**
  * The self-vs-others 360 comparison report (issue #9, ADR-0003). Shows the
  * Subject's own profile alongside the equal-weight aggregated "others" profile,
  * calls out where the two agree and where they diverge, and offers an anonymous
@@ -36,9 +43,16 @@ export function ComparisonReport({
     (a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others),
   );
 
-  // Agreement: both series register the tribe and the gap is small.
+  // Agreement: both series register the tribe AND the gap is genuinely small —
+  // within AGREEMENT_PROXIMITY of the larger of the two scores. The relative
+  // test keeps this honest when every gap is large: nothing is labelled "seen by
+  // both" just for being the least-divergent of a divergent set.
   const agreement = rows
-    .filter((r) => r.self > 0 && r.others > 0)
+    .filter((r) => {
+      if (r.self <= 0 || r.others <= 0) return false;
+      const larger = Math.max(r.self, r.others);
+      return Math.abs(r.delta) <= AGREEMENT_PROXIMITY * larger;
+    })
     .sort((a, b) => Math.abs(a.delta) - Math.abs(b.delta))
     .slice(0, 2);
 
