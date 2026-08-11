@@ -15,8 +15,8 @@ import { tribes } from "@/lib/tribes";
  * ADR-0003 rejects.
  *
  * Pure and dependency-light so it can be unit-tested directly and reused by the
- * comparison report. The `server-only` import comes in transitively via the
- * scoring core (the word→tribe mapping never reaches the client, ADR-0009).
+ * comparison report. Marked `server-only` (like the scoring core it builds on)
+ * so the word→tribe mapping it pulls in never reaches the client (ADR-0009).
  */
 
 /**

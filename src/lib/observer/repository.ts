@@ -81,9 +81,10 @@ export async function recordObserverResponse(
  * Load every Observer's selected words for a Subject, oldest first, as the input
  * to the equal-weight aggregation (issue #9). Returns just the word lists — no
  * ids, timestamps, or anything identifying — so the report stays anonymous; the
- * stable createdAt ordering is what makes the "Observer 1/2/3" drill-down labels
- * deterministic across renders. An empty array means no Observers have responded
- * yet (the report's locked state).
+ * stable ordering is what makes the "Observer 1/2/3" drill-down labels
+ * deterministic across renders — `createdAt` first, then `id` as a tie-break so
+ * responses landing in the same instant still get a fixed order. An empty array
+ * means no Observers have responded yet (the report's locked state).
  */
 export async function getObserverWordLists(
   subjectId: string,
@@ -92,7 +93,7 @@ export async function getObserverWordLists(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((r) => r.words);
 }
