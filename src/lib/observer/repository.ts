@@ -76,3 +76,26 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/** One Observer's recorded selection, oldest first — the input the equal-weight
+ * aggregation (issue #9) consumes. Deliberately just the words: no id, no
+ * timestamp, nothing that could identify the Observer reaches a caller. */
+export interface ObserverResponseWords {
+  words: string[];
+}
+
+/**
+ * Load every anonymous Observer response recorded for a Subject, oldest first so
+ * the report's "Observer 1/2/3" drill-down labels stay stable across reloads.
+ * Returns only each response's words — the aggregation and the report never need,
+ * and this never exposes, anything that could identify an Observer (ADR-0003).
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponseWords[]> {
+  return db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+}

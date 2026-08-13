@@ -3,6 +3,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverResponses } from "@/lib/observer/repository";
+import {
+  isReportUnlocked,
+  MIN_OBSERVERS_FOR_REPORT,
+} from "@/lib/assessment/aggregate-observers";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -25,6 +30,11 @@ export default async function AssessmentResultPage() {
 
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
+
+  // How many Observers have answered so far, so the 360 section can show the
+  // running count and unlock the report link at the threshold (issue #9).
+  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const reportUnlocked = isReportUnlocked(observerCount);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -61,6 +71,20 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-hair pt-6">
+            <div className="text-[13px] text-muted">
+              {reportUnlocked
+                ? `${observerCount} ${observerCount === 1 ? "person has" : "people have"} answered — your report is ready.`
+                : `${observerCount} of ${MIN_OBSERVERS_FOR_REPORT} responses so far — your report unlocks at ${MIN_OBSERVERS_FOR_REPORT}.`}
+            </div>
+            <Link
+              href="/assessment/report"
+              className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+            >
+              {reportUnlocked ? "View your 360 report" : "See report progress"}
+            </Link>
+          </div>
         </section>
       </div>
     </main>
