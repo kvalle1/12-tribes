@@ -34,6 +34,10 @@ export function ComparisonReport({
 }) {
   const others = bySlug(otherScores);
   const max = sharedMax(selfScores, otherScores);
+  // A score as a fraction of the shared top score — the single meaning of "%"
+  // on this page, used by both the bars and the agree/diverge readouts so a long
+  // bar and its percentage always agree.
+  const rel = (value: number) => (max > 0 ? value / max : 0);
 
   // Order by the Subject's own ranking so they read the comparison against the
   // profile they already know, then attach each tribe's self/other gap.
@@ -47,11 +51,14 @@ export function ComparisonReport({
   // Alignment vs divergence: the tribes where self and others agree most, and
   // where they part most (a self-higher gap is a blind spot others don't see; an
   // others-higher gap is a strength the Subject under-claims).
-  const ranked = [...rows].sort(
-    (a, b) => Math.abs(b.self - b.other) - Math.abs(a.self - a.other),
-  );
-  const divergences = ranked.filter((r) => r.self > 0 || r.other > 0).slice(0, 3);
-  const alignments = [...ranked].reverse().slice(0, 3);
+  // Only tribes with actual signal on at least one side can meaningfully agree
+  // or diverge — a tribe neither the Subject nor the observers picked is a
+  // mutual zero, which is shared silence, not the strongest agreement.
+  const withSignal = [...rows]
+    .filter((r) => r.self > 0 || r.other > 0)
+    .sort((a, b) => Math.abs(b.self - b.other) - Math.abs(a.self - a.other));
+  const divergences = withSignal.slice(0, 3);
+  const alignments = [...withSignal].reverse().slice(0, 3);
 
   return (
     <div>
@@ -98,12 +105,12 @@ export function ComparisonReport({
                 <div className="flex flex-col gap-1.5">
                   <CompareBar
                     label="You"
-                    fraction={max > 0 ? row.self / max : 0}
+                    fraction={rel(row.self)}
                     color="var(--color-ink, #1a1a1a)"
                   />
                   <CompareBar
                     label="Others"
-                    fraction={max > 0 ? row.other / max : 0}
+                    fraction={rel(row.other)}
                     color={accent}
                     muted
                   />
@@ -125,7 +132,7 @@ export function ComparisonReport({
               <li key={row.slug} className="text-[15px] text-ink">
                 <span className="font-serif text-[17px]">{row.name}</span>
                 <span className="ml-2 text-[13px] text-muted">
-                  you {pct(row.self)} · others {pct(row.other)}
+                  you {pct(rel(row.self))} · others {pct(rel(row.other))}
                 </span>
               </li>
             ))}
@@ -141,7 +148,7 @@ export function ComparisonReport({
                 <span className="font-serif text-[17px]">{row.name}</span>
                 <span className="ml-2 text-[13px] text-muted">
                   {row.self >= row.other ? "you see it more" : "others see it more"}{" "}
-                  · you {pct(row.self)} · others {pct(row.other)}
+                  · you {pct(rel(row.self))} · others {pct(rel(row.other))}
                 </span>
               </li>
             ))}
@@ -207,7 +214,9 @@ function CompareBar({
   color: string;
   muted?: boolean;
 }) {
-  const width = Math.max(fraction * 100, fraction > 0 ? 2 : 0);
+  // Floor a non-zero bar at 3% so a real-but-tiny score stays visible, matching
+  // the ranking bars in result-view.tsx.
+  const width = Math.max(fraction * 100, fraction > 0 ? 3 : 0);
   return (
     <div
       className="h-2.5 overflow-hidden rounded-full bg-hair/50"

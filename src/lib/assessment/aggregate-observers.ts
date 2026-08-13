@@ -16,8 +16,8 @@ import { score, type TribeScore } from "./score";
  * chose.
  *
  * The output is a `TribeScore[]` on the same 0–1 scale as `score()`, in the same
- * canonical (tribe `number`) order, so the comparison report can rank and draw
- * it with the same `rankScores` helper it uses for the Subject's own profile.
+ * canonical (tribe `number`) order, so the comparison report can set it tribe-for
+ * -tribe beside the Subject's own profile on one shared scale.
  *
  * `server-only`: this pulls in the scoring core (and through it the word→tribe
  * mapping), which must never reach the client (ADR-0009 trust boundary).

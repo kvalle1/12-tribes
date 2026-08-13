@@ -8,6 +8,7 @@ import {
   aggregateObservers,
   isReportUnlocked,
   MIN_OBSERVERS_FOR_REPORT,
+  scoreObserver,
 } from "@/lib/assessment/aggregate-observers";
 import { ComparisonReport } from "@/components/comparison-report";
 
@@ -51,7 +52,7 @@ export default async function ReportPage() {
           <ComparisonReport
             selfScores={score(row.words)}
             otherScores={aggregateObservers(responses)}
-            observerProfiles={responses.map((r) => score(r.words))}
+            observerProfiles={responses.map(scoreObserver)}
           />
         ) : (
           <LockedReport count={count} />
