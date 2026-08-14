@@ -1,10 +1,11 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
+import type { ObserverResponseInput } from "./aggregate";
 
 /**
  * Server-only persistence for the 360 Observer flow (issue #8, ADR-0003). The
@@ -75,4 +76,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load a Subject's anonymous Observer responses for the comparison report
+ * (issue #9). Ordered oldest-first by creation time so the anonymous
+ * per-observer drill-down labels (Observer 1, 2, 3…) are stable across page
+ * loads. Only the selected `words` come back — never any identity, matching the
+ * anonymity guarantee of the `observer_response` table (ADR-0003). The
+ * equal-weight aggregation over these rows is `aggregateObservers`.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponseInput[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => ({ words: row.words }));
 }
