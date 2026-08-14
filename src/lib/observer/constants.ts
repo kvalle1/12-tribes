@@ -10,9 +10,10 @@ export const MIN_OBSERVERS_FOR_REPORT = 3;
 
 /**
  * Whether the comparison report may be shown for a Subject with `observerCount`
- * responses. Applied on the server (to gate rendering the real report) and on
- * the client (to render the right locked/unlocked copy), so the threshold lives
- * here once.
+ * responses. Used on the server to gate rendering the real report; kept in this
+ * client-safe module (no `server-only` or word→tribe import) so the client can
+ * reuse the same threshold for locked/unlocked copy without dragging the mapping
+ * into its bundle.
  */
 export function isReportUnlocked(observerCount: number): boolean {
   return observerCount >= MIN_OBSERVERS_FOR_REPORT;
