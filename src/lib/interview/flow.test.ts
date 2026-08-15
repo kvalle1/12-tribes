@@ -82,6 +82,12 @@ describe("recordScoredAnswer", () => {
     expect(nextTurn(state)).toMatchObject({ kind: "question", prompt: "the LLM's follow-up", questionNumber: 2 });
   });
 
+  it("falls back to the opener when the agent returns a blank next question", () => {
+    const state = recordScoredAnswer(initialState(), "an answer", [], "   ".trim());
+    expect(state.pendingQuestion).toBe(CALIBRATION_OPENER);
+    expect(nextTurn(state)).toMatchObject({ kind: "question", prompt: CALIBRATION_OPENER });
+  });
+
   it("completes the Interview at the question cap and clears the pending question", () => {
     const state = advance(MAX_QUESTIONS);
     expect(state.status).toBe("complete");

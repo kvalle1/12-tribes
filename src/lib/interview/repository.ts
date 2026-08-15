@@ -78,7 +78,7 @@ export async function recordInterviewAnswer(
   const state = toState(row);
   if (state.status === "complete") return row;
 
-  const question = state.pendingQuestion ?? CALIBRATION_OPENER;
+  const question = state.pendingQuestion || CALIBRATION_OPENER;
   const { deltas, nextQuestion } = await scoreAnswer({
     question,
     answer,

@@ -71,7 +71,9 @@ export function nextTurn(state: InterviewState): NextTurn {
   }
   return {
     kind: "question",
-    prompt: state.pendingQuestion ?? CALIBRATION_OPENER,
+    // `||`, not `??`: an empty agent-produced question must fall back to the
+    // opener rather than render a blank prompt.
+    prompt: state.pendingQuestion || CALIBRATION_OPENER,
     questionNumber: state.turns.length + 1,
     totalQuestions: MAX_QUESTIONS,
   };
@@ -99,7 +101,7 @@ export function recordScoredAnswer(
   }
 
   const turnIndex = state.turns.length;
-  const question = state.pendingQuestion ?? CALIBRATION_OPENER;
+  const question = state.pendingQuestion || CALIBRATION_OPENER;
 
   const scored: ScoringState = applyMarkerDeltas(
     { profile: state.profile, traces: state.traces },
@@ -117,6 +119,8 @@ export function recordScoredAnswer(
     turns,
     profile: scored.profile,
     traces: scored.traces,
-    pendingQuestion: status === "complete" ? null : nextQuestion,
+    // Never persist an empty pending question — fall back to the opener so a
+    // dropped agent question degrades gracefully instead of rendering blank.
+    pendingQuestion: status === "complete" ? null : nextQuestion || CALIBRATION_OPENER,
   };
 }
