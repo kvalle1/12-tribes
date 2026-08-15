@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverAggregate } from "@/lib/observer/repository";
+import { MIN_OBSERVERS_TO_UNLOCK } from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -25,6 +27,12 @@ export default async function AssessmentResultPage() {
 
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
+
+  // How many Observers have described the Subject so far — drives the 360
+  // report entry's live progress and whether the report has unlocked (issue #9).
+  const { observerCount, unlocked } = await getObserverAggregate(
+    session.user.id,
+  );
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -61,6 +69,30 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-6 flex flex-wrap items-center gap-3 text-[14px]">
+            {unlocked ? (
+              <Link
+                href="/assessment/report"
+                className="rounded-[2px] bg-ink px-[26px] py-[12px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+              >
+                See how others see you
+              </Link>
+            ) : (
+              <Link
+                href="/assessment/report"
+                className="border-b border-gold pb-1 tracking-[0.02em] text-ink transition-colors hover:text-gold"
+              >
+                View 360 progress
+              </Link>
+            )}
+            <span className="text-muted">
+              {observerCount === 0
+                ? "No responses yet"
+                : `${observerCount} of ${MIN_OBSERVERS_TO_UNLOCK} responses in`}
+              {unlocked && " · report unlocked"}
+            </span>
+          </div>
         </section>
       </div>
     </main>

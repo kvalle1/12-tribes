@@ -1,9 +1,10 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
+import { aggregateObservers, type ObserverAggregate } from "./aggregate";
 import { observerDisplayName } from "./display-name";
 
 /**
@@ -75,4 +76,23 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load a Subject's Observer responses and fold them into the equal-weight
+ * "others" profile that backs the comparison report (issue #9, ADR-0003).
+ * Responses are read oldest-first so the anonymous Observer 1/2/3 labels are
+ * stable across page loads. All aggregation and the ≥3 unlock decision live in
+ * the pure `aggregateObservers` core; this function only supplies its rows.
+ */
+export async function getObserverAggregate(
+  subjectId: string,
+): Promise<ObserverAggregate> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return aggregateObservers(rows.map((r) => r.words));
 }
