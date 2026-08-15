@@ -9,6 +9,7 @@ import {
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
   InterviewTurn,
+  ScoreTrace,
   StrengthProfile,
   StubResult,
 } from "@/lib/interview/types";
@@ -146,12 +147,16 @@ export const interviewSessions = pgTable("interview_session", {
     .$type<"in_progress" | "complete">()
     .notNull()
     .default("in_progress"),
-  // Running strength profile (placeholder this slice).
+  // Running per-tribe Strength Profile, grown by applying Marker deltas.
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
   // Completed Turns, oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
-  // Stub result, set once the flow completes.
+  // Audit trail: every applied Marker delta traced to its answer (ADR-0003).
+  traces: jsonb("traces").$type<ScoreTrace[]>().notNull().default([]),
+  // The question currently awaiting an answer — the fixed opener, then agent-produced.
+  pendingQuestion: text("pendingQuestion"),
+  // Legacy stub-result column (unused since real scoring; kept for compatibility).
   result: jsonb("result").$type<StubResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),

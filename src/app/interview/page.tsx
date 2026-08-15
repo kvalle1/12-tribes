@@ -27,6 +27,8 @@ export default async function InterviewPage() {
         status: session.status,
         turns: session.turns,
         profile: session.profile,
+        traces: session.traces,
+        pendingQuestion: session.pendingQuestion,
       })
     : null;
 
