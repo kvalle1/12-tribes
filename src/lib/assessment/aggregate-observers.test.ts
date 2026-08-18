@@ -59,25 +59,44 @@ describe("aggregateObservers", () => {
     }
   });
 
-  it("weights observers equally regardless of how many words each picked", () => {
-    // Two observers describe the SAME tribe, but one picks many more words. Since
-    // each observer is normalized before averaging, the wordier observer must not
-    // dominate — the average equals each observer's own (identical-shape) score,
-    // not a pooled bag of words tilted toward the wordier one.
-    const target = tribes[0].slug;
-    const all = wordsForTribe(target);
-    const few = all.slice(0, 8);
-    const many = all.slice(0, Math.min(all.length, 15));
+  it("is a mean over people: N identical observers equal one observer's score", () => {
+    // Independent oracle: the mean of k identical vectors is that vector. So
+    // aggregating k copies of the same selection must reproduce a single
+    // observer's normalized score exactly — a property derived from `score`
+    // alone, not from re-deriving the averaging code. Guards against a
+    // regression that summed without dividing, or divided by a wrong count.
+    const selection = selectionForTribe(tribes[3].slug);
+    const single = score(selection);
 
-    const agg = aggregateObservers([few, many]);
-    const avgOfIndividuals = tribes.map(
-      (t) =>
-        (scoreFor(t.slug, score(few)) + scoreFor(t.slug, score(many))) / 2,
-    );
+    for (const copies of [1, 3, 7]) {
+      const agg = aggregateObservers(Array.from({ length: copies }, () => selection));
+      expect(agg.observerCount).toBe(copies);
+      for (const tribe of tribes) {
+        expect(scoreFor(tribe.slug, agg.others)).toBeCloseTo(
+          scoreFor(tribe.slug, single),
+          10,
+        );
+      }
+    }
+  });
 
-    tribes.forEach((t, i) => {
-      expect(scoreFor(t.slug, agg.others)).toBeCloseTo(avgOfIndividuals[i], 10);
-    });
+  it("counts each response as exactly one term — a duplicate shifts the mean", () => {
+    // Adding a second copy of observer A to [A, B] must move the aggregate to
+    // (2·A + B)/3, i.e. exactly one extra equal term for A. The expected value is
+    // built from single-observer scores and hand-weighted here, so it can't drift
+    // with the implementation.
+    const a = selectionForTribe(tribes[0].slug);
+    const b = selectionForTribe(tribes[5].slug);
+    const sa = score(a);
+    const sb = score(b);
+
+    const agg = aggregateObservers([a, a, b]);
+    expect(agg.observerCount).toBe(3);
+    for (const tribe of tribes) {
+      const expected =
+        (2 * scoreFor(tribe.slug, sa) + scoreFor(tribe.slug, sb)) / 3;
+      expect(scoreFor(tribe.slug, agg.others)).toBeCloseTo(expected, 10);
+    }
   });
 
   it("keeps the aggregate scores within 0–1 like the underlying scoring core", () => {

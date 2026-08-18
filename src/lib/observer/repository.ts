@@ -78,10 +78,15 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load the anonymous Observer responses for a Subject, oldest first, as bare
- * word lists — no ids, timestamps, or anything that could identify who
- * responded (ADR-0003). The stable order lets the report label them "Observer
- * 1 / 2 / 3" consistently across visits without attaching any real identity.
+ * Load the anonymous Observer responses for a Subject as bare word lists — no
+ * ids, timestamps, or anything that could identify who responded (ADR-0003).
+ *
+ * Ordered by the random `id` rather than `createdAt`: the report needs a *stable*
+ * order to label observers "Observer 1 / 2 / 3" consistently across visits, but
+ * it must not be *chronological* — arrival order would let a Subject who watched
+ * the count tick up correlate a labelled observer back to a real person. Ordering
+ * by the opaque UUID keeps the labels stable while carrying no timing signal, and
+ * the `id` itself is never selected, so nothing identifying leaves the server.
  * The equal-weight aggregation (`aggregateObservers`) and the ≥3 unlock gate are
  * applied by the caller on top of these rows.
  */
@@ -92,7 +97,7 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }
