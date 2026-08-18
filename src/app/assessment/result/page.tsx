@@ -61,6 +61,12 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+          <Link
+            href="/assessment/compare"
+            className="mt-6 inline-block border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+          >
+            View your self-vs-others comparison →
+          </Link>
         </section>
       </div>
     </main>
