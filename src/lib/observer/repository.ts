@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load the anonymous Observer responses for a Subject, oldest first — the input
+ * to the equal-weight aggregation and comparison report (issue #9). Deliberately
+ * returns **only the selected words**: no id, no timestamp, nothing that could
+ * de-anonymize an Observer reaches the caller. Stable `createdAt` ordering makes
+ * the anonymous "Observer 1/2/3" labels deterministic across page loads without
+ * exposing the ordering key itself.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<{ words: string[] }[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => ({ words: row.words }));
 }
