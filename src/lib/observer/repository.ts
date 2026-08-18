@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load the anonymous Observer responses for a Subject, oldest first, as bare
+ * word lists — no ids, timestamps, or anything that could identify who
+ * responded (ADR-0003). The stable order lets the report label them "Observer
+ * 1 / 2 / 3" consistently across visits without attaching any real identity.
+ * The equal-weight aggregation (`aggregateObservers`) and the ≥3 unlock gate are
+ * applied by the caller on top of these rows.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => row.words);
 }
