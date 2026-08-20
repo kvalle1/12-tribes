@@ -32,6 +32,34 @@ export function isReportUnlocked(observerCount: number): boolean {
 }
 
 /**
+ * The equal-weight mean of already-scored profiles, per tribe, in canonical
+ * (tribe `number`) order. This is the aggregation step on its own: every profile
+ * counts the same in the average, so a caller that has already scored each
+ * Observer (e.g. to also show a per-Observer drill-down) can reuse those scores
+ * instead of scoring twice. With no profiles, every tribe scores 0.
+ */
+export function averageProfiles(
+  profiles: readonly (readonly TribeScore[])[],
+): TribeScore[] {
+  const bySlug = profiles.map(
+    (profile) => new Map(profile.map((s) => [s.slug, s.score])),
+  );
+  const count = bySlug.length;
+
+  return tribes.map((tribe) => {
+    const sum = bySlug.reduce(
+      (acc, scores) => acc + (scores.get(tribe.slug) ?? 0),
+      0,
+    );
+    return {
+      slug: tribe.slug,
+      name: tribe.name,
+      score: count > 0 ? sum / count : 0,
+    };
+  });
+}
+
+/**
  * The equal-weight "others" profile: score every Observer response on its own
  * (normalized), then take the plain per-tribe mean across all responses.
  * Returns a normalized 0–1 score for every tribe in canonical (tribe `number`)
@@ -41,22 +69,7 @@ export function isReportUnlocked(observerCount: number): boolean {
 export function aggregateObservers(
   responses: readonly (readonly string[])[],
 ): TribeScore[] {
-  const perObserver = responses.map(
-    (words) => new Map(score(words).map((s) => [s.slug, s.score])),
-  );
-  const observerCount = perObserver.length;
-
-  return tribes.map((tribe) => {
-    const sum = perObserver.reduce(
-      (acc, scores) => acc + (scores.get(tribe.slug) ?? 0),
-      0,
-    );
-    return {
-      slug: tribe.slug,
-      name: tribe.name,
-      score: observerCount > 0 ? sum / observerCount : 0,
-    };
-  });
+  return averageProfiles(responses.map((words) => score(words)));
 }
 
 /**

@@ -89,11 +89,15 @@ export interface ObserverResponseWords {
 }
 
 /**
- * Load every Observer response for a Subject, oldest first, as bare word lists.
- * Ordering is by insertion so the "Observer 1/2/3" labels stay stable across
- * views; it deliberately exposes no timestamp or identity. Used by the
- * comparison report to score each Observer individually and to gate the report
- * on the ≥3-response unlock (issue #9).
+ * Load every Observer response for a Subject as bare word lists, for the
+ * comparison report to score individually and gate on the ≥3-response unlock
+ * (issue #9).
+ *
+ * Ordering is by the row's opaque random `id`, NOT by `createdAt`: the "Observer
+ * 1/2/3" labels the report shows must not encode submission order, which in a
+ * small group could help correlate a response back to who answered when. Since
+ * `id` is a random UUID, the order is stable across views (so the labels don't
+ * shuffle on refresh) yet carries no temporal or identifying signal (ADR-0003).
  */
 export async function listObserverResponses(
   subjectId: string,
@@ -102,7 +106,7 @@ export async function listObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.id));
 
   return rows.map((row) => ({ words: row.words }));
 }

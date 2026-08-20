@@ -1,7 +1,7 @@
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { score } from "@/lib/assessment/score";
 import {
-  aggregateObservers,
+  averageProfiles,
   compareProfiles,
 } from "@/lib/assessment/aggregateObservers";
 
@@ -26,7 +26,10 @@ export function ComparisonReport({
   observerResponses: { words: string[] }[];
 }) {
   const self = score(selfWords);
-  const others = aggregateObservers(observerResponses.map((r) => r.words));
+  // Score each Observer once, then reuse those profiles for both the
+  // equal-weight "others" aggregate and the per-Observer drill-down below.
+  const observerProfilesFull = observerResponses.map((r) => score(r.words));
+  const others = averageProfiles(observerProfilesFull);
   const rows = compareProfiles(self, others);
 
   // Order tribes by their strongest reading across the two profiles, so the
@@ -49,13 +52,12 @@ export function ComparisonReport({
   const seenMoreByOthers = byDelta[byDelta.length - 1];
   const DIVERGENCE_FLOOR = 0.08;
 
-  const observerProfiles = observerResponses.map((response) => {
-    const ranked = [...score(response.words)]
+  const observerProfiles = observerProfilesFull.map((profile) =>
+    [...profile]
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
-    return ranked;
-  });
+      .slice(0, 3),
+  );
 
   return (
     <div>

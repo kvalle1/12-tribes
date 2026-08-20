@@ -3,6 +3,7 @@ import { tribes } from "@/lib/tribes";
 import { score, type TribeScore } from "./score";
 import {
   aggregateObservers,
+  averageProfiles,
   compareProfiles,
   isReportUnlocked,
   MIN_OBSERVERS_FOR_REPORT,
@@ -85,6 +86,37 @@ describe("aggregateObservers", () => {
     for (const t of tribes) {
       expect(scoreFor(t.slug, noisy)).toBeCloseTo(scoreFor(t.slug, clean));
     }
+  });
+});
+
+describe("averageProfiles", () => {
+  it("is the plain per-tribe mean of already-scored profiles", () => {
+    const a = score(WORDY_OBSERVER);
+    const b = score(SPARSE_OBSERVER);
+    const avg = averageProfiles([a, b]);
+    for (const t of tribes) {
+      const expected = (scoreFor(t.slug, a) + scoreFor(t.slug, b)) / 2;
+      expect(scoreFor(t.slug, avg)).toBeCloseTo(expected);
+    }
+  });
+
+  it("matches aggregateObservers when fed the same observers' scores", () => {
+    // aggregateObservers is defined as averageProfiles over per-observer scores,
+    // so scoring once and averaging must equal scoring inside the aggregation.
+    const viaWords = aggregateObservers([WORDY_OBSERVER, SPARSE_OBSERVER]);
+    const viaProfiles = averageProfiles([
+      score(WORDY_OBSERVER),
+      score(SPARSE_OBSERVER),
+    ]);
+    for (const t of tribes) {
+      expect(scoreFor(t.slug, viaProfiles)).toBeCloseTo(
+        scoreFor(t.slug, viaWords),
+      );
+    }
+  });
+
+  it("returns an all-zero profile for no profiles", () => {
+    expect(averageProfiles([]).every((s) => s.score === 0)).toBe(true);
   });
 });
 
