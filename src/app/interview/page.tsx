@@ -27,8 +27,16 @@ export default async function InterviewPage() {
         status: session.status,
         turns: session.turns,
         profile: session.profile,
+        posture: session.posture ?? {},
+        currentQuestion: session.currentQuestion ?? null,
       })
     : null;
+
+  // A Session created without an opening (interpreter unreachable at
+  // creation) — surface a friendly message so the user can retry rather than
+  // sitting in front of an empty prompt.
+  const openingPending =
+    !!session && turn?.kind === "question" && !turn.prompt;
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -56,6 +64,21 @@ export default async function InterviewPage() {
                 className="rounded-[2px] bg-ink px-[34px] py-[14px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
               >
                 Begin the Interview
+              </button>
+            </form>
+          </>
+        ) : openingPending ? (
+          <>
+            <p className="mt-8 text-[16px] text-muted">
+              The interviewer isn&rsquo;t reachable at the moment. Try again in
+              a few seconds — your session is saved.
+            </p>
+            <form action={startInterview} className="mt-8">
+              <button
+                type="submit"
+                className="rounded-[2px] bg-ink px-[34px] py-[14px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+              >
+                Retry
               </button>
             </form>
           </>

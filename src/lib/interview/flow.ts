@@ -1,94 +1,95 @@
-import { tribes } from "@/lib/tribes";
-import type {
-  InterviewState,
-  InterviewTurn,
-  NextTurn,
-  StrengthProfile,
-  StubResult,
-} from "./types";
+import { emptyPosture, emptyStrengthProfile } from "./scoring";
+import type { InterviewState, NextTurn, StubResult } from "./types";
 
 /**
- * Pure Interview flow logic for the walking-skeleton slice (issue #14).
+ * Pure Interview flow logic — the projection layer between the persisted
+ * Session and what the UI renders.
  *
- * No LLM and no real scoring yet: the questions are hardcoded and the result is
- * a placeholder. This module is the testable seam — given a Session's state it
- * decides what to show next and how to fold in a new answer — so the end-to-end
- * UI → server → persistence path can be proven before any model is wired in.
+ * The walking-skeleton slice hardcoded a question list here. In slice 3 the
+ * question comes from the interpreter (ADR 0005 / 0009) and is persisted on the
+ * Session as `currentQuestion`, so this file no longer knows about specific
+ * prompts — it decides only *what kind* of view to show next given the state.
+ * Real scoring (Marker deltas, Posture) is applied by `scoring.ts`; the LLM
+ * boundary is `interpreter.ts`.
  *
- * Later slices replace the hardcoded question list and stub result with the
- * Funnel planner, Marker scoring, and Confidence/Stop evaluator (ADRs 0005/0006).
+ * `TOTAL_QUESTIONS` is deliberately still 1 in this slice: the single-Turn
+ * horizon is enough to prove real LLM scoring end-to-end (the issue body says
+ * so explicitly). The multi-Turn loop with Confidence / Stop arrives in
+ * slice #17, which reuses the same shape.
  */
 
-/**
- * The hardcoded questions for this slice. A single open-ended Turn is enough to
- * prove the loop; keeping it an array means later slices generalize the flow
- * without changing its shape.
- */
-export const QUESTIONS: readonly string[] = [
-  "To begin, tell me about a recent time you felt most like yourself. What were you doing, and what made it feel right?",
-];
-
-export const TOTAL_QUESTIONS = QUESTIONS.length;
+export const TOTAL_QUESTIONS = 1;
 
 const STUB_RESULT: StubResult = {
   headline: "Your interview is complete.",
-  note: "Scoring isn't wired in yet — this is a placeholder result. A future slice will read your answers and report your tribe.",
+  note:
+    "This slice runs a single, real-scored Turn. Multi-Turn conversation, " +
+    "the Confidence / Stop evaluator, and the Primary + Contender result view " +
+    "arrive in the next slices — the deltas you see below are already the " +
+    "real thing.",
 };
 
-/** A fresh, zeroed strength profile covering all 12 tribes (placeholder this slice). */
-export function emptyProfile(): StrengthProfile {
-  const profile: StrengthProfile = {};
-  for (const tribe of tribes) {
-    profile[tribe.slug] = 0;
-  }
-  return profile;
-}
-
-/** The initial server-authoritative state for a newly created Session. */
+/**
+ * Fresh state for a newly created Session. `currentQuestion` starts null and is
+ * populated by the caller (`repository.createInterviewSession`) after asking the
+ * interpreter for an opening — keeping this pure module free of the LLM
+ * dependency so it stays trivially unit-testable.
+ */
 export function initialState(): InterviewState {
-  return { status: "in_progress", turns: [], profile: emptyProfile() };
+  return {
+    status: "in_progress",
+    turns: [],
+    profile: emptyStrengthProfile(),
+    posture: emptyPosture(),
+    currentQuestion: null,
+  };
 }
 
 /**
- * Decide what to show the participant next, derived purely from current state.
- * This is what makes the flow resumable: a reload re-derives the right view
- * from the persisted Session rather than trusting anything held on the client.
+ * Decide what the participant should be shown next, derived purely from the
+ * persisted Session. A reload re-derives from state rather than trusting the
+ * client — the basis for the resume behavior (ADR 0011).
  */
 export function nextTurn(state: InterviewState): NextTurn {
   if (state.status === "complete" || state.turns.length >= TOTAL_QUESTIONS) {
     return { kind: "result" };
   }
+  if (!state.currentQuestion) {
+    // The Session was created but the interpreter hasn't produced the opening
+    // yet. Callers should schedule that; render the same "next turn" shape
+    // with the opening text once it lands.
+    return {
+      kind: "question",
+      prompt: "",
+      questionNumber: state.turns.length + 1,
+      totalQuestions: TOTAL_QUESTIONS,
+    };
+  }
   return {
     kind: "question",
-    prompt: QUESTIONS[state.turns.length],
+    prompt: state.currentQuestion,
     questionNumber: state.turns.length + 1,
     totalQuestions: TOTAL_QUESTIONS,
   };
 }
 
 /**
- * Fold a free-text answer into the state, returning a new state (no mutation).
- * Records the Turn against the question that was actually being asked and marks
- * the Session complete once the (single, in this slice) question is answered.
+ * Given a state that has just had a scored Turn folded in (via
+ * `scoring.applyScoredTurn`), settle it: if the question floor is reached,
+ * mark the Session complete; otherwise, install the interpreter's chosen next
+ * question. Kept pure so the DB layer only decides *when* to persist.
  */
-export function appendAnswer(state: InterviewState, answer: string): InterviewState {
-  if (state.status === "complete" || state.turns.length >= TOTAL_QUESTIONS) {
-    // Already done — answering again is a no-op rather than corrupting history.
-    return state;
+export function settleTurn(
+  state: InterviewState,
+  nextQuestion: string | null,
+): InterviewState {
+  if (state.turns.length >= TOTAL_QUESTIONS) {
+    return { ...state, status: "complete", currentQuestion: null };
   }
-
-  const turn: InterviewTurn = {
-    question: QUESTIONS[state.turns.length],
-    answer,
-  };
-  const turns = [...state.turns, turn];
-  const status: InterviewState["status"] =
-    turns.length >= TOTAL_QUESTIONS ? "complete" : "in_progress";
-
-  return { ...state, turns, status };
+  return { ...state, currentQuestion: nextQuestion };
 }
 
-/** The stub result for a completed Session. Throws if asked before completion. */
+/** The (stub, slice-3) result for a completed Session. Throws before completion. */
 export function stubResult(state: InterviewState): StubResult {
   if (state.status !== "complete") {
     throw new Error("Result requested for an Interview that is not complete.");
