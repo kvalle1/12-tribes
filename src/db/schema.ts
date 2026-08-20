@@ -9,6 +9,7 @@ import {
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
   InterviewTurn,
+  PostureProfile,
   StrengthProfile,
   StubResult,
 } from "@/lib/interview/types";
@@ -146,11 +147,17 @@ export const interviewSessions = pgTable("interview_session", {
     .$type<"in_progress" | "complete">()
     .notNull()
     .default("in_progress"),
-  // Running strength profile (placeholder this slice).
+  // Running strength profile — additive per tribe, never lowered (ADR 0004).
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
-  // Completed Turns, oldest first.
+  // Running Posture tallies on the fall→oil arc, per tribe.
+  posture: jsonb("posture").$type<PostureProfile>().notNull().default({}),
+  // Completed Turns (question + answer + Marker-cited deltas), oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
+  // The next question to show the participant — chosen by the interpreter
+  // (ADR 0005 / 0009) and persisted so a refresh mid-Turn resumes on the same
+  // wording rather than regenerating a different one.
+  currentQuestion: text("currentQuestion"),
   // Stub result, set once the flow completes.
   result: jsonb("result").$type<StubResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
