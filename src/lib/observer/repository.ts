@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,38 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * The selected words of a single anonymous Observer response — everything the
+ * comparison report (issue #9) is allowed to know about an Observer. There is no
+ * id, timestamp, or any other attribute here: the drill-down labels responses
+ * "Observer 1/2/3" by position only, so nothing can tie a row back to a person
+ * (ADR-0003).
+ */
+export interface ObserverResponseWords {
+  words: string[];
+}
+
+/**
+ * Load every Observer response for a Subject as bare word lists, for the
+ * comparison report to score individually and gate on the ≥3-response unlock
+ * (issue #9).
+ *
+ * Ordering is by the row's opaque random `id`, NOT by `createdAt`: the "Observer
+ * 1/2/3" labels the report shows must not encode submission order, which in a
+ * small group could help correlate a response back to who answered when. Since
+ * `id` is a random UUID, the order is stable across views (so the labels don't
+ * shuffle on refresh) yet carries no temporal or identifying signal (ADR-0003).
+ */
+export async function listObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponseWords[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.id));
+
+  return rows.map((row) => ({ words: row.words }));
 }
