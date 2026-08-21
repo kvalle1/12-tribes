@@ -14,11 +14,19 @@ export default async function Home() {
   // The "View your results" entry is personalized (issue #18): shown only to a
   // signed-in user with a saved result. Only query for a result when there's a
   // session to key it to, so signed-out visitors skip the database round-trip.
-  const session = await auth();
-  const hasResult = session?.user?.id
-    ? (await getCurrentResult(session.user.id)) !== null
-    : false;
-  const showResults = shouldShowResultsEntry(Boolean(session?.user?.id), hasResult);
+  // The personalized entry is an enhancement, not core homepage content, so a
+  // transient session/result lookup failure degrades to the public homepage
+  // rather than breaking it for everyone.
+  let showResults = false;
+  try {
+    const session = await auth();
+    if (session?.user?.id) {
+      const hasResult = (await getCurrentResult(session.user.id)) !== null;
+      showResults = shouldShowResultsEntry(true, hasResult);
+    }
+  } catch {
+    showResults = false;
+  }
 
   return (
     <main className="min-h-screen bg-bone text-ink">
