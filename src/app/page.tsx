@@ -1,13 +1,25 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
+import { PROFILE_PATH, shouldShowResultsEntry } from "@/lib/profile";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // The "View your results" entry is personalized (issue #18): shown only to a
+  // signed-in user with a saved result. Only query for a result when there's a
+  // session to key it to, so signed-out visitors skip the database round-trip.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? (await getCurrentResult(session.user.id)) !== null
+    : false;
+  const showResults = shouldShowResultsEntry(Boolean(session?.user?.id), hasResult);
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -54,6 +66,14 @@ export default function Home() {
             >
               Take the Assessment
             </Link>
+            {showResults && (
+              <Link
+                href={PROFILE_PATH}
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
