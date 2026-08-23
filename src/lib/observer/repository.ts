@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,39 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first, as the raw
+ * selected-word lists. Ordering by `createdAt` gives the equal-weight
+ * aggregation (issue #9) a stable, deterministic Observer numbering (Observer 1,
+ * 2, 3 …) without ever exposing who an Observer is — only their words are
+ * returned. Feed the result straight to `aggregateObservers`.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((r) => r.words);
+}
+
+/**
+ * Count the Observer responses for a Subject — enough to decide whether the
+ * comparison report has reached its ≥3 unlock threshold (ADR-0003) without
+ * loading every response's words.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.n ?? 0;
 }

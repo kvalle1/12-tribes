@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
+import { MIN_OBSERVERS_FOR_REPORT } from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -30,7 +32,13 @@ export default async function AssessmentResultPage() {
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
-  const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+  // The link origin and the observer count are independent — resolve together.
+  const [linkBase, observerCount] = await Promise.all([
+    observerLinkBase(),
+    countObserverResponses(session.user.id),
+  ]);
+  const shareUrl = `${linkBase}/a/${row.shareToken}`;
+  const reportUnlocked = observerCount >= MIN_OBSERVERS_FOR_REPORT;
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,6 +69,29 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          {/* Progress toward the comparison report, which unlocks at ≥3 responses. */}
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[14px]">
+            {reportUnlocked ? (
+              <>
+                <span className="text-muted">
+                  {observerCount}{" "}
+                  {observerCount === 1 ? "person has" : "people have"} responded.
+                </span>
+                <Link
+                  href="/assessment/report"
+                  className="border-b border-gold pb-0.5 tracking-[0.04em] text-ink transition-colors hover:text-gold"
+                >
+                  View your comparison report →
+                </Link>
+              </>
+            ) : (
+              <span className="text-muted">
+                {observerCount} of {MIN_OBSERVERS_FOR_REPORT} responses so far —
+                your comparison report unlocks at {MIN_OBSERVERS_FOR_REPORT}.
+              </span>
+            )}
+          </div>
         </section>
       </div>
     </main>
