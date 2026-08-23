@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import {
+  countObserverResponses,
+  getObserverResponses,
+} from "@/lib/observer/repository";
 import { score } from "@/lib/assessment/score";
 import {
   aggregateObservers,
@@ -25,11 +28,19 @@ export default async function ComparisonReportPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/report")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // The result and the observer count are independent — fetch them together.
+  // The count answers the unlock gate without transferring every observer's
+  // words; the full responses are loaded only once the report actually unlocks.
+  const [row, observerCount] = await Promise.all([
+    getCurrentResult(session.user.id),
+    countObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  const responses = await getObserverResponses(session.user.id);
-  const unlocked = responses.length >= MIN_OBSERVERS_FOR_REPORT;
+  const unlocked = observerCount >= MIN_OBSERVERS_FOR_REPORT;
+  const responses = unlocked
+    ? await getObserverResponses(session.user.id)
+    : [];
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -47,7 +58,7 @@ export default async function ComparisonReportPage() {
             aggregate={aggregateObservers(responses)}
           />
         ) : (
-          <LockedReport responseCount={responses.length} />
+          <LockedReport responseCount={observerCount} />
         )}
       </div>
     </main>

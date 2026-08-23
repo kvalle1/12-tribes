@@ -1,6 +1,7 @@
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import type { TribeScore } from "@/lib/assessment/score";
 import type { AggregatedObservers } from "@/lib/observer/aggregate";
+import { compareProfiles, PRESENCE_EPSILON } from "@/lib/observer/comparison";
 
 /**
  * The 360 comparison report (issue #9): the Subject's own profile alongside the
@@ -9,22 +10,10 @@ import type { AggregatedObservers } from "@/lib/observer/aggregate";
  *
  * Presentation only — it receives already-computed, normalized scores and does
  * no scoring itself, so it carries no `server-only` weight and never touches the
- * word→tribe mapping. Both profiles are drawn against one shared scale so the
- * "you" and "others" bars are directly comparable.
+ * word→tribe mapping. The align/diverge partition is delegated to the pure,
+ * unit-tested `compareProfiles`. Both profiles are drawn against one shared
+ * scale so the "you" and "others" bars are directly comparable.
  */
-
-/** Ignore scores at or below this when picking alignment/divergence highlights. */
-const PRESENCE_EPSILON = 1e-6;
-
-interface CompareRow {
-  slug: string;
-  name: string;
-  self: number;
-  others: number;
-  /** self − others: positive ⇒ you read it stronger; negative ⇒ others do. */
-  gap: number;
-}
-
 export function ComparisonView({
   self,
   aggregate,
@@ -32,33 +21,10 @@ export function ComparisonView({
   self: TribeScore[];
   aggregate: AggregatedObservers;
 }) {
-  const othersBySlug = new Map(
-    aggregate.average.map((a) => [a.slug, a.score]),
+  const { rows, scale: maxScore, alignments, divergences } = compareProfiles(
+    self,
+    aggregate.average,
   );
-
-  const rows: CompareRow[] = self
-    .map((s) => {
-      const others = othersBySlug.get(s.slug) ?? 0;
-      return { slug: s.slug, name: s.name, self: s.score, others, gap: s.score - others };
-    })
-    // Strongest reading first (whichever of self/others is higher).
-    .sort((a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others));
-
-  const maxScore = Math.max(
-    PRESENCE_EPSILON,
-    ...rows.flatMap((r) => [r.self, r.others]),
-  );
-
-  const present = rows.filter(
-    (r) => r.self > PRESENCE_EPSILON || r.others > PRESENCE_EPSILON,
-  );
-  const divergences = [...present]
-    .filter((r) => Math.abs(r.gap) > PRESENCE_EPSILON)
-    .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
-    .slice(0, 3);
-  const alignments = [...present]
-    .sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap))
-    .slice(0, 2);
 
   return (
     <div>
@@ -124,7 +90,10 @@ export function ComparisonView({
           </p>
           <ul className="mt-4 flex flex-col gap-3">
             {alignments.length === 0 && (
-              <li className="text-[14px] text-muted">Not enough signal yet.</li>
+              <li className="text-[14px] text-muted">
+                You and your observers don&rsquo;t yet strongly agree on any one
+                tribe.
+              </li>
             )}
             {alignments.map((r) => (
               <li key={r.slug} className="text-[15px] text-ink">

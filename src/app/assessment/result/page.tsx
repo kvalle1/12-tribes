@@ -32,9 +32,12 @@ export default async function AssessmentResultPage() {
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
-  const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
-
-  const observerCount = await countObserverResponses(session.user.id);
+  // The link origin and the observer count are independent — resolve together.
+  const [linkBase, observerCount] = await Promise.all([
+    observerLinkBase(),
+    countObserverResponses(session.user.id),
+  ]);
+  const shareUrl = `${linkBase}/a/${row.shareToken}`;
   const reportUnlocked = observerCount >= MIN_OBSERVERS_FOR_REPORT;
 
   return (
