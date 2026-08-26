@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,30 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject as a list of word
+ * selections — the input the equal-weight aggregation (issue #9) and the
+ * anonymous "Observer 1 / 2 / 3" drill-down consume.
+ *
+ * Deliberately ordered by the random `id` (an opaque UUID), **not** by
+ * `createdAt`: the order needs to be stable across renders so the drill-down's
+ * Observer numbering doesn't shuffle, but it must not encode *when* each person
+ * responded — a temporal order would let a Subject who knows response timing map
+ * "Observer 2" back to a specific person, exactly the de-anonymization ADR-0003
+ * exists to prevent. A random-id order gives a stable, non-temporal shuffle.
+ * Only the words are returned: no id, no timestamp, nothing that could
+ * de-anonymize a response reaches the caller.
+ */
+export async function getObserverSelections(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
