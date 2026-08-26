@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first, as a list
+ * of word selections — the input the equal-weight aggregation (issue #9) and the
+ * anonymous "Observer 1 / 2 / 3" drill-down consume. Ordered by `createdAt` (id
+ * as a stable tie-break) so the drill-down's Observer numbering is stable across
+ * renders. Only the words are returned: no id, no timestamp, nothing that could
+ * de-anonymize a response reaches the caller.
+ */
+export async function getObserverSelections(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
