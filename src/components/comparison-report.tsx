@@ -248,14 +248,9 @@ function LockedReport({ count }: { count: number }) {
         Your comparison report unlocks once{" "}
         <span className="text-ink">at least {MIN_OBSERVERS} people</span> have
         anonymously described you. That floor keeps the &ldquo;others&rdquo;
-        average meaningful and protects each observer&rsquo;s anonymity.
-        {remaining > 0 && (
-          <>
-            {" "}
-            {remaining} more {remaining === 1 ? "read" : "reads"} to go — share
-            your link with a few more people.
-          </>
-        )}
+        average meaningful and protects each observer&rsquo;s anonymity.{" "}
+        {remaining} more {remaining === 1 ? "read" : "reads"} to go — share your
+        link with a few more people.
       </p>
 
       <div className="mt-6 flex items-center gap-2" aria-hidden>
