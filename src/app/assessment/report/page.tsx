@@ -2,7 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import {
+  countObserverResponses,
+  getObserverResponses,
+} from "@/lib/observer/repository";
+import { isReportUnlocked } from "@/lib/observer/aggregate";
 import { ComparisonReport } from "@/components/comparison-report";
 
 /**
@@ -22,10 +26,19 @@ export default async function AssessmentReportPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/report")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // The result row and the observer count are independent — fetch them together.
+  const [row, observerCount] = await Promise.all([
+    getCurrentResult(session.user.id),
+    countObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  const observerResponses = await getObserverResponses(session.user.id);
+  // Only load every observer's full word list once the report is actually
+  // unlocked; in the common locked state (0–2 responses) the count alone drives
+  // the view, so there's nothing to fetch.
+  const observerResponses = isReportUnlocked(observerCount)
+    ? await getObserverResponses(session.user.id)
+    : [];
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -39,6 +52,7 @@ export default async function AssessmentReportPage() {
 
         <ComparisonReport
           selfWords={row.words}
+          observerCount={observerCount}
           observerResponses={observerResponses}
         />
       </div>

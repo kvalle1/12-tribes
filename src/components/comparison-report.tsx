@@ -23,13 +23,19 @@ import {
  */
 export function ComparisonReport({
   selfWords,
+  observerCount,
   observerResponses,
 }: {
   selfWords: string[];
+  /**
+   * Total number of Observers who have responded — drives the unlock gate. Kept
+   * separate from `observerResponses` because the page only loads the full
+   * responses once the report is unlocked; while locked, `observerResponses` is
+   * empty and this count is the source of truth.
+   */
+  observerCount: number;
   observerResponses: string[][];
 }) {
-  const observerCount = observerResponses.length;
-
   return (
     <div>
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">

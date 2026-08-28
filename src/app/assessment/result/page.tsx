@@ -28,10 +28,13 @@ export default async function AssessmentResultPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/result")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Independent reads — the current result and the observer count — run together.
+  const [row, observerCount] = await Promise.all([
+    getCurrentResult(session.user.id),
+    countObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  const observerCount = await countObserverResponses(session.user.id);
   const reportUnlocked = isReportUnlocked(observerCount);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
