@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,37 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every Observer response for a Subject as the raw selected words, oldest
+ * first — so the anonymous "Observer 1 / 2 / 3" drill-down in the comparison
+ * report has a stable order. Nothing identifying is selected or returned; a row
+ * is only ever its words (ADR-0003). The equal-weight aggregation and per-observer
+ * scoring that consume these live in `@/lib/observer/aggregate` (issue #9).
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+  return rows.map((r) => r.words);
+}
+
+/**
+ * Count how many Observers have responded for a Subject — the number that gates
+ * the comparison report's unlock (≥3, ADR-0003). Kept as a cheap count query so
+ * the result page can show progress ("2 of 3") without loading every response.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+  return row?.count ?? 0;
 }
