@@ -3,6 +3,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
+import {
+  isReportUnlocked,
+  OBSERVER_UNLOCK_THRESHOLD,
+} from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -23,8 +28,14 @@ export default async function AssessmentResultPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/result")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Independent reads — the current result and the observer count — run together.
+  const [row, observerCount] = await Promise.all([
+    getCurrentResult(session.user.id),
+    countObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
+
+  const reportUnlocked = isReportUnlocked(observerCount);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -61,6 +72,22 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-6 flex flex-wrap items-center gap-4 text-[14px]">
+            <Link
+              href="/assessment/report"
+              className="border-b border-gold pb-1 tracking-[0.08em] text-ink transition-colors hover:text-gold"
+            >
+              {reportUnlocked
+                ? "View your 360 report"
+                : "See your 360 report progress"}
+            </Link>
+            <span className="text-faint">
+              {reportUnlocked
+                ? `${observerCount} responses in`
+                : `${observerCount} of ${OBSERVER_UNLOCK_THRESHOLD} responses · unlocks at ${OBSERVER_UNLOCK_THRESHOLD}`}
+            </span>
+          </div>
         </section>
       </div>
     </main>
