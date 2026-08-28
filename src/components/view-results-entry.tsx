@@ -12,11 +12,21 @@ import { shouldShowResultsEntry } from "@/lib/assessment/profile";
  * users who haven't taken the assessment yet).
  */
 export async function ViewResultsEntry() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const hasResult = userId ? Boolean(await getCurrentResult(userId)) : false;
+  // This renders on the otherwise-static landing page, so a transient failure
+  // reading the session or the result store must never take the home page down
+  // with it — degrade to simply not showing the entry.
+  let signedIn = false;
+  let hasResult = false;
+  try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    signedIn = Boolean(userId);
+    hasResult = userId ? Boolean(await getCurrentResult(userId)) : false;
+  } catch {
+    return null;
+  }
 
-  if (!shouldShowResultsEntry({ signedIn: Boolean(userId), hasResult })) {
+  if (!shouldShowResultsEntry({ signedIn, hasResult })) {
     return null;
   }
 
