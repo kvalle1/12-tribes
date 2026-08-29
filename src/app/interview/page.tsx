@@ -23,11 +23,16 @@ export default async function InterviewPage() {
   }
 
   const turn = session
-    ? nextTurn({
-        status: session.status,
-        turns: session.turns,
-        profile: session.profile,
-      })
+    ? nextTurn(
+        {
+          status: session.status,
+          turns: session.turns,
+          profile: session.profile,
+          posture: session.posture,
+          trace: session.trace,
+        },
+        session.pendingQuestion,
+      )
     : null;
 
   return (

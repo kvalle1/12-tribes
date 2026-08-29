@@ -9,6 +9,8 @@ import {
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
   InterviewTurn,
+  PostureProfile,
+  ScoreTraceEntry,
   StrengthProfile,
   StubResult,
 } from "@/lib/interview/types";
@@ -146,11 +148,17 @@ export const interviewSessions = pgTable("interview_session", {
     .$type<"in_progress" | "complete">()
     .notNull()
     .default("in_progress"),
-  // Running strength profile (placeholder this slice).
+  // Running per-tribe strength profile, fed by cited Marker deltas (slice #16).
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
+  // Running per-tribe Posture tally on the fall→oil arc (ADR-0004).
+  posture: jsonb("posture").$type<PostureProfile>().notNull().default({}),
   // Completed Turns, oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
+  // Score trace: every applied delta, linked to its answer + Marker (ADR-0003).
+  trace: jsonb("trace").$type<ScoreTraceEntry[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
+  // The LLM-produced question currently awaiting an answer (null once complete).
+  pendingQuestion: text("pendingQuestion"),
   // Stub result, set once the flow completes.
   result: jsonb("result").$type<StubResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
