@@ -1,13 +1,28 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
+import { shouldShowResultsLink } from "@/lib/assessment/profile";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // A signed-in Subject with a saved result gets a shortcut back to their
+  // profile in the hero (issue #18). We look up the result server-side so the
+  // entry is hidden for signed-out visitors and for signed-in users who haven't
+  // taken the assessment — the word→tribe mapping never reaches the client.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? Boolean(await getCurrentResult(session.user.id))
+    : false;
+  const showResults = shouldShowResultsLink({
+    signedIn: Boolean(session?.user?.id),
+    hasResult,
+  });
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -54,6 +69,14 @@ export default function Home() {
             >
               Take the Assessment
             </Link>
+            {showResults && (
+              <Link
+                href="/profile"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
