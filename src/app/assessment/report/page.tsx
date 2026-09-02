@@ -29,10 +29,14 @@ export default async function ComparisonReportPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/report")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Both reads depend only on the user id, so fetch them together rather than
+  // in series to trim latency on this user-facing page.
+  const [row, responses] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  const responses = await getObserverResponses(session.user.id);
   const others = aggregateObservers(responses);
   const unlocked = isReportUnlocked(others.observerCount);
 

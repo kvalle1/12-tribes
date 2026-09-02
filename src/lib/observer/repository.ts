@@ -92,7 +92,11 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    // `id` is the tie-breaker so two responses sharing a `createdAt` tick can't
+    // swap "Observer 1"/"Observer 2" between page loads — the doc comment's
+    // stability promise needs a fully deterministic order, which `createdAt`
+    // alone doesn't give.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((r) => r.words);
 }
