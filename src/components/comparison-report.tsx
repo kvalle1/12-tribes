@@ -19,6 +19,13 @@ import type { TribeScore } from "@/lib/assessment/score";
 /** `null` = the aggregate "others" view; a number is a per-observer index. */
 type View = number | null;
 
+/**
+ * Minimum self-vs-others gap (in normalized score) before the divergence callout
+ * names a tribe. Below it the two reads are treated as agreeing, so a negligible
+ * or uniformly-signed spread is never dressed up as a meaningful difference.
+ */
+const DIVERGENCE_EPSILON = 0.02;
+
 export function ComparisonReport({
   self,
   others,
@@ -64,17 +71,22 @@ export function ComparisonReport({
 
   // Where the aggregate "others" view most exceeds and most falls short of the
   // Subject's own read — the gap is where the 360 is most useful. Computed
-  // against the aggregate, not the drill-down, so the callout is stable.
+  // against the aggregate, not the drill-down, so the callout is stable. Each
+  // side is surfaced only when its direction genuinely holds (a positive gap for
+  // "others see more", a negative one for "you claim more") and clears a small
+  // epsilon, so a negligible or same-sign spread never gets mislabeled — when
+  // neither qualifies the report says the reads broadly align.
   const divergence = useMemo(() => {
     const deltas = self.map((s) => ({
       name: s.name,
-      slug: s.slug,
       delta: (otherBySlugFor(others, s.slug) ?? 0) - s.score,
     }));
-    const sorted = [...deltas].sort((a, b) => b.delta - a.delta);
-    const seenMore = sorted[0];
-    const seenLess = sorted[sorted.length - 1];
-    return { seenMore, seenLess };
+    const top = deltas.reduce((a, b) => (b.delta > a.delta ? b : a));
+    const bottom = deltas.reduce((a, b) => (b.delta < a.delta ? b : a));
+    return {
+      seenMore: top.delta > DIVERGENCE_EPSILON ? top : null,
+      seenLess: bottom.delta < -DIVERGENCE_EPSILON ? bottom : null,
+    };
   }, [self, others]);
 
   return (
@@ -145,10 +157,9 @@ export function ComparisonReport({
           to <button type="button" onClick={() => setView(null)} className="underline underline-offset-2 hover:text-ink">Everyone</button> to
           see where your reads align and diverge.
         </p>
-      ) : (
-        divergence.seenMore &&
-        divergence.seenLess && (
-          <div className="mt-10 grid gap-4 border-t border-hair pt-6 sm:grid-cols-2">
+      ) : divergence.seenMore || divergence.seenLess ? (
+        <div className="mt-10 grid gap-4 border-t border-hair pt-6 sm:grid-cols-2">
+          {divergence.seenMore && (
             <div className="rounded-[2px] border border-hair p-5">
               <p className="text-[11px] uppercase tracking-[0.16em] text-faint">
                 Others see more of this in you
@@ -161,6 +172,8 @@ export function ComparisonReport({
                 in yourself.
               </p>
             </div>
+          )}
+          {divergence.seenLess && (
             <div className="rounded-[2px] border border-hair p-5">
               <p className="text-[11px] uppercase tracking-[0.16em] text-faint">
                 You claim more than others see
@@ -173,8 +186,13 @@ export function ComparisonReport({
                 pick up on.
               </p>
             </div>
-          </div>
-        )
+          )}
+        </div>
+      ) : (
+        <p className="mt-10 border-t border-hair pt-6 text-[13px] text-faint">
+          Your read and the room&rsquo;s broadly line up — no tribe stands out as
+          seen very differently.
+        </p>
       )}
     </div>
   );
