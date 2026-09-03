@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { ResultsEntry } from "@/components/results-entry";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
@@ -60,6 +61,7 @@ export default function Home() {
             >
               Explore the tribes
             </Link>
+            <ResultsEntry />
           </div>
         </div>
       </header>
