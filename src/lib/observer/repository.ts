@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,27 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/** One Observer's recorded selection — deliberately just the words, nothing that
+ * could identify who submitted it. */
+export interface ObserverResponseRecord {
+  words: string[];
+}
+
+/**
+ * Load every Observer response recorded for a Subject, oldest first, for the 360
+ * comparison report (issue #9). Only the selected `words` are returned — no id,
+ * timestamp, or anything else that could de-anonymize an Observer or let the
+ * report tie a drill-down entry ("Observer 2") back to a person. Ordering by
+ * `createdAt` keeps the anonymous Observer 1/2/3 numbering stable across loads.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponseRecord[]> {
+  return db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
 }
