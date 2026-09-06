@@ -10,8 +10,9 @@ import { getCurrentResult } from "@/lib/assessment/repository";
  * dead-ends.
  *
  * An async server component that reads the session and the Account's current
- * result server-side; rendering it opts the home page into dynamic rendering,
- * which is required to reflect per-user auth state.
+ * result server-side. Reflecting per-user auth state makes the home page
+ * dynamic, so it's rendered behind a `<Suspense>` boundary on the home page —
+ * the rest of the hero streams immediately while this auth/DB read resolves.
  */
 export async function ViewResultsEntry() {
   const session = await auth();

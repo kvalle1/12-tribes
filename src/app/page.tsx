@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
@@ -61,7 +62,11 @@ export default function Home() {
             >
               Explore the tribes
             </Link>
-            <ViewResultsEntry />
+            {/* Streamed behind Suspense so the auth/DB read for the gated
+                entry never blocks the rest of the hero from flushing. */}
+            <Suspense fallback={null}>
+              <ViewResultsEntry />
+            </Suspense>
           </div>
         </div>
       </header>
