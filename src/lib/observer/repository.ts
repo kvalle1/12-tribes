@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every Observer response recorded for a Subject, as the raw selected-word
+ * lists in stable chronological (`createdAt`) order — the order that fixes the
+ * anonymous "Observer 1 / 2 / 3" labels in the comparison report (#9). Only the
+ * words are returned: no id, no timestamp, nothing that could tie a row back to
+ * who submitted it (ADR-0003). Feed the result straight into
+ * `aggregateObservers`, which scores each list on its own and averages them.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
