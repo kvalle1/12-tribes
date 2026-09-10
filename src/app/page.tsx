@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { ViewResultsLink } from "@/components/view-results-link";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
@@ -60,6 +62,10 @@ export default function Home() {
             >
               Explore the tribes
             </Link>
+            {/* Shown only to a signed-in Account with a saved result (issue #18). */}
+            <Suspense fallback={null}>
+              <ViewResultsLink />
+            </Suspense>
           </div>
         </div>
       </header>
