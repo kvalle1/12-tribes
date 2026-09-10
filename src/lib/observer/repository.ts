@@ -1,7 +1,8 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
+import type { ObserverResponseInput } from "./aggregate";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
@@ -75,4 +76,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response recorded for a Subject, oldest first,
+ * as the bare `{ words }` the equal-weight aggregation (issue #9) consumes.
+ * Only the selected words are returned — never a row id, timestamp, or anything
+ * else that could de-anonymize an Observer or fix them to a position. The
+ * comparison report scores each response individually and averages them
+ * equally, so the shape here is deliberately minimal.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponseInput[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => ({ words: row.words }));
 }
