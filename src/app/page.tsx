@@ -1,13 +1,30 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { hasCurrentResult } from "@/lib/assessment/repository";
+import { showResultsEntry } from "@/lib/profile/results-entry";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Personalize the hero: a signed-in Subject who has already taken the
+  // assessment gets a direct link back to their saved result (issue #18). The
+  // check runs server-side so the word→tribe mapping in the scoring core never
+  // reaches the client; reading the session here opts the page into dynamic
+  // rendering, which is expected for a per-user entry.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? await hasCurrentResult(session.user.id)
+    : false;
+  const resultsEntryVisible = showResultsEntry({
+    signedIn: Boolean(session?.user?.id),
+    hasResult,
+  });
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -60,6 +77,14 @@ export default function Home() {
             >
               Explore the tribes
             </Link>
+            {resultsEntryVisible && (
+              <Link
+                href="/profile"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
           </div>
         </div>
       </header>

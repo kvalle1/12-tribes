@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults } from "@/db/schema";
 import { WORDS } from "./words";
@@ -68,4 +68,19 @@ export async function getCurrentResult(
     .where(eq(assessmentResults.userId, userId))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Whether the Account has a saved current result, without pulling the row's
+ * payload back. Used by the home page to decide whether to show the "View your
+ * results" entry (issue #18) — the highest-traffic route, so it selects a
+ * constant rather than the jsonb `words`/slugs/token the full row carries.
+ */
+export async function hasCurrentResult(userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ one: sql`1` })
+    .from(assessmentResults)
+    .where(eq(assessmentResults.userId, userId))
+    .limit(1);
+  return row !== undefined;
 }
