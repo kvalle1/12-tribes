@@ -2,7 +2,7 @@ import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
 import { auth } from "@/auth";
-import { getCurrentResult } from "@/lib/assessment/repository";
+import { hasCurrentResult } from "@/lib/assessment/repository";
 import { showResultsEntry } from "@/lib/profile/results-entry";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
@@ -18,7 +18,7 @@ export default async function Home() {
   // rendering, which is expected for a per-user entry.
   const session = await auth();
   const hasResult = session?.user?.id
-    ? (await getCurrentResult(session.user.id)) !== null
+    ? await hasCurrentResult(session.user.id)
     : false;
   const resultsEntryVisible = showResultsEntry({
     signedIn: Boolean(session?.user?.id),
