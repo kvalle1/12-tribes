@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,23 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first, as plain
+ * word lists — nothing that could identify an Observer. The stable `createdAt`
+ * ordering is what gives the report's drill-down its consistent, anonymous
+ * "Observer 1 / 2 / 3" numbering (ADR-0003). Feeds the equal-weight
+ * `aggregateObservers` core (issue #9).
+ */
+export async function getObserverWordLists(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => row.words);
 }
