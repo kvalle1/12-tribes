@@ -76,3 +76,21 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every anonymous Observer response recorded against a Subject, as the bare
+ * list of selected words per response — the input the equal-weight aggregation
+ * (issue #9) consumes. Deliberately returns only `words`: no id, no timestamp, no
+ * ordering key, so nothing here can tie a response back to who submitted it or in
+ * what order (ADR-0003). An empty array means no one has responded yet.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return rows.map((row) => row.words);
+}
