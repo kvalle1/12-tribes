@@ -21,3 +21,18 @@ export const MAX_WORDS = 15;
 export function isWithinSelectionRange(count: number): boolean {
   return count >= MIN_WORDS && count <= MAX_WORDS;
 }
+
+/**
+ * The number of Observer responses required before the 360 comparison report
+ * unlocks (issue #9, ADR-0003). Waiting for at least this many both makes the
+ * equal-weight "others" average meaningful and preserves each Observer's
+ * anonymity — a report built from one or two responses could be traced back to a
+ * specific person. Client-safe (a plain threshold), so the locked-state UI and
+ * the server-side gate can share it.
+ */
+export const MIN_OBSERVERS = 3;
+
+/** Whether enough Observers have responded to unlock the comparison report. */
+export function hasEnoughObservers(count: number): boolean {
+  return count >= MIN_OBSERVERS;
+}
