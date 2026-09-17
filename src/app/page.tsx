@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { ViewResultsEntry } from "@/components/view-results-entry";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
@@ -60,6 +61,8 @@ export default function Home() {
             >
               Explore the tribes
             </Link>
+            {/* Shown only to a signed-in user with a saved result (PRD story 16). */}
+            <ViewResultsEntry />
           </div>
         </div>
       </header>
