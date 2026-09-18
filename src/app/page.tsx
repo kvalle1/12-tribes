@@ -1,13 +1,24 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Surface a "View your results" entry only to a signed-in Subject who has a
+  // saved result (issue #18). Signed-out visitors and signed-in users who
+  // haven't taken the assessment never see it. Reading the session here makes
+  // the home page dynamic, which is fine — it stays a lightweight server render.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? Boolean(await getCurrentResult(session.user.id))
+    : false;
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -20,6 +31,9 @@ export default function Home() {
             <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
             <Link href="/assessment" className="transition-colors hover:text-ink">The Assessment</Link>
             <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
+            {hasResult && (
+              <Link href="/profile" className="transition-colors hover:text-ink">Your Results</Link>
+            )}
             <AuthNav />
           </div>
         </nav>
@@ -52,14 +66,23 @@ export default function Home() {
               href="/assessment"
               className="rounded-[2px] bg-ink px-[34px] py-[15px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
             >
-              Take the Assessment
+              {hasResult ? "Retake the Assessment" : "Take the Assessment"}
             </Link>
-            <Link
-              href="#twelve"
-              className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
-            >
-              Explore the tribes
-            </Link>
+            {hasResult ? (
+              <Link
+                href="/profile"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            ) : (
+              <Link
+                href="#twelve"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                Explore the tribes
+              </Link>
+            )}
           </div>
         </div>
       </header>
