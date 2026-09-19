@@ -1,7 +1,8 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
+import type { ObserverResponse } from "./aggregate";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
@@ -75,4 +76,26 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response recorded for a Subject, oldest first —
+ * the input the equal-weight aggregation (issue #9) consumes. Ordering is stable
+ * (by `createdAt`) so the per-observer drill-down labels ("Observer 1/2/3…")
+ * stay consistent across reloads. Only the words are returned; nothing here
+ * carries or reconstructs an Observer's identity (ADR-0003).
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponse[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    // `id` is a stable tie-breaker so the per-observer drill-down labels
+    // ("Observer 1/2/3…") keep the same order across reloads even when two
+    // responses share a `createdAt` timestamp.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => ({ words: row.words }));
 }
