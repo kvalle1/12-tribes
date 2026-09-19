@@ -10,16 +10,24 @@ import { getCurrentResult } from "@/lib/assessment/repository";
  * taken it yet — see nothing.
  *
  * Reading the session via `auth()` (cookies) opts the home route into dynamic
- * rendering, matching the rest of the authenticated surface (`/account`,
- * `/assessment/result`). It renders as a sibling of the other nav links, so it
- * inherits the nav's typography and only adds the hover treatment.
+ * rendering; that's the cost of gating on the current Account. It renders as a
+ * sibling of the other nav links, inheriting the nav's typography and adding only
+ * the hover treatment.
+ *
+ * This entry is non-critical chrome, so it fails safe: any error reading the
+ * session or the saved result renders nothing rather than taking down the home
+ * page (which has no error boundary of its own).
  */
 export async function ProfileEntry() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const row = await getCurrentResult(session.user.id);
-  if (!row) return null;
+  let hasResult = false;
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+    hasResult = (await getCurrentResult(session.user.id)) !== null;
+  } catch {
+    return null;
+  }
+  if (!hasResult) return null;
 
   return (
     <Link href="/profile" className="transition-colors hover:text-ink">
