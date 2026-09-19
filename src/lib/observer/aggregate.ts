@@ -69,7 +69,7 @@ export function observersRemaining(count: number): number {
 export function aggregateObservers(
   responses: readonly ObserverResponse[],
 ): ObserverAggregate {
-  const perObserver = responses.map((r) => score([...r.words]));
+  const perObserver = responses.map((r) => score(r.words));
   const count = perObserver.length;
 
   const others: TribeScore[] = tribes.map((tribe) => {

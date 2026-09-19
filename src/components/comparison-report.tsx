@@ -2,7 +2,11 @@ import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { rankScores } from "@/lib/assessment/ranking";
 import type { TribeScore } from "@/lib/assessment/score";
 import type { ObserverAggregate } from "@/lib/observer/aggregate";
-import { OBSERVER_UNLOCK_THRESHOLD } from "@/lib/observer/aggregate";
+import {
+  OBSERVER_UNLOCK_THRESHOLD,
+  isReportUnlocked,
+  observersRemaining,
+} from "@/lib/observer/aggregate";
 
 /**
  * The self-vs-others 360 comparison report (issue #9, ADR-0003). Presentational
@@ -29,7 +33,7 @@ export function ComparisonReport({
 }) {
   const { count, others, perObserver } = aggregate;
 
-  if (count < OBSERVER_UNLOCK_THRESHOLD) {
+  if (!isReportUnlocked(count)) {
     return <LockedState count={count} />;
   }
 
@@ -275,7 +279,7 @@ function ObserverDrilldown({ perObserver }: { perObserver: TribeScore[][] }) {
  * running count so the Subject knows how close they are.
  */
 function LockedState({ count }: { count: number }) {
-  const remaining = OBSERVER_UNLOCK_THRESHOLD - count;
+  const remaining = observersRemaining(count);
   return (
     <div className="rounded-[2px] border border-hair bg-white/40 p-8">
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
