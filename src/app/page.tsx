@@ -1,13 +1,24 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Personalize the hero for a returning, signed-in user who has a saved
+  // result: they get a direct "View your results" entry into their profile
+  // (issue #18). Signed-out visitors, and signed-in users who haven't taken the
+  // assessment yet, never see it. Reading the session opts this route into
+  // dynamic rendering, which is what we want for per-user personalization.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? (await getCurrentResult(session.user.id)) !== null
+    : false;
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -54,6 +65,14 @@ export default function Home() {
             >
               Take the Assessment
             </Link>
+            {hasResult && (
+              <Link
+                href="/profile"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
