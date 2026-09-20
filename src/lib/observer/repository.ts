@@ -76,3 +76,23 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first, as bare
+ * word selections. Deliberately returns only the `words` — no id, no timestamp,
+ * nothing that could link a response back to who submitted it — so the
+ * equal-weight aggregation and per-observer drill-down (issue #9) stay fully
+ * anonymous. The stable oldest-first order is what lets the report label
+ * responses "Observer 1/2/3" without exposing any identifying attribute.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+
+  return rows.map((row) => row.words);
+}
