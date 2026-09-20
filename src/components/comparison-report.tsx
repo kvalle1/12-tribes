@@ -1,6 +1,7 @@
 import { getTribeBySlug, type Tribe } from "@/lib/tribes";
 import { score, type TribeScore } from "@/lib/assessment/score";
 import { aggregateObservers } from "@/lib/assessment/aggregate-observers";
+import { hasEnoughObservers } from "@/lib/assessment/constants";
 
 /**
  * The 360 comparison report (issue #9): the Subject's own profile laid beside the
@@ -20,6 +21,11 @@ export function ComparisonReport({
   selfWords: string[];
   observerWordSets: string[][];
 }) {
+  // The ≥3 anonymity threshold (ADR-0003) is owned here too, not only at the
+  // call site, so a future direct render can never surface the per-observer
+  // drill-down below the threshold.
+  if (!hasEnoughObservers(observerWordSets.length)) return null;
+
   const self = score(selfWords);
   const { others, perObserver, count } = aggregateObservers(observerWordSets);
 
@@ -67,7 +73,7 @@ export function ComparisonReport({
           label="Biggest gap"
           tribe={divergence ? getTribeBySlug(divergence.slug) : undefined}
           detail={
-            divergence
+            divergence && divergence.gap !== 0
               ? divergence.gap > 0
                 ? "You rate this higher than your observers do."
                 : "Your observers rate this higher than you do."

@@ -25,10 +25,12 @@ export default async function ComparisonPage() {
     );
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Independent reads keyed on the same user — fetch in parallel.
+  const [row, observerWordSets] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
-
-  const observerWordSets = await getObserverResponses(session.user.id);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
