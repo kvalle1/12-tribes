@@ -8,9 +8,10 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
+  InterviewResult,
   InterviewTurn,
   StrengthProfile,
-  StubResult,
+  TraceEntry,
 } from "@/lib/interview/types";
 
 /**
@@ -81,10 +82,13 @@ export const verificationTokens = pgTable(
  * (PRD #13, slice #14). The client never holds or mutates scoring state
  * (ADR-0009); every Turn is persisted here so a refresh can resume (ADR-0011).
  *
- * `profile` and `result` are placeholders in the walking-skeleton slice; real
- * scoring fills them in later. `userId` is optional so the skeleton works for
- * anonymous sessions (a session is resumed via an opaque cookie id), while
- * leaving the door open to tie a Session to an account.
+ * `profile` accumulates the cited-Marker strength scores (slice #16); `trace`
+ * keeps every applied contribution back to its answer and Marker so the result
+ * can explain itself; `currentQuestion` is the agent-produced question pending
+ * for the next Turn (null once complete); `result` holds the derived 12-tribe
+ * ranking. `userId` is optional so the flow works for anonymous sessions (a
+ * session is resumed via an opaque cookie id), while leaving the door open to
+ * tie a Session to an account.
  */
 /**
  * The Account's single current Self Assessment result (ADR-0004). One row per
@@ -146,13 +150,17 @@ export const interviewSessions = pgTable("interview_session", {
     .$type<"in_progress" | "complete">()
     .notNull()
     .default("in_progress"),
-  // Running strength profile (placeholder this slice).
+  // Running strength profile, accumulated from cited Marker deltas.
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
   // Completed Turns, oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
-  // Stub result, set once the flow completes.
-  result: jsonb("result").$type<StubResult>(),
+  // Score trace: every applied contribution, back to its answer and Marker.
+  trace: jsonb("trace").$type<TraceEntry[]>().notNull().default([]),
+  // The agent-produced question pending for the next Turn; null once complete.
+  currentQuestion: text("currentQuestion"),
+  // Derived 12-tribe ranking, set once the flow completes.
+  result: jsonb("result").$type<InterviewResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
