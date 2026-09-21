@@ -1,7 +1,8 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
+import type { ObserverResponse } from "./aggregate";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
@@ -75,4 +76,23 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load a Subject's anonymous Observer responses for the equal-weight
+ * aggregation (issue #9). Only the selected `words` are returned — never an id,
+ * timestamp, or anything else that could de-anonymize an Observer — ordered
+ * oldest-first so the anonymous "Observer 1/2/3" drill-down numbering stays
+ * stable across renders. Returns an empty array when no one has responded yet.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponse[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => ({ words: row.words }));
 }
