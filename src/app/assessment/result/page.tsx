@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverResponses } from "@/lib/observer/repository";
+import { isReportUnlocked, MIN_OBSERVERS } from "@/lib/observer/constants";
+import { observerShareUrl } from "@/lib/observer/link";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -23,14 +25,21 @@ export default async function AssessmentResultPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/result")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Both reads key off the same user id and are independent, so fetch in
+  // parallel. `observerCount` drives whether the comparison report is unlocked
+  // (ADR-0003: unlocks at ≥3).
+  const [row, observerResponses] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  // Compose the absolute observer link. Prefer the canonical configured origin
-  // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
-  // be skewed by a forwarded `Host` header; fall back to the request host, then
-  // to a relative path, when it isn't set.
-  const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+  // Compose the absolute observer link (shared helper: trusted `AUTH_URL` origin
+  // first, then the request host, so a forwarded `Host` can't skew the link).
+  const shareUrl = await observerShareUrl(row.shareToken);
+
+  const observerCount = observerResponses.length;
+  const unlocked = isReportUnlocked(observerCount);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,26 +70,27 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <p className="mt-6 text-[14px] text-muted">
+            {unlocked ? (
+              <Link
+                href="/assessment/observers"
+                className="border-b border-gold pb-0.5 text-ink transition-colors hover:text-gold"
+              >
+                View your 360 comparison ({observerCount} observer
+                {observerCount === 1 ? "" : "s"}) →
+              </Link>
+            ) : observerCount > 0 ? (
+              <>
+                {observerCount} of {MIN_OBSERVERS} observers have responded —{" "}
+                {MIN_OBSERVERS - observerCount} more unlocks your comparison.
+              </>
+            ) : (
+              <>Your comparison unlocks once {MIN_OBSERVERS} observers respond.</>
+            )}
+          </p>
         </section>
       </div>
     </main>
   );
-}
-
-/**
- * The origin the shareable observer link is built against. Prefers the
- * configured `AUTH_URL` (trusted, set per deployment) so a forwarded `Host`
- * header can't change the link a Subject copies; falls back to the request host
- * for local/dev where `AUTH_URL` may be unset, and finally to a relative path.
- */
-async function observerLinkBase(): Promise<string> {
-  const configured = process.env.AUTH_URL?.replace(/\/+$/, "");
-  if (configured) return configured;
-
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("host");
-  if (!host) return "";
-
-  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
 }
