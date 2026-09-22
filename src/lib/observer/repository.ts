@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,25 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject as bare word lists.
+ * Nothing identifying is selected or returned — only the words — keeping the
+ * drill-down anonymous (an Observer is known solely by position: Observer 1,
+ * 2, …). Ordered by the random `id` (a UUID), not by `createdAt`: the order is
+ * still deterministic, so "Observer N" stays stable across page loads, but it
+ * carries no submission-time signal, so a Subject can't line the positions up
+ * with when they invited each person. Feeds `aggregateObservers` (issue #9).
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
