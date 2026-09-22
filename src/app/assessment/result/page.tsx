@@ -3,8 +3,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { buildComparisonReport } from "@/lib/observer/report";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
+import { ComparisonReport } from "@/components/comparison-report";
 
 /**
  * The Subject's saved current result (ADR-0004). Login-gated; an unauthenticated
@@ -25,6 +27,9 @@ export default async function AssessmentResultPage() {
 
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
+
+  // The 360 comparison (issue #9): unlocked once ≥3 Observers have responded.
+  const report = await buildComparisonReport(session.user.id, row.words);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -57,11 +62,47 @@ export default async function AssessmentResultPage() {
           </h2>
           <p className="mt-2 max-w-[520px] text-[15px] text-muted">
             Send this link to 3–5 people who know you well. Each one anonymously
-            picks the words that describe you, and once at least three respond
-            you&rsquo;ll see how their read compares with your own.
+            picks the words that describe you, and once at least{" "}
+            {report.minObservers} respond you&rsquo;ll see how their read
+            compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          {!report.unlocked && (
+            <p className="mt-6 text-[13px] text-faint">
+              {report.observerCount === 0
+                ? "No responses yet."
+                : `${report.observerCount} of ${report.minObservers} responses in`}
+              {" — the comparison unlocks at "}
+              {report.minObservers}.
+            </p>
+          )}
         </section>
+
+        {report.unlocked && (
+          <section className="mt-14 border-t border-hair pt-8">
+            <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
+              Self vs 360
+            </p>
+            <h2 className="mt-2 font-serif text-[22px] font-semibold leading-snug">
+              How your read compares
+            </h2>
+            <p className="mt-2 max-w-[520px] text-[15px] text-muted">
+              Your own read is set against how your{" "}
+              {report.observerCount} observers see you — each counted equally, so
+              no single voice outweighs the rest. Switch between the combined read
+              and any one anonymous observer below.
+            </p>
+            <div className="mt-8">
+              <ComparisonReport
+                order={report.order}
+                self={report.self}
+                aggregate={report.aggregate}
+                perObserver={report.perObserver}
+              />
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
