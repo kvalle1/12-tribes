@@ -148,7 +148,7 @@ function CompareBar({
       <div
         className="h-2 flex-1 overflow-hidden rounded-full bg-hair/50"
         role="img"
-        aria-label={`${label}: ${pct}% of their top tribe`}
+        aria-label={`${label}: ${pct}%`}
       >
         <div
           className={cn("h-full rounded-full transition-[width]", className)}

@@ -78,12 +78,13 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load every anonymous Observer response for a Subject, oldest first, as bare
- * word lists. Nothing identifying is selected or returned — only the words —
- * keeping the drill-down anonymous (an Observer is known solely by position:
- * Observer 1, 2, …). Deterministic order (`createdAt`, then `id` to break
- * same-timestamp ties) so those positions stay stable across page loads. Feeds
- * `aggregateObservers` (issue #9).
+ * Load every anonymous Observer response for a Subject as bare word lists.
+ * Nothing identifying is selected or returned — only the words — keeping the
+ * drill-down anonymous (an Observer is known solely by position: Observer 1,
+ * 2, …). Ordered by the random `id` (a UUID), not by `createdAt`: the order is
+ * still deterministic, so "Observer N" stays stable across page loads, but it
+ * carries no submission-time signal, so a Subject can't line the positions up
+ * with when they invited each person. Feeds `aggregateObservers` (issue #9).
  */
 export async function getObserverResponses(
   subjectId: string,
@@ -92,7 +93,7 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+    .orderBy(asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }

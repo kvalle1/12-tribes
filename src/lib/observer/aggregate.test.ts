@@ -4,8 +4,10 @@ import { WORDS } from "@/lib/assessment/words";
 import { score, type TribeScore } from "@/lib/assessment/score";
 import {
   aggregateObservers,
+  barsFromScores,
   hasEnoughObservers,
   MIN_OBSERVERS,
+  sharedMaxScore,
 } from "./aggregate";
 
 const scoreFor = (slug: string, scores: TribeScore[]) =>
@@ -97,5 +99,60 @@ describe("hasEnoughObservers", () => {
     expect(hasEnoughObservers(2)).toBe(false);
     expect(hasEnoughObservers(3)).toBe(true);
     expect(hasEnoughObservers(5)).toBe(true);
+  });
+});
+
+describe("sharedMaxScore", () => {
+  it("returns the single largest per-tribe score across every profile", () => {
+    const a = score(["Courageous"]);
+    const b = score(["Bold"]);
+    const expected = Math.max(...[...a, ...b].map((s) => s.score));
+    expect(sharedMaxScore([a, b])).toBeCloseTo(expected);
+  });
+
+  it("is zero when nothing scored", () => {
+    expect(sharedMaxScore([score([]), score([])])).toBe(0);
+    expect(sharedMaxScore([])).toBe(0);
+  });
+});
+
+describe("barsFromScores", () => {
+  it("covers all 12 tribes", () => {
+    const bars = barsFromScores(score(["Courageous"]), 1);
+    expect(Object.keys(bars).sort()).toEqual(tribes.map((t) => t.slug).sort());
+  });
+
+  it("puts self and others on one shared scale (same tribe over the same denominator)", () => {
+    // A peaked self profile vs. a flatter aggregate: the bug was normalizing
+    // each to its own max, which inflates the flatter profile. With a shared
+    // max, the ratio bar/score is identical on both sides, tribe-for-tribe, so a
+    // self-vs-other bar gap reflects a real score gap, not scaling.
+    const selfScores = score(wordsForTribe("judah"));
+    const { averaged } = aggregateObservers([
+      wordsForTribe("levi"),
+      wordsForTribe("issachar"),
+      wordsForTribe("zebulun"),
+    ]);
+
+    const sharedMax = sharedMaxScore([selfScores, averaged]);
+    const selfBars = barsFromScores(selfScores, sharedMax);
+    const otherBars = barsFromScores(averaged, sharedMax);
+
+    const everyBar = [...Object.values(selfBars), ...Object.values(otherBars)];
+    // The strongest bar anywhere is exactly full; nothing exceeds it.
+    expect(Math.max(...everyBar)).toBeCloseTo(1);
+    for (const bar of everyBar) expect(bar).toBeLessThanOrEqual(1 + 1e-9);
+
+    for (const tribe of tribes) {
+      const s = scoreFor(tribe.slug, selfScores);
+      const o = scoreFor(tribe.slug, averaged);
+      if (s > 0) expect(selfBars[tribe.slug] / s).toBeCloseTo(1 / sharedMax);
+      if (o > 0) expect(otherBars[tribe.slug] / o).toBeCloseTo(1 / sharedMax);
+    }
+  });
+
+  it("yields all-zero bars when the shared max is zero", () => {
+    const bars = barsFromScores(score([]), 0);
+    expect(Object.values(bars).every((v) => v === 0)).toBe(true);
   });
 });

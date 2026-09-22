@@ -64,6 +64,44 @@ export function aggregateObservers(
 }
 
 /**
+ * The largest per-tribe score across a set of profiles — the shared denominator
+ * that keeps every profile's bars on one comparable scale for display. Because
+ * the scoring core already normalizes each tribe by its available points
+ * (ADR-0001), a tribe's score means the same thing for any reader; dividing by a
+ * single shared max only picks readable bar heights without re-normalizing each
+ * profile against its own top tribe (which would put self and others on
+ * different denominators). Zero when nothing scored anywhere.
+ */
+export function sharedMaxScore(
+  tables: readonly (readonly TribeScore[])[],
+): number {
+  let max = 0;
+  for (const table of tables) {
+    for (const tribe of table) {
+      if (tribe.score > max) max = tribe.score;
+    }
+  }
+  return max;
+}
+
+/**
+ * Scale a profile's scores into slug→fraction bar values against a shared max,
+ * so the same tribe is directly comparable across profiles. A zero shared max
+ * (no reader scored anything) yields all-zero bars. Every tribe in the table is
+ * present in the result.
+ */
+export function barsFromScores(
+  table: readonly TribeScore[],
+  sharedMax: number,
+): Record<string, number> {
+  const bars: Record<string, number> = {};
+  for (const tribe of table) {
+    bars[tribe.slug] = sharedMax > 0 ? tribe.score / sharedMax : 0;
+  }
+  return bars;
+}
+
+/**
  * Average a list of canonical-order score tables position-by-position, one vote
  * each. Uses an empty score() as the canonical all-zero base so the result keeps
  * every tribe in canonical order even when there are no tables to average.

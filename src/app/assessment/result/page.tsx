@@ -62,9 +62,8 @@ export default async function AssessmentResultPage() {
           </h2>
           <p className="mt-2 max-w-[520px] text-[15px] text-muted">
             Send this link to 3–5 people who know you well. Each one anonymously
-            picks the words that describe you, and once at least{" "}
-            {report.minObservers} respond you&rsquo;ll see how their read
-            compares with your own.
+            picks the words that describe you, and once at least three respond
+            you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
 
