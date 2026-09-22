@@ -27,10 +27,13 @@ export default async function ObserverReportPage() {
     );
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Independent reads keyed off the same user id — fetch in parallel.
+  const [row, observerResponses] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  const observerResponses = await getObserverResponses(session.user.id);
   const unlocked = isReportUnlocked(observerResponses.length);
 
   return (

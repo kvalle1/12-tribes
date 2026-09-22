@@ -1,7 +1,7 @@
 import { score, deriveResult } from "@/lib/assessment/score";
 import { rankScores } from "@/lib/assessment/ranking";
 import {
-  aggregateObservers,
+  aggregateProfiles,
   scoreEachObserver,
 } from "@/lib/observer/aggregate";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
@@ -29,8 +29,11 @@ export function ComparisonReport({
   observerResponses: string[][];
 }) {
   const selfScores = score(words);
-  const otherScores = aggregateObservers(observerResponses);
-  const perObserver = scoreEachObserver(observerResponses).map(rankScores);
+  // Score each Observer once, then reuse those profiles for both the aggregate
+  // "others" average and the per-observer drill-down (avoids scoring twice).
+  const observerProfiles = scoreEachObserver(observerResponses);
+  const otherScores = aggregateProfiles(observerProfiles);
+  const perObserver = observerProfiles.map(rankScores);
 
   const otherBySlug = new Map(otherScores.map((s) => [s.slug, s.score]));
 

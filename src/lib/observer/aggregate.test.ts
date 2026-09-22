@@ -2,7 +2,11 @@ import { describe, it, expect } from "vitest";
 import { tribes } from "@/lib/tribes";
 import { WORDS } from "@/lib/assessment/words";
 import { score, type TribeScore } from "@/lib/assessment/score";
-import { aggregateObservers, scoreEachObserver } from "./aggregate";
+import {
+  aggregateObservers,
+  aggregateProfiles,
+  scoreEachObserver,
+} from "./aggregate";
 
 const scoreFor = (slug: string, scores: TribeScore[]) =>
   scores.find((s) => s.slug === slug)!.score;
@@ -76,6 +80,34 @@ describe("aggregateObservers", () => {
     expect(scoreFor("levi", others)).not.toBeCloseTo(
       scoreFor("levi", pooled),
     );
+  });
+});
+
+describe("aggregateProfiles", () => {
+  it("averages already-scored profiles with equal weight", () => {
+    const a = score(wordsForTribe("judah"));
+    const b = score(wordsForTribe("dan"));
+    const others = aggregateProfiles([a, b]);
+    for (const tribe of tribes) {
+      const expected =
+        (scoreFor(tribe.slug, a) + scoreFor(tribe.slug, b)) / 2;
+      expect(scoreFor(tribe.slug, others)).toBeCloseTo(expected);
+    }
+  });
+
+  it("matches aggregateObservers for the same responses", () => {
+    const responses = [wordsForTribe("levi"), wordsForTribe("issachar")];
+    const viaProfiles = aggregateProfiles(scoreEachObserver(responses));
+    const direct = aggregateObservers(responses);
+    for (const tribe of tribes) {
+      expect(scoreFor(tribe.slug, viaProfiles)).toBeCloseTo(
+        scoreFor(tribe.slug, direct),
+      );
+    }
+  });
+
+  it("scores all-zero for no profiles", () => {
+    expect(aggregateProfiles([]).every((s) => s.score === 0)).toBe(true);
   });
 });
 

@@ -25,16 +25,20 @@ export default async function AssessmentResultPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/result")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Both reads key off the same user id and are independent, so fetch in
+  // parallel. `observerCount` drives whether the comparison report is unlocked
+  // (ADR-0003: unlocks at ≥3).
+  const [row, observerResponses] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
   // Compose the absolute observer link (shared helper: trusted `AUTH_URL` origin
   // first, then the request host, so a forwarded `Host` can't skew the link).
   const shareUrl = await observerShareUrl(row.shareToken);
 
-  // How many observers have responded so far — drives whether the comparison
-  // report is unlocked (ADR-0003: unlocks at ≥3).
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = observerResponses.length;
   const unlocked = isReportUnlocked(observerCount);
 
   return (

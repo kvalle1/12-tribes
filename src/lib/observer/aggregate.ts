@@ -33,19 +33,22 @@ export function scoreEachObserver(
 }
 
 /**
- * The equal-weight "others" profile: the per-tribe average of each Observer's
- * individually-normalized score, for all 12 tribes in canonical (tribe
- * `number`) order. With no responses every tribe is 0 (the report stays locked
+ * The equal-weight "others" profile from already-scored per-Observer profiles:
+ * the per-tribe average across profiles, for all 12 tribes in canonical (tribe
+ * `number`) order. With no profiles every tribe is 0 (the report stays locked
  * below the ≥3 threshold anyway; see `constants.ts`).
+ *
+ * Kept separate from `aggregateObservers` so a caller that already needs the
+ * per-Observer profiles (e.g. the report's drill-down) can score each Observer
+ * once and reuse the result here, rather than scoring every response twice.
  */
-export function aggregateObservers(
-  responses: readonly ObserverWords[],
+export function aggregateProfiles(
+  profiles: readonly TribeScore[][],
 ): TribeScore[] {
-  const perObserver = scoreEachObserver(responses);
-  const count = perObserver.length;
+  const count = profiles.length;
 
   return tribes.map((tribe) => {
-    const total = perObserver.reduce((sum, profile) => {
+    const total = profiles.reduce((sum, profile) => {
       const entry = profile.find((s) => s.slug === tribe.slug);
       return sum + (entry?.score ?? 0);
     }, 0);
@@ -55,4 +58,14 @@ export function aggregateObservers(
       score: count > 0 ? total / count : 0,
     };
   });
+}
+
+/**
+ * The equal-weight "others" profile straight from raw Observer responses: scores
+ * each Observer individually, then averages (see `aggregateProfiles`).
+ */
+export function aggregateObservers(
+  responses: readonly ObserverWords[],
+): TribeScore[] {
+  return aggregateProfiles(scoreEachObserver(responses));
 }
