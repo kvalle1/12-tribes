@@ -1,10 +1,11 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
+import type { ObserverResponseInput } from "@/lib/assessment/aggregate-observers";
 
 /**
  * Server-only persistence for the 360 Observer flow (issue #8, ADR-0003). The
@@ -75,4 +76,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every Observer response for a Subject, oldest first, as the anonymous
+ * `{ words }` inputs the equal-weight aggregation (issue #9) consumes. Only the
+ * selected words are returned — never the row id, timestamp, or anything that
+ * could identify who answered (ADR-0003). The stable oldest-first order is what
+ * lets the comparison report label them "Observer 1", "Observer 2", … the same
+ * way on every load.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<ObserverResponseInput[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => ({ words: row.words }));
 }
