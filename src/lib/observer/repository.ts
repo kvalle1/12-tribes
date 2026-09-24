@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -84,7 +84,9 @@ export async function recordObserverResponse(
  * selected words are returned — never the row id, timestamp, or anything that
  * could identify who answered (ADR-0003). The stable oldest-first order is what
  * lets the comparison report label them "Observer 1", "Observer 2", … the same
- * way on every load.
+ * way on every load. `id` breaks ties on `createdAt` so the order is fully
+ * deterministic even when two rows share a timestamp (a seed script or
+ * near-simultaneous submissions), keeping the labels stable across loads.
  */
 export async function getObserverResponses(
   subjectId: string,
@@ -93,7 +95,21 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => ({ words: row.words }));
+}
+
+/**
+ * Count a Subject's Observer responses without loading them — for the ≥3 unlock
+ * gate on the result page, which only needs the number, not the words. Avoids
+ * pulling every response's `words` array into memory just to take a length.
+ */
+export async function getObserverCount(subjectId: string): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.value ?? 0;
 }

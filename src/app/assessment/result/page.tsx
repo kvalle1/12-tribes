@@ -2,8 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
-import { hasEnoughObservers } from "@/lib/assessment/aggregate-observers";
+import { getObserverCount } from "@/lib/observer/repository";
+import {
+  hasEnoughObservers,
+  MIN_OBSERVERS_FOR_REPORT,
+} from "@/lib/assessment/aggregate-observers";
 import { observerShareUrl } from "@/lib/observer/link";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
@@ -32,7 +35,7 @@ export default async function AssessmentResultPage() {
   // `observerShareUrl`), and check whether enough observers have responded to
   // surface the comparison report (issue #9).
   const shareUrl = await observerShareUrl(row.shareToken);
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = await getObserverCount(session.user.id);
   const reportUnlocked = hasEnoughObservers(observerCount);
 
   return (
@@ -77,8 +80,9 @@ export default async function AssessmentResultPage() {
               <span className="text-faint">
                 {observerCount === 0
                   ? "No responses yet."
-                  : `${observerCount} of 3 responses so far.`}{" "}
-                Your comparison report unlocks once 3 people have responded.
+                  : `${observerCount} of ${MIN_OBSERVERS_FOR_REPORT} responses so far.`}{" "}
+                Your comparison report unlocks once {MIN_OBSERVERS_FOR_REPORT}{" "}
+                people have responded.
               </span>
             )}
           </p>
