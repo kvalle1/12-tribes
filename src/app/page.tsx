@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
+import { shouldShowResultsEntry } from "@/lib/profile/visibility";
 import { AuthNav } from "@/components/auth-nav";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
@@ -7,7 +10,18 @@ function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Show the "View your results" shortcut only to a signed-in user who has a
+  // saved result (issue #18). The result lookup is server-only, so it stays on
+  // the server; signed-out visitors skip it entirely.
+  const session = await auth();
+  const userId = session?.user?.id;
+  const hasResult = userId ? Boolean(await getCurrentResult(userId)) : false;
+  const showResults = shouldShowResultsEntry({
+    signedIn: Boolean(userId),
+    hasResult,
+  });
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -20,6 +34,11 @@ export default function Home() {
             <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
             <Link href="/assessment" className="transition-colors hover:text-ink">The Assessment</Link>
             <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
+            {showResults && (
+              <Link href="/profile" className="text-gold transition-colors hover:text-ink">
+                View your results
+              </Link>
+            )}
             <AuthNav />
           </div>
         </nav>
