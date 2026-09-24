@@ -1,10 +1,19 @@
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
-import { score } from "@/lib/assessment/score";
+import { score, type TribeScore } from "@/lib/assessment/score";
 import { rankScores } from "@/lib/assessment/ranking";
 import {
   aggregateObservers,
   OBSERVER_UNLOCK_THRESHOLD,
 } from "@/lib/observer/aggregate";
+
+/**
+ * A tribe must clear this normalized floor in *both* reads before we call it a
+ * shared strength, and the self/others gap must reach {@link MEANINGFUL_GAP}
+ * before we call it a divergence — so a rounding-error difference or a barely
+ * present tribe never triggers a confident plain-language claim.
+ */
+const ALIGN_FLOOR = 0.05;
+const MEANINGFUL_GAP = 0.08;
 
 /**
  * The 360 comparison report (issue #9, ADR-0003): the Subject's own profile set
@@ -63,12 +72,33 @@ export function ComparisonReport({
 
   // Where the two reads most agree on a real strength: the tribe with the
   // highest floor (both see it) — and where they most diverge: the largest gap.
-  const alignment = [...rows].sort(
+  // Both are gated on a meaningful minimum so a rounding-error difference never
+  // trips a confident directional claim, and neither callout renders when the
+  // reads are effectively flat or identical.
+  const topAlignment = [...rows].sort(
     (a, b) => Math.min(b.self, b.others) - Math.min(a.self, a.others),
   )[0];
-  const divergence = [...rows].sort(
+  const topDivergence = [...rows].sort(
     (a, b) => Math.abs(b.gap) - Math.abs(a.gap),
   )[0];
+
+  const alignment =
+    topAlignment && Math.min(topAlignment.self, topAlignment.others) >= ALIGN_FLOOR
+      ? topAlignment
+      : null;
+  const divergence =
+    topDivergence && Math.abs(topDivergence.gap) >= MEANINGFUL_GAP
+      ? topDivergence
+      : null;
+
+  // Order the drill-down columns by a deterministic, content-only key (each
+  // observer's ranked profile) rather than by arrival. This keeps the labels
+  // stable across page loads while ensuring "Observer 1/2/3" carries no
+  // order-of-arrival meaning a Subject could map back to a real person — the
+  // anonymity the copy promises (ADR-0003).
+  const orderedObservers = [...perObserver].sort((a, b) =>
+    observerSortKey(a).localeCompare(observerSortKey(b)),
+  );
 
   return (
     <div>
@@ -87,14 +117,14 @@ export function ComparisonReport({
 
       {(alignment || divergence) && (
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {alignment && Math.min(alignment.self, alignment.others) > 0 && (
+          {alignment && (
             <Callout
               slug={alignment.slug}
               label="Where you align"
               body={`You and the people who know you both read ${alignment.name} strongly.`}
             />
           )}
-          {divergence && Math.abs(divergence.gap) > 0 && (
+          {divergence && (
             <Callout
               slug={divergence.slug}
               label="Where you diverge"
@@ -165,7 +195,7 @@ export function ComparisonReport({
           a person.
         </p>
         <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {perObserver.map((profile, i) => {
+          {orderedObservers.map((profile, i) => {
             const top = rankScores(profile)
               .filter((t) => t.score > 0)
               .slice(0, 3);
@@ -206,6 +236,18 @@ export function ComparisonReport({
       </section>
     </div>
   );
+}
+
+/**
+ * A deterministic, content-only ordering key for an observer's profile — its
+ * ranked slug:score list. Two observers with identical reads sort together, and
+ * the order never depends on when they submitted, so the drill-down labels stay
+ * stable across loads without leaking arrival order.
+ */
+function observerSortKey(profile: readonly TribeScore[]): string {
+  return rankScores(profile)
+    .map((t) => `${t.slug}:${t.score.toFixed(4)}`)
+    .join("|");
 }
 
 function PairBar({
@@ -322,11 +364,6 @@ function LockedState({ observerCount }: { observerCount: number }) {
               }`}
             />
           ))}
-          {observerCount > OBSERVER_UNLOCK_THRESHOLD && (
-            <span className="text-[12px] text-faint">
-              +{observerCount - OBSERVER_UNLOCK_THRESHOLD}
-            </span>
-          )}
         </div>
       </div>
     </div>

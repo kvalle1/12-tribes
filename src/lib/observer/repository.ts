@@ -78,12 +78,14 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load every anonymous Observer response for a Subject, oldest first, as the raw
- * word lists that feed the equal-weight aggregation (issue #9). Deliberately
- * returns only the words — never row ids, timestamps, or anything identifying —
- * so the "how others see you" report and its per-observer drill-down (Observer 1
- * / 2 / 3 …) stay anonymous at the individual level (ADR-0003). Submission order
- * is stable so the drill-down labels don't shuffle between page loads.
+ * Load every anonymous Observer response for a Subject as the raw word lists
+ * that feed the equal-weight aggregation (issue #9). Deliberately returns only
+ * the words — never row ids, timestamps, or anything identifying — so the "how
+ * others see you" report and its per-observer drill-down stay anonymous at the
+ * individual level (ADR-0003). The average is order-independent, and the
+ * drill-down orders its columns by content, so the ordering here only needs to
+ * be deterministic: `createdAt` with the row `id` as a stable tiebreaker keeps
+ * the result reproducible even when two responses share a timestamp.
  */
 export async function getObserverResponsesForSubject(
   subjectId: string,
@@ -92,7 +94,7 @@ export async function getObserverResponsesForSubject(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }
