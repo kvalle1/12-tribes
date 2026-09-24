@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,26 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject as the raw word lists
+ * that feed the equal-weight aggregation (issue #9). Deliberately returns only
+ * the words — never row ids, timestamps, or anything identifying — so the "how
+ * others see you" report and its per-observer drill-down stay anonymous at the
+ * individual level (ADR-0003). The average is order-independent, and the
+ * drill-down orders its columns by content, so the ordering here only needs to
+ * be deterministic: `createdAt` with the row `id` as a stable tiebreaker keeps
+ * the result reproducible even when two responses share a timestamp.
+ */
+export async function getObserverResponsesForSubject(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
