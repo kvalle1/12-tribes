@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import { auth } from "@/auth";
-import { getCurrentResult } from "@/lib/assessment/repository";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 /**
  * Home-page "View your results" entry (issue #18, PRD story 16). It links a
@@ -8,18 +10,36 @@ import { getCurrentResult } from "@/lib/assessment/repository";
  *
  * It renders only when the viewer is signed in AND has a saved result: signed-out
  * visitors and signed-in users who haven't taken the assessment yet see nothing.
- * Both facts are read server-side (`auth()` + `getCurrentResult()`), so the entry
- * reflects real account state with no client-side flash of a wrong option.
- *
- * Reading the session makes this subtree dynamic; render it inside a `<Suspense>`
- * so the otherwise-static home shell isn't blocked on the auth/DB round-trip.
+ * Like `AuthNav`, this reads the session on the client via `useSession()` so the
+ * home page stays statically rendered; the one server-truth bit it needs — does
+ * this account have a result — comes from `/api/profile/status`. Nothing renders
+ * until that's confirmed, so there's no flash of a link the viewer can't use.
  */
-export async function ViewResultsEntry() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export function ViewResultsEntry() {
+  const { status } = useSession();
+  const [hasResult, setHasResult] = useState(false);
 
-  const row = await getCurrentResult(session.user.id);
-  if (!row) return null;
+  useEffect(() => {
+    // Only ask once signed in. When signed out, the render guard below hides the
+    // entry regardless of `hasResult`, so no synchronous reset is needed here.
+    if (status !== "authenticated") return;
+
+    let active = true;
+    fetch("/api/profile/status")
+      .then((res) => (res.ok ? res.json() : { hasResult: false }))
+      .then((data: { hasResult?: boolean }) => {
+        if (active) setHasResult(Boolean(data.hasResult));
+      })
+      .catch(() => {
+        /* transient failure — leave the entry hidden rather than guess */
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [status]);
+
+  if (status !== "authenticated" || !hasResult) return null;
 
   return (
     <Link
