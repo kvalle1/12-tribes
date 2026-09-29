@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,38 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * All Observer word selections recorded for a Subject, oldest first — just the
+ * `words`, nothing that could identify who answered (ADR-0003). Stable
+ * chronological order gives the comparison report's drill-down its anonymous
+ * "Observer 1 / 2 / 3" numbering (issue #9). Ordering by `createdAt` then `id`
+ * keeps the numbering deterministic even for responses saved in the same tick.
+ */
+export async function getObserverWordLists(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
+}
+
+/**
+ * How many Observers have responded for a Subject. Backs the result page's
+ * progress-toward-unlock hint without loading every response's words.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.value ?? 0;
 }
