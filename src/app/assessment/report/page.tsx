@@ -2,10 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import {
-  countObserverResponses,
-  getObserverWordLists,
-} from "@/lib/observer/repository";
+import { getObserverWordLists } from "@/lib/observer/repository";
 import { MIN_OBSERVERS, hasEnoughObservers } from "@/lib/observer/constants";
 import { ComparisonReport } from "@/components/comparison-report";
 
@@ -29,7 +26,11 @@ export default async function ComparisonReportPage() {
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
 
-  const observerCount = await countObserverResponses(session.user.id);
+  // Fetch the responses once and gate on their count, so the unlock decision and
+  // the rendered drill-down are guaranteed to agree (no window for a response to
+  // land between a separate count query and the list query) and every unlocked
+  // load costs a single round trip.
+  const observerWordLists = await getObserverWordLists(session.user.id);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -41,14 +42,14 @@ export default async function ComparisonReportPage() {
           ← Your result
         </Link>
 
-        {hasEnoughObservers(observerCount) ? (
+        {hasEnoughObservers(observerWordLists.length) ? (
           <ComparisonReport
             selfWords={row.words}
             primarySlug={row.primarySlug}
-            observerWordLists={await getObserverWordLists(session.user.id)}
+            observerWordLists={observerWordLists}
           />
         ) : (
-          <LockedReport count={observerCount} />
+          <LockedReport count={observerWordLists.length} />
         )}
       </div>
     </main>

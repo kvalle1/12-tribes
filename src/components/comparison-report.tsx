@@ -72,7 +72,13 @@ export function ComparisonReport({
   const othersTop = [...othersScores].sort((a, b) => b.score - a.score)[0];
   const othersPrimary =
     othersTop && othersTop.score > 0 ? getTribeBySlug(othersTop.slug) : undefined;
-  const aligned = othersPrimary?.slug === primarySlug;
+  // Aligned when the Subject's own Primary shares the top observer score — a tie
+  // at the top counts as agreement, so a canonical-order tie-break can't mislabel
+  // an equal read as divergence.
+  const aligned =
+    !!othersTop &&
+    othersTop.score > 0 &&
+    (othersBySlug.get(primarySlug) ?? 0) === othersTop.score;
 
   return (
     <div>
@@ -271,7 +277,9 @@ function Bar({
             : {
                 width,
                 backgroundColor: `${color}40`,
-                border: `1px solid ${color}80`,
+                // Only outline a bar that actually has width; a 1px border on a
+                // 0%-width bar would paint a ~2px sliver and read as a nonzero score.
+                ...(hasScore ? { border: `1px solid ${color}80` } : {}),
               }
         }
       />

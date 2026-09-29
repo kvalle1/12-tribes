@@ -78,11 +78,15 @@ export async function recordObserverResponse(
 }
 
 /**
- * All Observer word selections recorded for a Subject, oldest first — just the
- * `words`, nothing that could identify who answered (ADR-0003). Stable
- * chronological order gives the comparison report's drill-down its anonymous
- * "Observer 1 / 2 / 3" numbering (issue #9). Ordering by `createdAt` then `id`
- * keeps the numbering deterministic even for responses saved in the same tick.
+ * All Observer word selections recorded for a Subject — just the `words`,
+ * nothing that could identify who answered (ADR-0003).
+ *
+ * Ordered by the random-UUID `id`, deliberately **not** by `createdAt`. The
+ * order is stable across reloads (UUIDs don't change), so the report's
+ * "Observer 1 / 2 / 3" drill-down numbering is consistent — but it carries no
+ * submission-time signal, so a Subject who reloads after nudging someone can't
+ * tell which card is the newest and pin an anonymous read to that person. That
+ * unlinkability is the anonymity ADR-0003 promises.
  */
 export async function getObserverWordLists(
   subjectId: string,
@@ -91,7 +95,7 @@ export async function getObserverWordLists(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+    .orderBy(asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }
