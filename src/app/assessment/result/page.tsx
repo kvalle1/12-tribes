@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
+import { MIN_OBSERVERS, hasEnoughObservers } from "@/lib/observer/constants";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -31,6 +33,12 @@ export default async function AssessmentResultPage() {
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
   const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+
+  // How many Observers have responded, to show progress toward the comparison
+  // report's unlock (issue #9). Only the count is needed here — the report page
+  // does the full aggregation once it unlocks.
+  const observerCount = await countObserverResponses(session.user.id);
+  const unlocked = hasEnoughObservers(observerCount);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,6 +69,27 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[14px]">
+            <span className="text-muted">
+              {observerCount === 0
+                ? "No responses yet."
+                : observerCount === 1
+                  ? "1 person has responded."
+                  : `${observerCount} people have responded.`}
+              {!unlocked && (
+                <> Your comparison unlocks at {MIN_OBSERVERS}.</>
+              )}
+            </span>
+            {unlocked && (
+              <Link
+                href="/assessment/report"
+                className="border-b border-gold pb-0.5 tracking-[0.06em] text-ink transition-colors hover:text-gold"
+              >
+                View your comparison →
+              </Link>
+            )}
+          </div>
         </section>
       </div>
     </main>
