@@ -30,8 +30,8 @@ export function ComparisonReport({
   primarySlug: string;
   secondarySlug?: string | null;
 }) {
-  const byMax = comparisonRows(self, others);
-  const { agreement, divergences } = highlights(byMax);
+  const rows = comparisonRows(self, others);
+  const { agreement, divergences } = highlights(rows);
 
   return (
     <div>
@@ -80,7 +80,7 @@ export function ComparisonReport({
           <Legend />
         </div>
         <ul className="mt-7 flex flex-col gap-5">
-          {byMax.map((row) => (
+          {rows.map((row) => (
             <PairBar
               key={row.slug}
               row={row}
@@ -115,60 +115,61 @@ export function ComparisonReport({
   );
 }
 
-/** A tribe row carrying both profiles' scores and their shared-scale fractions. */
+/** A tribe row carrying both profiles' own-scaled bar fractions and their gap. */
 interface ComparisonRow {
   slug: string;
   name: string;
-  selfScore: number;
-  othersScore: number;
-  /** Bar fills relative to the largest score across both profiles. */
+  /**
+   * Each side's prominence within its OWN profile (0–1, relative to that
+   * profile's top tribe). The two profiles live on different scales — "you" is
+   * one coverage-normalized selection, "others" is a unit-mass average — so they
+   * are compared by relative prominence, i.e. shape, not absolute magnitude.
+   */
   selfRelative: number;
   othersRelative: number;
-  /** othersScore − selfScore: positive means observers see more of this tribe. */
+  /** othersRelative − selfRelative: positive means others rank this tribe higher. */
   gap: number;
 }
 
 /**
- * Build the comparison rows on a single shared scale (the largest score across
- * both profiles) so the "you" and "others" bars are directly comparable, sorted
- * by each tribe's more prominent side so the salient tribes lead. Ties keep the
- * inputs' canonical (tribe number) order.
+ * Build the comparison rows, scaling each side to its own top tribe so "you" and
+ * "others" are compared by shape rather than by two incomparable absolute scales.
+ * Sorted by each tribe's more prominent side so the salient tribes lead; ties keep
+ * the inputs' canonical (tribe number) order.
  */
 function comparisonRows(
   self: TribeScore[],
   others: TribeScore[],
 ): ComparisonRow[] {
   const othersBySlug = new Map(others.map((s) => [s.slug, s.score]));
-  const max = Math.max(
-    0,
-    ...self.map((s) => s.score),
-    ...others.map((s) => s.score),
-  );
+  const selfMax = Math.max(0, ...self.map((s) => s.score));
+  const othersMax = Math.max(0, ...others.map((s) => s.score));
 
   return self
     .map((s) => {
-      const othersScore = othersBySlug.get(s.slug) ?? 0;
+      const selfRelative = selfMax > 0 ? s.score / selfMax : 0;
+      const othersRelative =
+        othersMax > 0 ? (othersBySlug.get(s.slug) ?? 0) / othersMax : 0;
       return {
         slug: s.slug,
         name: s.name,
-        selfScore: s.score,
-        othersScore,
-        selfRelative: max > 0 ? s.score / max : 0,
-        othersRelative: max > 0 ? othersScore / max : 0,
-        gap: othersScore - s.score,
+        selfRelative,
+        othersRelative,
+        gap: othersRelative - selfRelative,
       };
     })
-    .sort((a, b) => {
-      const prominence =
-        Math.max(b.selfScore, b.othersScore) -
-        Math.max(a.selfScore, a.othersScore);
-      return prominence; // stable sort keeps canonical order within ties
-    });
+    .sort(
+      (a, b) =>
+        // stable sort keeps canonical order within ties
+        Math.max(b.selfRelative, b.othersRelative) -
+        Math.max(a.selfRelative, a.othersRelative),
+    );
 }
 
 /**
- * Pick the standout tribes: the one where both profiles agree most strongly
- * (highest shared floor) and the ones that diverge most (largest gap either way).
+ * Pick the standout tribes: the one both profiles rank most alike near the top
+ * (highest shared relative prominence) and the ones that diverge most (largest
+ * gap in relative prominence, either direction).
  */
 function highlights(rows: ComparisonRow[]): {
   agreement: ComparisonRow | null;
@@ -176,11 +177,11 @@ function highlights(rows: ComparisonRow[]): {
 } {
   const agreement =
     [...rows]
-      .filter((r) => r.selfScore > 0 && r.othersScore > 0)
+      .filter((r) => r.selfRelative > 0 && r.othersRelative > 0)
       .sort(
         (a, b) =>
-          Math.min(b.selfScore, b.othersScore) -
-          Math.min(a.selfScore, a.othersScore),
+          Math.min(b.selfRelative, b.othersRelative) -
+          Math.min(a.selfRelative, a.othersRelative),
       )[0] ?? null;
 
   const divergences = [...rows]
@@ -211,17 +212,15 @@ function PairBar({ row, role }: { row: ComparisonRow; role: string | null }) {
       <div className="flex flex-col gap-1.5">
         <Bar
           relative={row.selfRelative}
-          score={row.selfScore}
           accent={accent}
           opacity={1}
-          label={`You: ${Math.round(row.selfRelative * 100)} of 100`}
+          label={`You rank ${row.name} at ${Math.round(row.selfRelative * 100)}% of your top tribe`}
         />
         <Bar
           relative={row.othersRelative}
-          score={row.othersScore}
           accent={accent}
           opacity={0.4}
-          label={`Others: ${Math.round(row.othersRelative * 100)} of 100`}
+          label={`Others rank ${row.name} at ${Math.round(row.othersRelative * 100)}% of their top tribe`}
         />
       </div>
     </li>
@@ -230,13 +229,11 @@ function PairBar({ row, role }: { row: ComparisonRow; role: string | null }) {
 
 function Bar({
   relative,
-  score,
   accent,
   opacity,
   label,
 }: {
   relative: number;
-  score: number;
   accent: string;
   opacity: number;
   label: string;
@@ -250,7 +247,8 @@ function Bar({
       <div
         className="h-full rounded-full transition-[width]"
         style={{
-          width: `${Math.max(relative * 100, score > 0 ? 3 : 0)}%`,
+          // Give any non-zero score a visible sliver so a small bar still reads.
+          width: relative > 0 ? `${Math.max(relative * 100, 3)}%` : "0%",
           backgroundColor: accent,
           opacity,
         }}
@@ -303,7 +301,9 @@ function Callout({
 
 /** One anonymous observer's top tribes, drawn relative to their own top score. */
 function ObserverColumn({ observer }: { observer: ComparisonObserver }) {
+  // Only tribes this observer actually pointed at, most prominent first.
   const ranked = [...observer.scores]
+    .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
   const max = ranked.length > 0 ? ranked[0].score : 0;
@@ -326,10 +326,9 @@ function ObserverColumn({ observer }: { observer: ComparisonObserver }) {
               <span className="text-[14px] text-ink">{tribeScore.name}</span>
               <Bar
                 relative={relative}
-                score={tribeScore.score}
                 accent={accent}
                 opacity={0.75}
-                label={`${tribeScore.name}: ${Math.round(relative * 100)} of 100 for observer ${observer.index}`}
+                label={`Observer ${observer.index} ranks ${tribeScore.name} at ${Math.round(relative * 100)}% of their top tribe`}
               />
             </li>
           );

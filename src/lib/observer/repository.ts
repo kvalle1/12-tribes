@@ -1,10 +1,11 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
+import { anonymousOrder } from "./anonymize";
 
 /**
  * Server-only persistence for the 360 Observer flow (issue #8, ADR-0003). The
@@ -78,21 +79,37 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load every Observer's selected words for a Subject, oldest first, for the
- * equal-weight comparison report (issue #9). Only the `words` are returned —
- * never the row id, timestamp, or anything else — so nothing that could identify
- * an Observer leaves this module; the report's "Observer 1/2/3" labels come from
- * this stable oldest-first order. Feed the result straight into
- * `aggregateObservers`.
+ * Load every Observer's selected words for a Subject, for the equal-weight
+ * comparison report (issue #9). Only the `words` are returned — never a name,
+ * timestamp, or anything that could identify an Observer. The rows are put in a
+ * deterministic, non-temporal order (`anonymousOrder`) so the report's anonymous
+ * "Observer 1/2/3" labels can't be lined up with who responded first (ADR-0003);
+ * the id used to derive that order is consumed here and never leaves. Feed the
+ * result straight into `aggregateObservers`.
  */
 export async function getObserverResponses(
   subjectId: string,
 ): Promise<string[][]> {
   const rows = await db
-    .select({ words: observerResponses.words })
+    .select({ id: observerResponses.id, words: observerResponses.words })
     .from(observerResponses)
-    .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+    .where(eq(observerResponses.subjectId, subjectId));
 
-  return rows.map((row) => row.words);
+  return anonymousOrder(subjectId, rows).map((row) => row.words);
+}
+
+/**
+ * How many Observers have responded for a Subject. A cheap `count(*)` for callers
+ * that only need to know whether the comparison report has unlocked (issue #9),
+ * without loading every response's words.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.value ?? 0;
 }

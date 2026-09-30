@@ -2,9 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import { observerShareUrl } from "@/lib/observer/link";
-import { hasEnoughObservers } from "@/lib/observer/aggregate";
+import {
+  hasEnoughObservers,
+  OBSERVER_UNLOCK_THRESHOLD,
+} from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -32,7 +35,7 @@ export default async function AssessmentResultPage() {
   // a forwarded Host header) and how many observers have responded so far, so the
   // share section can point to the comparison report once it has unlocked (#9).
   const shareUrl = await observerShareUrl(row.shareToken);
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = await countObserverResponses(session.user.id);
   const comparisonUnlocked = hasEnoughObservers(observerCount);
 
   return (
@@ -77,8 +80,9 @@ export default async function AssessmentResultPage() {
               <>
                 {observerCount === 0
                   ? "No responses yet."
-                  : `${observerCount} of 3 responses so far.`}{" "}
-                The comparison report unlocks once at least three people respond.
+                  : `${observerCount} of ${OBSERVER_UNLOCK_THRESHOLD} responses so far.`}{" "}
+                The comparison report unlocks once at least{" "}
+                {OBSERVER_UNLOCK_THRESHOLD} people respond.
               </>
             )}
           </p>

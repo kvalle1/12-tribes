@@ -5,13 +5,18 @@ import { score, type TribeScore } from "@/lib/assessment/score";
  * Equal-weight aggregation of anonymous 360 Observer responses (issue #9,
  * ADR-0003). This is the "how others see you" half of the comparison report.
  *
- * The rule that matters: each Observer is scored **individually** with the same
- * normalized scoring core as the Self Assessment, and the "others" profile is the
- * plain average of those per-observer profiles — one vote each. An Observer who
- * selects more words does **not** gain more influence, because we never pool the
- * words into one bag and score them together (which would let a wordy observer
- * dominate). Averaging individually-normalized profiles keeps effort (word count)
- * from becoming influence.
+ * The rule that matters: each Observer gets exactly **one vote of equal weight**,
+ * no matter how many words they selected. To make that true we can't just average
+ * the raw scoring-core profiles: the core normalizes each tribe by its coverage,
+ * not by the observer's selection size, so a wordier observer's profile carries
+ * more total mass — and averaging those is mathematically just pooling every
+ * observer's words together and dividing by N (same shape a "bag of words" would
+ * give, letting effort become influence).
+ *
+ * So each Observer's profile is scored with the shared core and then normalized to
+ * **unit mass** (its tribe scores rescaled to sum to 1) before averaging. Every
+ * observer then contributes the same total, and the "others" profile is the plain
+ * mean of those unit-mass profiles — genuinely equal-weight, not a pooled bag.
  *
  * Pure and dependency-free of the DB (it takes the already-loaded word lists), so
  * its external behavior is unit-testable without a datastore. It does use the
@@ -37,9 +42,14 @@ export function hasEnoughObservers(count: number): boolean {
  * never a name, relationship, or anything linking back to who they are.
  */
 export interface ObserverProfile {
-  /** 1-based anonymous label, in input (response) order. */
+  /** 1-based anonymous label, in input order. */
   index: number;
-  /** This Observer's normalized per-tribe scores, in canonical tribe order. */
+  /**
+   * This Observer's per-tribe scores from the shared scoring core, in canonical
+   * tribe order. These are the raw coverage-normalized scores (for the
+   * per-observer drill-down, shown relative to the observer's own top tribe); the
+   * equal-weight `average` rescales each observer to unit mass before combining.
+   */
   scores: TribeScore[];
 }
 
@@ -69,18 +79,29 @@ export function aggregateObservers(
     scores: score(words),
   }));
 
-  const average: TribeScore[] = tribes.map((tribe) => {
-    const total = observers.reduce(
-      (sum, observer) =>
-        sum + (observer.scores.find((s) => s.slug === tribe.slug)?.score ?? 0),
-      0,
-    );
+  // Rescale each observer's profile to unit mass so word count can't buy
+  // influence, then average the unit-mass profiles — one equal vote each.
+  const unitMass = observers.map((observer) => toUnitMass(observer.scores));
+
+  const average: TribeScore[] = tribes.map((tribe, t) => {
+    const total = unitMass.reduce((sum, profile) => sum + profile[t], 0);
     return {
       slug: tribe.slug,
       name: tribe.name,
-      score: observers.length > 0 ? total / observers.length : 0,
+      score: unitMass.length > 0 ? total / unitMass.length : 0,
     };
   });
 
   return { count: observers.length, average, observers };
+}
+
+/**
+ * Rescale a per-tribe score vector so its entries sum to 1 (unit mass), returned
+ * in canonical tribe order. An all-zero profile (no scoreable words) stays all
+ * zero. This is what makes averaging equal-weight: every observer contributes the
+ * same total mass regardless of how many words they picked.
+ */
+function toUnitMass(scores: TribeScore[]): number[] {
+  const total = scores.reduce((sum, s) => sum + s.score, 0);
+  return scores.map((s) => (total > 0 ? s.score / total : 0));
 }

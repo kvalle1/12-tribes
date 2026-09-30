@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import {
+  countObserverResponses,
+  getObserverResponses,
+} from "@/lib/observer/repository";
 import { observerShareUrl } from "@/lib/observer/link";
 import {
   aggregateObservers,
@@ -35,8 +38,9 @@ export default async function ComparePage() {
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
 
-  const responses = await getObserverResponses(session.user.id);
-  const others = aggregateObservers(responses);
+  // Gate on a cheap count first; only load and score every response once the
+  // report has actually unlocked (no scoring happens in the locked case).
+  const observerCount = await countObserverResponses(session.user.id);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -48,22 +52,50 @@ export default async function ComparePage() {
           ← Your result
         </Link>
 
-        {hasEnoughObservers(others.count) ? (
-          <ComparisonReport
-            self={score(row.words)}
-            others={others.average}
-            observers={others.observers}
+        {hasEnoughObservers(observerCount) ? (
+          <UnlockedReport
+            words={row.words}
+            subjectId={session.user.id}
             primarySlug={row.primarySlug}
             secondarySlug={row.secondarySlug}
           />
         ) : (
           <LockedState
-            count={others.count}
+            count={observerCount}
             shareUrl={await observerShareUrl(row.shareToken)}
           />
         )}
       </div>
     </main>
+  );
+}
+
+/**
+ * Loads and scores the observer responses, then renders the report. Only reached
+ * once the ≥3 gate has passed, so the (heavier) load-and-aggregate work never runs
+ * while the report is still locked.
+ */
+async function UnlockedReport({
+  words,
+  subjectId,
+  primarySlug,
+  secondarySlug,
+}: {
+  words: string[];
+  subjectId: string;
+  primarySlug: string;
+  secondarySlug: string | null;
+}) {
+  const others = aggregateObservers(await getObserverResponses(subjectId));
+
+  return (
+    <ComparisonReport
+      self={score(words)}
+      others={others.average}
+      observers={others.observers}
+      primarySlug={primarySlug}
+      secondarySlug={secondarySlug}
+    />
   );
 }
 

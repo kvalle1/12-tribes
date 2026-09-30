@@ -15,13 +15,19 @@ const wordsForTribe = (slug: string) =>
 const scoreFor = (slug: string, scores: TribeScore[]) =>
   scores.find((s) => s.slug === slug)!.score;
 
+const sumOf = (scores: TribeScore[]) =>
+  scores.reduce((total, s) => total + s.score, 0);
+
+/** Rescale a profile to unit mass — the reference the average is built on. */
+const unitMass = (words: readonly string[]) => {
+  const s = score(words);
+  const total = sumOf(s);
+  return s.map((x) => (total > 0 ? x.score / total : 0));
+};
+
 describe("aggregateObservers", () => {
   it("reports how many observers were aggregated", () => {
-    const agg = aggregateObservers([
-      ["Courageous"],
-      ["Bold"],
-      ["Zealous"],
-    ]);
+    const agg = aggregateObservers([["Courageous"], ["Bold"], ["Zealous"]]);
     expect(agg.count).toBe(3);
     expect(agg.observers).toHaveLength(3);
   });
@@ -38,53 +44,72 @@ describe("aggregateObservers", () => {
     expect(agg.average.map((s) => s.slug)).toEqual(tribes.map((t) => t.slug));
   });
 
-  it("scores each observer individually with the shared scoring core", () => {
+  it("keeps each observer's own raw (coverage-normalized) scores for the drill-down", () => {
     const agg = aggregateObservers([wordsForTribe("levi"), ["Courageous"]]);
     // Observer 1 fully covers levi → levi normalizes to 1.0 for them alone.
     expect(scoreFor("levi", agg.observers[0].scores)).toBeCloseTo(1);
-    // Observer 2's scores match scoring their words in isolation.
+    // Observer 2's raw scores match scoring their words in isolation.
     expect(agg.observers[1].scores).toEqual(score(["Courageous"]));
   });
 
-  it("is the equal-weight average of per-observer normalized scores", () => {
+  it("averages each observer's unit-mass profile with equal weight", () => {
     const responses = [wordsForTribe("levi"), ["Courageous"], ["Zealous"]];
-    const individual = responses.map((r) => score(r));
+    const profiles = responses.map(unitMass);
     const agg = aggregateObservers(responses);
-    for (const tribe of tribes) {
+    tribes.forEach((tribe, t) => {
       const expected =
-        individual.reduce((sum, s) => sum + scoreFor(tribe.slug, s), 0) /
-        responses.length;
+        profiles.reduce((sum, p) => sum + p[t], 0) / responses.length;
       expect(scoreFor(tribe.slug, agg.average)).toBeCloseTo(expected);
-    }
+    });
   });
 
-  it("does not pool words — an observer who picks more words gains no extra influence", () => {
-    // Observer A fully describes with every levi word; Observer B picks a single
-    // judah word. Equal-weight averaging gives each observer one vote, so levi's
-    // "others" score is (1.0 + 0) / 2 = 0.5 — NOT the ~1.0 a pooled bag of words
-    // (A's many words swamping B's one) would produce.
-    const observerA = wordsForTribe("levi");
-    const observerB = ["Courageous"]; // a single judah word
-    const agg = aggregateObservers([observerA, observerB]);
-    const pooled = score([...observerA, ...observerB]);
+  it("gives every observer equal total mass — the average sums to 1", () => {
+    // Each observer is rescaled to unit mass before averaging, so the mean is a
+    // unit-mass profile too. This is the property that word count can't influence.
+    const agg = aggregateObservers([
+      wordsForTribe("levi"),
+      ["Courageous", "Bold"],
+      wordsForTribe("issachar"),
+    ]);
+    expect(sumOf(agg.average)).toBeCloseTo(1);
+  });
 
-    expect(scoreFor("levi", agg.average)).toBeCloseTo(0.5);
-    expect(scoreFor("levi", pooled)).toBeCloseTo(1);
-    // The two aggregation strategies genuinely differ for uneven word counts.
-    expect(scoreFor("levi", agg.average)).not.toBeCloseTo(
-      scoreFor("levi", pooled),
+  it("is NOT a pooled bag of words — differs from scoring all words together", () => {
+    // A wordy observer (full issachar coverage) and a brief one (two judah-ish
+    // words). Pooling every word and dividing by N would let the wordy observer
+    // carry more mass; the equal-weight average does not, so the two disagree.
+    const wordy = wordsForTribe("issachar");
+    const brief = ["Courageous", "Bold"];
+    const equalWeight = aggregateObservers([wordy, brief]).average;
+    const pooledPerN = score([...wordy, ...brief]).map((s) => s.score / 2);
+
+    const differs = tribes.some(
+      (tribe, t) =>
+        Math.abs(scoreFor(tribe.slug, equalWeight) - pooledPerN[t]) > 1e-6,
     );
+    expect(differs).toBe(true);
+  });
+
+  it("does not let a wordy observer drown out a brief one", () => {
+    // The brief observer points at judah with just two words; the wordy one at
+    // issachar with ten. Equal weighting keeps judah prominent (the brief
+    // observer's full vote), where pooling would swamp it under the wordy one.
+    const wordy = wordsForTribe("issachar");
+    const brief = ["Courageous", "Bold"];
+    const equalWeight = aggregateObservers([wordy, brief]).average;
+    const pooledPerN = score([...wordy, ...brief]).map((s) => s.score / 2);
+    const judahPooled = pooledPerN[tribes.findIndex((t) => t.slug === "judah")];
+
+    expect(scoreFor("judah", equalWeight)).toBeGreaterThan(judahPooled);
   });
 
   it("weights every observer equally regardless of how many words they select", () => {
-    // Halving one observer's word count must not change the equal-weight average
-    // beyond that observer's own (still equally-weighted) contribution.
+    // Halving the first observer's word count must not change the second
+    // observer's (judah) contribution: it stays a full, equal vote either way.
     const many = wordsForTribe("levi");
     const few = many.slice(0, Math.max(1, Math.floor(many.length / 2)));
     const withMany = aggregateObservers([many, ["Courageous"]]);
     const withFew = aggregateObservers([few, ["Courageous"]]);
-    // The second observer (judah) contributes 1/2 in both, unaffected by how many
-    // words the first observer chose.
     expect(scoreFor("judah", withMany.average)).toBeCloseTo(
       scoreFor("judah", withFew.average),
     );
