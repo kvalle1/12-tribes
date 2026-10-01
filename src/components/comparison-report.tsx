@@ -39,13 +39,13 @@ export function ComparisonReport({
   const selfScores = score(selfWords);
   const othersScores = aggregate.others;
 
-  const selfBySlug = bySlug(selfScores);
   const othersBySlug = bySlug(othersScores);
 
   // Order the comparison by the Subject's own ranking, so it reads top-down as
   // "your tribes" with the observers' read set against each. Both profiles are
   // on the same normalized 0–1 scale, so a bar's width is its score directly —
-  // the width and the percent beside it always agree.
+  // the width and the percent beside it always agree. `RankedTribe` already
+  // carries each self score, so no separate lookup is needed.
   const selfRanked = rankScores(selfScores);
 
   // Divergences: where self and others disagree most, phrased by direction.
@@ -60,15 +60,24 @@ export function ComparisonReport({
 
   const topDivergences = gaps.slice(0, 2);
 
-  // Agreement: among tribes either side rates as present, the smallest gap.
+  // Agreement: the tribe both sides most endorse — the one with the highest
+  // shared floor (the larger of the two scores both clear). Ranking by the
+  // smaller score, not the smallest gap, so a tribe neither side chose (gap ≈ 0
+  // because both are ≈ 0) can't masquerade as strong agreement.
   const agreement = selfScores
     .map((s) => ({
       name: s.name,
-      max: Math.max(s.score, othersBySlug.get(s.slug) ?? 0),
-      gap: Math.abs(s.score - (othersBySlug.get(s.slug) ?? 0)),
+      floor: Math.min(s.score, othersBySlug.get(s.slug) ?? 0),
     }))
-    .filter((a) => a.max > 0)
-    .sort((a, b) => a.gap - b.gap)[0];
+    .filter((a) => a.floor > 0)
+    .sort((a, b) => b.floor - a.floor)[0];
+
+  // Order the drill-down by a content-derived key, not submission time, so the
+  // "Observer 1 / 2 / 3" labels can't be mapped back to who answered when — the
+  // timing would otherwise be a thin crack in the anonymity (ADR-0003).
+  const orderedObservers = [...aggregate.perObserver].sort((a, b) =>
+    observerSortKey(a).localeCompare(observerSortKey(b)),
+  );
 
   return (
     <div>
@@ -101,7 +110,7 @@ export function ComparisonReport({
       <section className="mt-6 border-t border-hair pt-8">
         <ul className="flex flex-col gap-5">
           {selfRanked.map((row) => {
-            const selfScore = selfBySlug.get(row.slug) ?? 0;
+            const selfScore = row.score;
             const othersScore = othersBySlug.get(row.slug) ?? 0;
             const tribe = getTribeBySlug(row.slug);
             const accent = accentHex(tribe?.color ?? "");
@@ -189,7 +198,7 @@ export function ComparisonReport({
           without knowing who said what.
         </p>
         <div className="mt-5 flex flex-col gap-2.5">
-          {aggregate.perObserver.map((profile, index) => (
+          {orderedObservers.map((profile, index) => (
             <ObserverDrilldown
               key={index}
               label={`Observer ${index + 1}`}
@@ -214,10 +223,11 @@ function CompareBar({
 }) {
   return (
     <div className="flex items-center gap-3">
+      {/* Decorative track — the adjacent visible label carries the value for
+          screen readers, so this must not re-announce it. */}
       <div
         className="h-2.5 flex-1 overflow-hidden rounded-full bg-hair/50"
-        role="img"
-        aria-label={label}
+        aria-hidden
       >
         <div
           className={`h-full rounded-full transition-[width] ${className}`}
@@ -281,3 +291,13 @@ function ObserverDrilldown({
 }
 
 const pct = (value: number) => `${Math.round(value * 100)}%`;
+
+/**
+ * A deterministic, submission-order-independent ordering key for an observer's
+ * profile: the canonical-order score vector rounded and joined. Two renders of
+ * the same responses produce the same order, and the order reveals nothing
+ * about when each observer answered.
+ */
+function observerSortKey(profile: TribeScore[]): string {
+  return profile.map((s) => s.score.toFixed(4)).join(",");
+}

@@ -39,8 +39,6 @@ export default async function AssessmentReportPage() {
   const aggregate = aggregateObservers(responses);
   const unlocked = hasEnoughObservers(aggregate.observerCount);
 
-  const shareUrl = await observerLinkForToken(row.shareToken);
-
   return (
     <main className="min-h-screen bg-bone text-ink">
       <div className="mx-auto max-w-[680px] px-8 py-[100px]">
@@ -59,9 +57,11 @@ export default async function AssessmentReportPage() {
             aggregate={aggregate}
           />
         ) : (
+          // Only the locked state needs the share link, so build it here rather
+          // than on every unlocked render.
           <LockedReport
             observerCount={aggregate.observerCount}
-            shareUrl={shareUrl}
+            shareUrl={await observerLinkForToken(row.shareToken)}
           />
         )}
       </div>
