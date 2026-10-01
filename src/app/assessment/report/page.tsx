@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { getObserverResponses } from "@/lib/observer/repository";
+import { observerLinkForToken } from "@/lib/observer/share-url";
 import {
   aggregateObservers,
   hasEnoughObservers,
@@ -28,14 +28,18 @@ export default async function AssessmentReportPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment/report")}`);
   }
 
-  const row = await getCurrentResult(session.user.id);
+  // Both queries key off the same user id and don't depend on each other, so
+  // issue them concurrently rather than blocking on the result row first.
+  const [row, responses] = await Promise.all([
+    getCurrentResult(session.user.id),
+    getObserverResponses(session.user.id),
+  ]);
   if (!row) redirect("/assessment");
 
-  const responses = await getObserverResponses(session.user.id);
   const aggregate = aggregateObservers(responses);
   const unlocked = hasEnoughObservers(aggregate.observerCount);
 
-  const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+  const shareUrl = await observerLinkForToken(row.shareToken);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -121,22 +125,4 @@ function LockedReport({
       </section>
     </div>
   );
-}
-
-/**
- * The origin the shareable observer link is built against — mirrors the result
- * page: prefer the trusted configured `AUTH_URL` so a forwarded `Host` header
- * can't skew the copied link, fall back to the request host, then a relative
- * path.
- */
-async function observerLinkBase(): Promise<string> {
-  const configured = process.env.AUTH_URL?.replace(/\/+$/, "");
-  if (configured) return configured;
-
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("host");
-  if (!host) return "";
-
-  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
 }

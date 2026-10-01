@@ -42,17 +42,10 @@ export function ComparisonReport({
   const selfBySlug = bySlug(selfScores);
   const othersBySlug = bySlug(othersScores);
 
-  // A single fill scale across both profiles so the two bars are directly
-  // comparable (the taller bar across everything fills fully).
-  const sharedMax = Math.max(
-    0,
-    ...selfScores.map((s) => s.score),
-    ...othersScores.map((s) => s.score),
-  );
-  const fill = (value: number) => (sharedMax > 0 ? value / sharedMax : 0);
-
   // Order the comparison by the Subject's own ranking, so it reads top-down as
-  // "your tribes" with the observers' read set against each.
+  // "your tribes" with the observers' read set against each. Both profiles are
+  // on the same normalized 0–1 scale, so a bar's width is its score directly —
+  // the width and the percent beside it always agree.
   const selfRanked = rankScores(selfScores);
 
   // Divergences: where self and others disagree most, phrased by direction.
@@ -60,8 +53,6 @@ export function ComparisonReport({
     .map((s) => ({
       slug: s.slug,
       name: s.name,
-      self: s.score,
-      others: othersBySlug.get(s.slug) ?? 0,
       gap: s.score - (othersBySlug.get(s.slug) ?? 0),
     }))
     .filter((g) => Math.abs(g.gap) > GAP_EPSILON)
@@ -136,14 +127,12 @@ export function ComparisonReport({
                 <div className="flex flex-col gap-1.5">
                   <CompareBar
                     label={`You: ${pct(selfScore)}`}
-                    fill={fill(selfScore)}
-                    present={selfScore > 0}
+                    value={selfScore}
                     className="bg-ink"
                   />
                   <CompareBar
                     label={`Others: ${pct(othersScore)}`}
-                    fill={fill(othersScore)}
-                    present={othersScore > 0}
+                    value={othersScore}
                     className="bg-gold"
                   />
                 </div>
@@ -215,13 +204,12 @@ export function ComparisonReport({
 
 function CompareBar({
   label,
-  fill,
-  present,
+  value,
   className,
 }: {
   label: string;
-  fill: number;
-  present: boolean;
+  /** Normalized 0–1 score; the bar width is this value, so width matches the label. */
+  value: number;
   className: string;
 }) {
   return (
@@ -233,7 +221,7 @@ function CompareBar({
       >
         <div
           className={`h-full rounded-full transition-[width] ${className}`}
-          style={{ width: `${Math.max(fill * 100, present ? 3 : 0)}%` }}
+          style={{ width: `${Math.max(Math.min(value, 1) * 100, value > 0 ? 3 : 0)}%` }}
         />
       </div>
       <span className="w-[78px] shrink-0 text-right text-[10px] uppercase tracking-[0.12em] text-faint">

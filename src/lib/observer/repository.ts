@@ -91,7 +91,10 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(observerResponses.createdAt);
+    // `id` is the tiebreaker so rows written in the same instant still get a
+    // deterministic order — the per-observer numbering must not shuffle between
+    // renders.
+    .orderBy(observerResponses.createdAt, observerResponses.id);
 
   return rows.map((row) => ({ words: row.words }));
 }
