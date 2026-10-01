@@ -76,3 +76,22 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every anonymous Observer response recorded for a Subject, oldest first,
+ * as just their selected words — the only thing an observer row carries. The
+ * equal-weight aggregation (issue #9) consumes these; the stable order gives the
+ * per-observer drill-down a consistent "Observer 1 / 2 / 3…" numbering without
+ * ever exposing who an Observer is.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<{ words: string[] }[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+
+  return rows.map((row) => ({ words: row.words }));
+}
