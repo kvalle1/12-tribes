@@ -86,6 +86,20 @@ export function ComparisonReport({
     .sort((a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others))
     .slice(0, HIGHLIGHT_COUNT);
 
+  // Per-observer drill-down. Order is derived purely from each observer's own
+  // read (their score vector), never from when they responded — so the
+  // "Observer N" labels can't be lined up against who replied when. Two
+  // identical reads sort together, which only makes them more anonymous.
+  const drillDown = perObserver
+    .map((scores) => {
+      const top = [...scores]
+        .sort((a, b) => b.score - a.score)
+        .filter((s) => s.score > 0)
+        .slice(0, 3);
+      return { top, orderKey: scores.map((s) => s.score.toFixed(4)).join(",") };
+    })
+    .sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+
   return (
     <div>
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -155,7 +169,7 @@ export function ComparisonReport({
               <li key={row.slug} className="flex flex-col gap-2">
                 <div className="flex items-baseline justify-between">
                   <span className="font-serif text-[17px]">{row.name}</span>
-                  <GapTag gap={row.gap} />
+                  <GapTag gap={row.gap} max={Math.max(row.self, row.others)} />
                 </div>
                 <CompareBar
                   label="You"
@@ -182,15 +196,21 @@ export function ComparisonReport({
           Observer by observer
         </p>
         <p className="mt-2 max-w-[520px] text-[14px] text-muted">
-          Each observer&rsquo;s own read, fully anonymous — no names, no order
-          that maps to anyone.
+          Each observer&rsquo;s own read, fully anonymous — no names, and nothing
+          here ties a response to who sent it or when.
         </p>
         <ul className="mt-6 flex flex-col gap-2.5">
-          {perObserver.map((observerScores, i) => {
-            const top = [...observerScores]
-              .sort((a, b) => b.score - a.score)
-              .filter((s) => s.score > 0)
-              .slice(0, 3);
+          {drillDown.map(({ top }, i) => {
+            // A read is only "clear" when a single tribe leads; a tie at the top
+            // would otherwise name one tribe arbitrarily (canonical order).
+            const clearRead =
+              top.length > 0 && (top.length === 1 || top[0].score > top[1].score);
+            const summary =
+              top.length === 0
+                ? "no clear read"
+                : clearRead
+                  ? `reads you as ${top[0].name}`
+                  : "a mixed read";
             return (
               <li
                 key={i}
@@ -201,9 +221,7 @@ export function ComparisonReport({
                     <span className="font-serif text-[16px]">
                       Observer {i + 1}
                     </span>
-                    <span className="text-[13px] text-muted">
-                      {top[0] ? `reads you as ${top[0].name}` : "no clear read"}
-                    </span>
+                    <span className="text-[13px] text-muted">{summary}</span>
                   </summary>
                   {top.length > 0 && (
                     <ul className="mt-3 flex flex-wrap gap-2">
@@ -214,11 +232,8 @@ export function ComparisonReport({
                         return (
                           <li
                             key={s.slug}
-                            className="rounded-[2px] border px-3 py-1 text-[13px]"
-                            style={{
-                              borderColor: `${accent}66`,
-                              color: "var(--ink, #1a1a1a)",
-                            }}
+                            className="rounded-[2px] border px-3 py-1 text-[13px] text-ink"
+                            style={{ borderColor: `${accent}66` }}
                           >
                             {s.name}
                           </li>
@@ -275,8 +290,13 @@ function CompareBar({
   );
 }
 
-/** A small tag describing the direction and size of the self↔others gap. */
-function GapTag({ gap }: { gap: number }) {
+/**
+ * A small tag describing the direction and size of the self↔others gap. When
+ * both reads are negligible (`max` below the alignment epsilon) there is nothing
+ * meaningful to say, so no tag is shown rather than a misleading "in agreement".
+ */
+function GapTag({ gap, max }: { gap: number; max: number }) {
+  if (max <= ALIGNMENT_EPSILON) return null;
   if (Math.abs(gap) <= ALIGNMENT_EPSILON) {
     return (
       <span className="text-[10px] uppercase tracking-[0.14em] text-faint">
@@ -287,8 +307,7 @@ function GapTag({ gap }: { gap: number }) {
   const othersMore = gap > 0;
   return (
     <span
-      className="text-[10px] uppercase tracking-[0.14em]"
-      style={{ color: othersMore ? "var(--gold, #a67c00)" : "var(--muted, #6b6b6b)" }}
+      className={`text-[10px] uppercase tracking-[0.14em] ${othersMore ? "text-gold" : "text-muted"}`}
     >
       {othersMore ? "others see more" : "you see more"}
     </span>
