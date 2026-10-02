@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,23 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every Observer's selected words for a Subject, oldest response first. The
+ * stable order gives the comparison report (issue #9) its anonymous "Observer N"
+ * numbering; only `words` is selected, so nothing identifying leaves the DB. The
+ * equal-weight "others" aggregation (`aggregateObservers`) consumes the result,
+ * and `rows.length` is the Observer count the report's ≥3 unlock gate checks.
+ */
+export async function getObserverWordLists(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => row.words);
 }
