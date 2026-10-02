@@ -79,12 +79,13 @@ export async function recordObserverResponse(
 
 /**
  * Load every anonymous Observer response for a Subject, as the bare word
- * selections only — never any observer identity (there is none stored). Ordered
- * oldest-first (by `createdAt`, with `id` as a stable tiebreak) so the
- * comparison report's anonymous drill-down can number them "Observer 1 / 2 / 3"
- * consistently across visits. The equal-weight "others" aggregation (issue #9)
- * consumes these selections; the raw count is simply the array length, which
- * gates the report's ≥3 unlock.
+ * selections only — never any observer identity (there is none stored), and
+ * never a per-response timestamp. The equal-weight "others" aggregation (issue
+ * #9) consumes these selections; the raw count is simply the array length,
+ * which gates the report's ≥3 unlock. The deterministic `createdAt`/`id`
+ * ordering only makes this query stable — the drill-down deliberately re-orders
+ * by profile content, not response time, so "Observer N" can't be mapped back
+ * to a person by when they answered (ADR-0003 anonymity).
  */
 export async function getObserverSelections(
   subjectId: string,

@@ -53,6 +53,19 @@ const DIVERGENCE_LABEL: Record<Divergence, string> = {
   aligned: "Aligned",
 };
 
+/**
+ * Order two observer profiles by content alone — descending by each tribe's
+ * score in canonical order. Purely deterministic and carries no response-time
+ * signal, so it can order the anonymous drill-down without re-exposing who
+ * responded when. Both tables are the canonical 12-tribe order from `score`.
+ */
+function compareProfiles(a: TribeScore[], b: TribeScore[]): number {
+  for (let i = 0; i < a.length; i++) {
+    if (b[i].score !== a[i].score) return b[i].score - a[i].score;
+  }
+  return 0;
+}
+
 export function ComparisonReport({
   selfWords,
   observerSelections,
@@ -86,8 +99,17 @@ export function ComparisonReport({
     .sort((a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others));
 
   // Shared scale across both profiles so the two bars are directly comparable.
+  // `|| 1` only guards the all-zero case (no selected words anywhere), so the
+  // bars render at 0 width rather than dividing by zero.
   const maxScore =
     Math.max(0, ...rows.flatMap((r) => [r.self, r.others])) || 1;
+
+  // Order the drill-down by each observer's own profile content, never by when
+  // they responded — chronological order would let a Subject who knows roughly
+  // when each person answered map "Observer N" back to a person, undercutting
+  // the anonymity ADR-0003 exists to protect. Observers with identical reads
+  // are indistinguishable anyway.
+  const drillDown = [...perObserver].sort(compareProfiles);
 
   return (
     <div>
@@ -149,14 +171,14 @@ export function ComparisonReport({
                   </span>
                 </div>
                 <Bar
-                  label={`You rate ${row.name} ${Math.round((row.self / maxScore) * 100)}% of your top tribe`}
+                  label={`You: ${row.name} at ${Math.round((row.self / maxScore) * 100)}% of the strongest score shown`}
                   fraction={row.self / maxScore}
                   color="var(--ink)"
                   opacity={0.4}
                   positive={row.self > 0}
                 />
                 <Bar
-                  label={`Others rate ${row.name} ${Math.round((row.others / maxScore) * 100)}% of the top tribe`}
+                  label={`Others: ${row.name} at ${Math.round((row.others / maxScore) * 100)}% of the strongest score shown`}
                   fraction={row.others / maxScore}
                   color={accent}
                   opacity={0.9}
@@ -180,7 +202,7 @@ export function ComparisonReport({
             the tribes they most saw in you.
           </p>
           <ul className="mt-6 flex flex-col gap-6">
-            {perObserver.map((profile, index) => (
+            {drillDown.map((profile, index) => (
               <ObserverCard
                 key={index}
                 index={index + 1}
