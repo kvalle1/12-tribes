@@ -9,14 +9,28 @@ function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
+/**
+ * Whether the current visitor is signed in and has a saved result. Best-effort:
+ * any failure (no session, DB unreachable) resolves to `false` so the optional
+ * "View your results" home entry never takes down the landing page.
+ */
+async function hasSavedResult(): Promise<boolean> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return false;
+    return (await getCurrentResult(session.user.id)) !== null;
+  } catch {
+    return false;
+  }
+}
+
 export default async function Home() {
   // Only signed-in users who have a saved result get the "View your results"
   // entry (issue #18). Signed-out visitors, and signed-in users who haven't
-  // taken the assessment yet, don't see it.
-  const session = await auth();
-  const hasResult = session?.user?.id
-    ? (await getCurrentResult(session.user.id)) !== null
-    : false;
+  // taken the assessment yet, don't see it. The lookup is best-effort: the entry
+  // is only a convenience, so a session/DB hiccup hides it rather than 500ing
+  // the home page.
+  const hasResult = await hasSavedResult();
 
   return (
     <main className="min-h-screen bg-bone text-ink">
