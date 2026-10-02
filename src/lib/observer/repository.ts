@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -50,6 +50,25 @@ export async function getSubjectByToken(
     subjectId: row.subjectId,
     subjectName: observerDisplayName(row.name, row.email),
   };
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, newest first. Returns
+ * only each response's selected `words` — never an id, timestamp, or anything
+ * that could de-anonymize an Observer — because that is all the equal-weight
+ * aggregation and the comparison report need (issue #9, ADR-0003). An empty
+ * array means no one has responded yet.
+ */
+export async function getObserverResponsesForSubject(
+  subjectId: string,
+): Promise<{ words: string[] }[]> {
+  if (!subjectId) return [];
+
+  return db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(desc(observerResponses.createdAt));
 }
 
 /**
