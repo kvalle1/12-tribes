@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Surface a "View your results" entry only for a signed-in user who has
+  // actually saved a result (#18 / PRD story 16). Signed-out visitors, and
+  // signed-in users who haven't taken the assessment, don't see it.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? (await getCurrentResult(session.user.id)) !== null
+    : false;
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -19,6 +29,9 @@ export default function Home() {
           <div className="flex gap-7 text-[12px] uppercase tracking-[0.18em] text-muted">
             <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
             <Link href="/assessment" className="transition-colors hover:text-ink">The Assessment</Link>
+            {hasResult && (
+              <Link href="/account" className="transition-colors hover:text-ink">Your results</Link>
+            )}
             <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
             <AuthNav />
           </div>
@@ -54,6 +67,14 @@ export default function Home() {
             >
               Take the Assessment
             </Link>
+            {hasResult && (
+              <Link
+                href="/account"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
