@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,26 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, as the bare word
+ * selections only — never any observer identity (there is none stored), and
+ * never a per-response timestamp. The equal-weight "others" aggregation (issue
+ * #9) consumes these selections; the raw count is simply the array length,
+ * which gates the report's ≥3 unlock. The deterministic `createdAt`/`id`
+ * ordering only makes this query stable — the drill-down deliberately re-orders
+ * by profile content, not response time, so "Observer N" can't be mapped back
+ * to a person by when they answered (ADR-0003 anonymity).
+ */
+export async function getObserverSelections(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
