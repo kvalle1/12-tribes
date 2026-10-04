@@ -1,9 +1,10 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
+import { shuffle } from "@/lib/assessment/selection";
 import { observerDisplayName } from "./display-name";
 
 /**
@@ -78,12 +79,17 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load every Observer's selected words for a Subject, oldest first, as plain
- * word lists — the input the equal-weight aggregation (`aggregateObservers`,
- * issue #9) consumes. Deliberately returns words only: no id, timestamp, or any
- * other column that could de-anonymize an Observer (ADR-0003). Ordering by
- * creation gives the anonymous drill-down a stable Observer 1/2/3… labelling
- * without exposing who responded when.
+ * Load every Observer's selected words for a Subject as plain word lists — the
+ * input the equal-weight aggregation (`aggregateObservers`, issue #9) consumes.
+ * Deliberately returns words only: no id, timestamp, or any other column that
+ * could de-anonymize an Observer (ADR-0003).
+ *
+ * The order is shuffled here rather than left as creation order: a Subject
+ * usually knows who answered when, so a stable "oldest first" order would let
+ * them match the drill-down's "Observer 1/2/3…" back to real people. Randomizing
+ * server-side strips that signal — the labels are positional and carry no
+ * meaning. The equal-weight average is order-independent, so the shuffle only
+ * affects the anonymous drill-down labelling.
  */
 export async function getObserverWordLists(
   subjectId: string,
@@ -91,8 +97,7 @@ export async function getObserverWordLists(
   const rows = await db
     .select({ words: observerResponses.words })
     .from(observerResponses)
-    .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .where(eq(observerResponses.subjectId, subjectId));
 
-  return rows.map((row) => row.words);
+  return shuffle(rows.map((row) => row.words));
 }
