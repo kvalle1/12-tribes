@@ -11,14 +11,16 @@ import { getCurrentResult } from "@/lib/assessment/repository";
  * words, slugs, or any scoring detail. A signed-out request is simply `false`
  * rather than a 401: the caller only wants to know whether to show a shortcut.
  *
- * Reading the session makes this handler dynamic (never cached), so the answer
- * always reflects the current account.
+ * Reading the session makes this handler dynamic (never cached on the server),
+ * so the answer always reflects the current account. The response is also
+ * marked `no-store` so a per-user answer can't be held by the browser or any
+ * intermediary and shown to a different account.
  */
 export async function GET(): Promise<Response> {
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return Response.json({ hasResult: false });
 
-  const row = await getCurrentResult(userId);
-  return Response.json({ hasResult: row !== null });
+  const hasResult = userId ? (await getCurrentResult(userId)) !== null : false;
+
+  return Response.json({ hasResult }, { headers: { "Cache-Control": "no-store" } });
 }
