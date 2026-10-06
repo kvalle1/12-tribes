@@ -48,7 +48,15 @@ export interface ObserversProfile {
 export function aggregateObservers(
   responses: readonly (readonly string[])[],
 ): ObserversProfile {
-  const perObserver = responses.map((words) => score(words));
+  // Order the per-observer vectors by a content-derived key rather than the
+  // order they were supplied in. The Subject knows who they sent links to and
+  // often in what order people replied, so labelling the drill-down by arrival
+  // order ("Observer 1" = first to respond) would quietly de-anonymize it.
+  // A content key makes "Observer N" stable across loads yet carries no arrival
+  // signal. Averaging is order-independent, so this never affects `scores`.
+  const perObserver = responses
+    .map((words) => score(words))
+    .sort((a, b) => observerSortKey(a).localeCompare(observerSortKey(b)));
   const observerCount = perObserver.length;
 
   const scores: TribeScore[] = tribes.map((tribe, index) => {
@@ -61,6 +69,17 @@ export function aggregateObservers(
   });
 
   return { observerCount, scores, perObserver };
+}
+
+/**
+ * A deterministic, content-derived ordering key for one observer's scored
+ * vector. Depends only on the scores (in canonical tribe order), never on when
+ * the response arrived, so the drill-down order can't be read as a response
+ * timeline. Two observers who picked identical words sort together — which is
+ * fine, since they're indistinguishable anyway.
+ */
+function observerSortKey(scores: readonly TribeScore[]): string {
+  return scores.map((s) => s.score.toFixed(6)).join(",");
 }
 
 /**

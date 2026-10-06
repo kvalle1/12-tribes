@@ -2,8 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import { observerShareUrl } from "@/lib/observer/share-link";
+import {
+  isComparisonUnlocked,
+  MIN_OBSERVERS_FOR_REPORT,
+} from "@/lib/assessment/aggregateObservers";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -31,7 +35,7 @@ export default async function AssessmentResultPage() {
   const shareUrl = await observerShareUrl(row.shareToken);
   // How many anonymous observers have responded so far — drives whether the 360
   // comparison report is reachable yet (it unlocks at ≥3, issue #9).
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = await countObserverResponses(session.user.id);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -64,7 +68,7 @@ export default async function AssessmentResultPage() {
           <ObserverShareLink url={shareUrl} />
 
           <p className="mt-6 text-[14px] text-muted">
-            {observerCount >= 3 ? (
+            {isComparisonUnlocked(observerCount) ? (
               <Link
                 href="/assessment/comparison"
                 className="border-b border-gold pb-0.5 text-ink transition-colors hover:text-gold"
@@ -75,8 +79,9 @@ export default async function AssessmentResultPage() {
               <>
                 {observerCount === 0
                   ? "No responses yet."
-                  : `${observerCount} of 3 responses in.`}{" "}
-                Your comparison report unlocks once three people respond.
+                  : `${observerCount} of ${MIN_OBSERVERS_FOR_REPORT} responses in.`}{" "}
+                Your comparison report unlocks once{" "}
+                {MIN_OBSERVERS_FOR_REPORT} people respond.
               </>
             )}
           </p>

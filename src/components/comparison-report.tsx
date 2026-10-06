@@ -18,6 +18,13 @@ import type { ObserversProfile } from "@/lib/assessment/aggregateObservers";
  * directly comparable — alignment and divergence read off the chart honestly.
  */
 
+/**
+ * Minimum gap between the self and others scores for a tribe to count as a
+ * meaningful divergence — below this the two views are treated as agreeing, so
+ * the chart doesn't flag noise.
+ */
+const DIVERGENCE_THRESHOLD = 0.08;
+
 const bySlug = (scores: readonly TribeScore[]) =>
   new Map(scores.map((s) => [s.slug, s.score]));
 
@@ -55,7 +62,7 @@ export function ComparisonReport({
 
   // The tribes where the two views diverge most — the useful insight lives here.
   const divergences = [...rows]
-    .filter((r) => r.gap > 0.08)
+    .filter((r) => r.gap > DIVERGENCE_THRESHOLD)
     .sort((a, b) => b.gap - a.gap)
     .slice(0, 3);
 
@@ -100,7 +107,7 @@ export function ComparisonReport({
                   <span className="font-serif text-[17px] leading-none">
                     {row.name}
                   </span>
-                  {row.gap > 0.08 && (
+                  {row.gap > DIVERGENCE_THRESHOLD && (
                     <span className="text-[10px] uppercase tracking-[0.14em] text-faint">
                       {row.self > row.others ? "You rate higher" : "Others rate higher"}
                     </span>

@@ -34,9 +34,29 @@ describe("aggregateObservers", () => {
     for (const obs of profile.perObserver) {
       expect(obs.map((s) => s.slug)).toEqual(tribes.map((t) => t.slug));
     }
-    // Observer 1 is judah-leaning, observer 2 maxes levi.
-    expect(scoreFor("judah", profile.perObserver[0])).toBeGreaterThan(0);
-    expect(scoreFor("levi", profile.perObserver[1])).toBeCloseTo(1);
+    // Both observers are present (order is content-derived, not arrival order):
+    // one is judah-leaning, one maxes levi.
+    const judahReads = profile.perObserver.map((o) => scoreFor("judah", o));
+    const leviReads = profile.perObserver.map((o) => scoreFor("levi", o));
+    expect(judahReads.some((v) => v > 0)).toBe(true);
+    expect(leviReads.some((v) => Math.abs(v - 1) < 1e-9)).toBe(true);
+  });
+
+  it("orders the drill-down by content, independent of arrival order", () => {
+    // Labelling observers by arrival order would de-anonymize who replied first.
+    // The same responses in any order must yield the same drill-down sequence.
+    const a = ["Courageous"];
+    const b = wordsForTribe("levi");
+    const c = ["Wise", "Patient"];
+
+    const forward = aggregateObservers([a, b, c]);
+    const shuffled = aggregateObservers([c, a, b]);
+
+    const key = (p: typeof forward) =>
+      p.perObserver.map((obs) => obs.map((s) => s.score.toFixed(6)).join(","));
+    expect(key(shuffled)).toEqual(key(forward));
+    // And the aggregate is identical regardless of input order.
+    expect(shuffled.scores).toEqual(forward.scores);
   });
 
   it("returns the equal-weight mean of per-observer normalized scores", () => {

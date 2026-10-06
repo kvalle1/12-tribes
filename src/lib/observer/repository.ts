@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -94,4 +94,20 @@ export async function getObserverResponses(
     .orderBy(asc(observerResponses.createdAt));
 
   return rows.map((row) => row.words);
+}
+
+/**
+ * Count the anonymous Observer responses recorded for a Subject, without reading
+ * their words. Used where only the running total matters (e.g. whether the
+ * comparison report has unlocked), so the word selections never leave the DB.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.value ?? 0;
 }
