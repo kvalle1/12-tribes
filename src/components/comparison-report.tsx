@@ -147,8 +147,8 @@ export function ComparisonReport({
           Each read, anonymously
         </p>
         <p className="mt-2 max-w-[520px] text-[14px] text-muted">
-          The individual reads that make up the average. They carry no names —
-          only the order they came in.
+          The individual reads that make up the average — no names, and in no
+          order that says who answered when.
         </p>
         <ol className="mt-7 flex flex-col gap-6">
           {aggregate.perObserver.map((profile, index) => {

@@ -78,12 +78,16 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load every Observer response for a Subject as just its selected words, oldest
- * first — the input to the equal-weight aggregation (issue #9). Ordered by
- * `createdAt` so the anonymous "Observer 1/2/3…" numbering in the comparison
- * report is stable across renders. Deliberately returns only `words`: no id, no
- * timestamp, nothing that could de-anonymize an Observer reaches the caller
- * (ADR-0003).
+ * Load every Observer response for a Subject as just its selected words — the
+ * input to the equal-weight aggregation (issue #9). Ordered by the opaque random
+ * `id`, deliberately **not** by `createdAt`: the "Observer 1/2/3…" numbering in
+ * the comparison report must be stable across renders (so `id`, the unique
+ * primary key, is a total deterministic order) yet reveal nothing about *when*
+ * or *in what sequence* people responded — otherwise, with only a handful of
+ * observers, a Subject could re-identify a single read from its arrival order,
+ * defeating the individual-level anonymity the ≥3 gate exists to protect
+ * (ADR-0003). Returns only `words`: no id, no timestamp, nothing that could
+ * de-anonymize an Observer reaches the caller.
  */
 export async function getObserverResponseWords(
   subjectId: string,
@@ -92,7 +96,7 @@ export async function getObserverResponseWords(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }
