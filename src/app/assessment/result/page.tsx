@@ -3,6 +3,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
+import {
+  isComparisonUnlocked,
+  MIN_OBSERVERS_TO_UNLOCK,
+} from "@/lib/assessment/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -25,6 +30,10 @@ export default async function AssessmentResultPage() {
 
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
+
+  // How many observers have weighed in, for the comparison unlock (issue #9).
+  const observerCount = await countObserverResponses(session.user.id);
+  const comparisonUnlocked = isComparisonUnlocked(observerCount);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -61,6 +70,29 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {comparisonUnlocked ? (
+              <Link
+                href="/assessment/compare"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                See how their read compares →
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/assessment/compare"
+                  className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+                >
+                  View 360 progress
+                </Link>
+                <span className="text-[13px] text-faint">
+                  {observerCount} of {MIN_OBSERVERS_TO_UNLOCK} reads in
+                </span>
+              </>
+            )}
+          </div>
         </section>
       </div>
     </main>
