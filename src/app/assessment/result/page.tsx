@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverResponses } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import {
   isComparisonUnlocked,
   MIN_OBSERVERS_TO_UNLOCK,
@@ -32,7 +32,7 @@ export default async function AssessmentResultPage() {
   if (!row) redirect("/assessment");
 
   // How many observers have weighed in, for the comparison unlock (issue #9).
-  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const observerCount = await countObserverResponses(session.user.id);
   const comparisonUnlocked = isComparisonUnlocked(observerCount);
 
   // Compose the absolute observer link. Prefer the canonical configured origin

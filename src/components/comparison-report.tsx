@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { score, type TribeScore } from "@/lib/assessment/score";
 import { rankScores } from "@/lib/assessment/ranking";
@@ -48,9 +49,16 @@ export function ComparisonReport({
   const topDivergences = divergences
     .filter((r) => Math.abs(r.gap) > 0)
     .slice(0, 3);
+  // "Most alike" = the strongest *shared* signal: the tribe both sides see most
+  // of (highest min(self, others)), tie-broken by the closest gap. Weighting by
+  // the shared floor keeps two tiny-but-close scores from beating a strong,
+  // mutually-recognized tribe.
   const agreement = [...rows]
     .filter((r) => r.self > 0 && r.others > 0)
-    .sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap))[0];
+    .sort((a, b) => {
+      const shared = Math.min(b.self, b.others) - Math.min(a.self, a.others);
+      return shared !== 0 ? shared : Math.abs(a.gap) - Math.abs(b.gap);
+    })[0];
 
   return (
     <div>
@@ -168,15 +176,14 @@ function CompareRow({ row, max }: { row: ComparisonRow; max: number }) {
         {row.name}
       </span>
       <div className="flex flex-col gap-1.5">
+        {/* One spoken summary per tribe instead of a label on each decorative
+            bar, so a screen reader hears "you X, others Y" once rather than twice. */}
+        <span className="sr-only">
+          {row.name}: you {Math.round(selfPct)}%, others{" "}
+          {Math.round(othersPct)}% of the strongest score.
+        </span>
+        <Bar pct={selfPct} hasSignal={row.self > 0} accent={accent} variant="self" />
         <Bar
-          label={`${row.name}, your read`}
-          pct={selfPct}
-          hasSignal={row.self > 0}
-          accent={accent}
-          variant="self"
-        />
-        <Bar
-          label={`${row.name}, how others read you`}
           pct={othersPct}
           hasSignal={row.others > 0}
           accent={accent}
@@ -188,13 +195,11 @@ function CompareRow({ row, max }: { row: ComparisonRow; max: number }) {
 }
 
 function Bar({
-  label,
   pct,
   hasSignal,
   accent,
   variant,
 }: {
-  label: string;
   pct: number;
   hasSignal: boolean;
   accent: string;
@@ -202,11 +207,7 @@ function Bar({
 }) {
   const width = `${Math.max(pct, hasSignal ? 3 : 0)}%`;
   return (
-    <div
-      className="h-2.5 overflow-hidden rounded-full bg-hair/50"
-      role="img"
-      aria-label={`${label}: ${Math.round(pct)}% of the strongest score`}
-    >
+    <div className="h-2.5 overflow-hidden rounded-full bg-hair/50" aria-hidden>
       <div
         className="h-full rounded-full"
         style={
@@ -235,17 +236,23 @@ function ObserverDrilldown({
   const topTribe = top ? getTribeBySlug(top.slug) : undefined;
 
   return (
-    <details className="rounded-[3px] border border-hair bg-white/60 [&_summary]:cursor-pointer">
-      <summary className="flex items-center justify-between px-5 py-3.5 text-[14px] text-ink marker:content-['']">
+    <details className="rounded-[3px] border border-hair bg-white/60 [&_summary]:cursor-pointer [&[open]_.cmp-caret]:rotate-180">
+      <summary className="flex items-center gap-3 px-5 py-3.5 text-[14px] text-ink marker:content-[''] [&::-webkit-details-marker]:hidden">
         <span className="font-serif text-[16px]">Observer {index + 1}</span>
-        {top && top.score > 0 && (
-          <span className="text-[12px] uppercase tracking-[0.12em] text-faint">
-            Reads you as{" "}
-            <span style={{ color: accentHex(topTribe?.color ?? "") }}>
-              {top.name}
+        <span className="ml-auto flex items-center gap-3">
+          {top && top.score > 0 && (
+            <span className="text-[12px] uppercase tracking-[0.12em] text-faint">
+              Reads you as{" "}
+              <span style={{ color: accentHex(topTribe?.color ?? "") }}>
+                {top.name}
+              </span>
             </span>
-          </span>
-        )}
+          )}
+          <ChevronDown
+            className="cmp-caret size-4 shrink-0 text-faint transition-transform"
+            aria-hidden
+          />
+        </span>
       </summary>
       <ul className="flex flex-col gap-2.5 border-t border-hair px-5 py-4">
         {ranked.map((r) => {
@@ -259,8 +266,7 @@ function ObserverDrilldown({
               <span className="text-[14px] text-muted">{r.name}</span>
               <div
                 className="h-2 overflow-hidden rounded-full bg-hair/50"
-                role="img"
-                aria-label={`${r.name}: ${Math.round(r.relative * 100)}% of this observer's top score`}
+                aria-hidden
               >
                 <div
                   className="h-full rounded-full"
