@@ -79,11 +79,13 @@ export async function recordObserverResponse(
 
 /**
  * Load every anonymous Observer response recorded against a Subject, oldest
- * first, as just the selected words — the input the equal-weight aggregation
- * (issue #9) consumes. Deliberately returns **only** the words: no id, no
- * timestamp, nothing that could re-identify an Observer leaves this layer. The
- * stable oldest-first order lets the report label responses "Observer 1/2/3"
- * consistently across reloads without carrying any identity.
+ * first (ties broken by the opaque row id), as just the selected words — the
+ * input the equal-weight aggregation (issue #9) consumes. Deliberately returns
+ * **only** the words: no id, no timestamp, nothing that could re-identify an
+ * Observer leaves this layer. What matters downstream is a *stable* order, so
+ * the report can label responses "Observer 1/2/3" consistently across reloads
+ * without carrying any identity; the id tiebreak guarantees that stability even
+ * for responses sharing a `createdAt` instant.
  */
 export async function getObserverResponsesForSubject(
   subjectId: string,

@@ -1,10 +1,7 @@
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { score } from "@/lib/assessment/score";
 import { rankScores } from "@/lib/assessment/ranking";
-import {
-  aggregateObservers,
-  scoreEachObserver,
-} from "@/lib/observer/aggregate";
+import { averageScores, scoreEachObserver } from "@/lib/observer/aggregate";
 
 /**
  * The 360 comparison report (issue #9, ADR-0003): the Subject's own profile set
@@ -25,8 +22,10 @@ export function ComparisonReport({
   observerResponses: string[][];
 }) {
   const self = score(selfWords);
-  const others = aggregateObservers(observerResponses);
+  // Score each observer once; the "others" profile is the equal-weight average
+  // of those same tables, so the scoring core runs N times, not 2N.
   const perObserver = scoreEachObserver(observerResponses);
+  const others = averageScores(perObserver);
 
   const othersBySlug = new Map(others.map((s) => [s.slug, s.score]));
 
@@ -159,18 +158,18 @@ export function ComparisonReport({
                     max={max}
                     color={accent}
                     opacity={1}
-                    label={`You see ${row.name} at ${Math.round(
+                    label={`You: ${row.name} at ${Math.round(
                       row.selfScore * 100,
-                    )} of the top score`}
+                    )} percent`}
                   />
                   <Bar
                     value={row.othersScore}
                     max={max}
                     color={accent}
                     opacity={0.4}
-                    label={`Others see ${row.name} at ${Math.round(
+                    label={`Others: ${row.name} at ${Math.round(
                       row.othersScore * 100,
-                    )} of the top score`}
+                    )} percent`}
                   />
                 </div>
               </li>

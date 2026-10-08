@@ -41,16 +41,18 @@ export function scoreEachObserver(
 }
 
 /**
- * The equal-weight "others" profile: the mean, per tribe, of each Observer's
- * individually-normalized score. Returns a 0–1 score for all twelve tribes in
- * canonical (tribe `number`) order, matching `score`. With no observers every
- * tribe is 0.
+ * The equal-weight mean, per tribe, of already-scored observer tables. Each
+ * table must be in canonical (tribe `number`) order — as `score` and
+ * `scoreEachObserver` produce — so index `i` is the same tribe across tables.
+ * Returns a 0–1 score for all twelve tribes in that same canonical order. With
+ * no tables every tribe is 0.
+ *
+ * Split out so a caller that already needs the per-observer tables (the report's
+ * drill-down) can average them directly instead of re-scoring every observer.
  */
-export function aggregateObservers(
-  responses: readonly (readonly string[])[],
+export function averageScores(
+  perObserver: readonly TribeScore[][],
 ): TribeScore[] {
-  const perObserver = scoreEachObserver(responses);
-
   return tribes.map((tribe, i) => {
     const total = perObserver.reduce((sum, table) => sum + table[i].score, 0);
     return {
@@ -59,4 +61,16 @@ export function aggregateObservers(
       score: perObserver.length > 0 ? total / perObserver.length : 0,
     };
   });
+}
+
+/**
+ * The equal-weight "others" profile: the mean, per tribe, of each Observer's
+ * individually-normalized score. Returns a 0–1 score for all twelve tribes in
+ * canonical (tribe `number`) order, matching `score`. With no observers every
+ * tribe is 0.
+ */
+export function aggregateObservers(
+  responses: readonly (readonly string[])[],
+): TribeScore[] {
+  return averageScores(scoreEachObserver(responses));
 }
