@@ -132,9 +132,9 @@ export function ComparisonReport({
           Each read, anonymously
         </p>
         <p className="mt-2 max-w-[520px] text-[15px] text-muted">
-          The top tribes in each individual read. Responses are fully anonymous —
-          there&rsquo;s no name, relationship, or anything tying a read back to a
-          person.
+          The top tribes in each individual read. Responses are anonymous — no
+          name, relationship, or any attribute is ever stored or shown alongside a
+          read.
         </p>
         <ul className="mt-6 grid gap-4 sm:grid-cols-2">
           {aggregate.perObserver.map((profile, i) => (
@@ -355,11 +355,17 @@ function highlights(rows: CompareRow[]): {
 } {
   const EPSILON = 0.05;
 
+  // "Agree most" should reward a strongly shared tribe, not merely the smallest
+  // gap — otherwise two tribes both barely present (0.06 vs 0.06) would outrank a
+  // strong shared one (0.80 vs 0.79). Score by shared strength (the lower of the
+  // two views) minus the disagreement between them, and take the best.
   const present = rows.filter((r) => r.self > EPSILON && r.others > EPSILON);
+  const alignmentScore = (r: CompareRow) =>
+    Math.min(r.self, r.others) - Math.abs(r.gap);
   const aligned =
     present.length > 0
       ? present.reduce((best, r) =>
-          Math.abs(r.gap) < Math.abs(best.gap) ? r : best,
+          alignmentScore(r) > alignmentScore(best) ? r : best,
         )
       : null;
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -93,8 +93,25 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    // `id` breaks ties so Observer 1..N labels stay stable when two responses
+    // share a `createdAt` timestamp.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
   return rows.map((r) => r.words);
+}
+
+/**
+ * How many Observers have responded for a Subject. A direct count so callers that
+ * only need the number (e.g. the result page's comparison-unlock indicator) don't
+ * load and score every response.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+  return row?.n ?? 0;
 }
 
 /**

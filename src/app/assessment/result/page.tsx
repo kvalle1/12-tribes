@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverComparison } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import { MIN_OBSERVERS_FOR_REPORT, isComparisonUnlocked } from "@/lib/assessment/aggregate-observers";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
@@ -35,7 +35,7 @@ export default async function AssessmentResultPage() {
   const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
 
   // How many Observers have responded so far — drives the comparison entry below.
-  const { count: observerCount } = await getObserverComparison(session.user.id);
+  const observerCount = await countObserverResponses(session.user.id);
   const unlocked = isComparisonUnlocked(observerCount);
 
   return (
