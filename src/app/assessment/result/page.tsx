@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverComparison } from "@/lib/observer/repository";
+import { MIN_OBSERVERS_FOR_REPORT, isComparisonUnlocked } from "@/lib/assessment/aggregate-observers";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -31,6 +33,10 @@ export default async function AssessmentResultPage() {
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
   const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+
+  // How many Observers have responded so far — drives the comparison entry below.
+  const { count: observerCount } = await getObserverComparison(session.user.id);
+  const unlocked = isComparisonUnlocked(observerCount);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,6 +67,32 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          {/* Comparison entry: live once anyone has responded, unlocking at ≥3. */}
+          {observerCount > 0 && (
+            <p className="mt-6 text-[14px] text-muted">
+              {unlocked ? (
+                <Link
+                  href="/assessment/compare"
+                  className="border-b border-gold pb-0.5 text-ink transition-colors hover:text-gold"
+                >
+                  View your 360 comparison
+                </Link>
+              ) : (
+                <>
+                  <span className="text-ink">{observerCount}</span> of{" "}
+                  {MIN_OBSERVERS_FOR_REPORT} responses in — your{" "}
+                  <Link
+                    href="/assessment/compare"
+                    className="border-b border-gold pb-0.5 text-ink transition-colors hover:text-gold"
+                  >
+                    comparison
+                  </Link>{" "}
+                  unlocks at {MIN_OBSERVERS_FOR_REPORT}.
+                </>
+              )}
+            </p>
+          )}
         </section>
       </div>
     </main>

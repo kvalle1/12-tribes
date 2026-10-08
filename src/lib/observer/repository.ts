@@ -1,9 +1,13 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
+import {
+  aggregateObservers,
+  type ObserverAggregate,
+} from "@/lib/assessment/aggregate-observers";
 import { observerDisplayName } from "./display-name";
 
 /**
@@ -75,4 +79,32 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * All of a Subject's anonymous Observer word selections, oldest first. The stable
+ * order gives the per-observer drill-down consistent anonymous labels (Observer 1
+ * is the earliest responder) without recording anything that identifies anyone.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+  return rows.map((r) => r.words);
+}
+
+/**
+ * The equal-weight "others" aggregate for a Subject (issue #9). Thin wrapper over
+ * the pure `aggregateObservers` core so the comparison report can load everything
+ * it needs — the others profile, the per-observer drill-down, and the response
+ * count that gates the ≥3 unlock — in one call.
+ */
+export async function getObserverComparison(
+  subjectId: string,
+): Promise<ObserverAggregate> {
+  return aggregateObservers(await getObserverResponses(subjectId));
 }
