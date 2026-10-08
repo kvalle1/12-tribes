@@ -1,9 +1,13 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
+import {
+  aggregateObservers,
+  type ObserverAggregate,
+} from "@/lib/assessment/aggregate-observers";
 import { observerDisplayName } from "./display-name";
 
 /**
@@ -75,4 +79,49 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * All of a Subject's anonymous Observer word selections, oldest first. The stable
+ * order gives the per-observer drill-down consistent anonymous labels (Observer 1
+ * is the earliest responder) without recording anything that identifies anyone.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    // `id` breaks ties so Observer 1..N labels stay stable when two responses
+    // share a `createdAt` timestamp.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+  return rows.map((r) => r.words);
+}
+
+/**
+ * How many Observers have responded for a Subject. A direct count so callers that
+ * only need the number (e.g. the result page's comparison-unlock indicator) don't
+ * load and score every response.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+  return row?.n ?? 0;
+}
+
+/**
+ * The equal-weight "others" aggregate for a Subject (issue #9). Thin wrapper over
+ * the pure `aggregateObservers` core so the comparison report can load everything
+ * it needs — the others profile, the per-observer drill-down, and the response
+ * count that gates the ≥3 unlock — in one call.
+ */
+export async function getObserverComparison(
+  subjectId: string,
+): Promise<ObserverAggregate> {
+  return aggregateObservers(await getObserverResponses(subjectId));
 }
