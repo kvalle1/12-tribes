@@ -78,11 +78,15 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load every anonymous Observer response recorded for a Subject, oldest first,
- * as plain word lists — nothing identifying an Observer is stored or returned
- * (ADR-0003). Oldest-first ordering gives the comparison report's per-observer
- * drill-down a stable, response-order labelling ("Observer 1", "Observer 2", …)
- * that never leaks who answered. Returns `[]` when no one has responded yet.
+ * Load every anonymous Observer response recorded for a Subject as plain word
+ * lists — nothing identifying an Observer is stored or returned (ADR-0003).
+ *
+ * The returned order is **not** meaningful and must not be surfaced as-is: the
+ * comparison report re-orders the per-observer drill-down by content so the
+ * "Observer 1…N" labels carry no arrival-time signal (which, combined with the
+ * running response count a Subject watches, could otherwise map a card onto
+ * whoever just replied). The equal-weight aggregate is order-independent.
+ * Returns `[]` when no one has responded yet.
  */
 export async function getObserverWordLists(
   subjectId: string,
@@ -90,8 +94,7 @@ export async function getObserverWordLists(
   const rows = await db
     .select({ words: observerResponses.words })
     .from(observerResponses)
-    .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(observerResponses.createdAt);
+    .where(eq(observerResponses.subjectId, subjectId));
 
   return rows.map((row) => row.words);
 }

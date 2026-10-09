@@ -55,6 +55,16 @@ export function ComparisonView({
   const othersTop = rankScores(othersScores).find((r) => r.score > 0);
   const insights = deriveInsights(rows);
 
+  // Per-observer drill-down, ordered by *content* rather than arrival time, so
+  // the card order carries no timing signal. The locked page already reveals a
+  // running response count; if the cards were ordered oldest-first the Subject
+  // could map the newest card onto whoever just replied, undoing the anonymity
+  // ADR-0003 promises. Sorting by the normalized profile (and relabelling 1…N
+  // from that order) is deterministic across loads and timing-free.
+  const anonymizedObservers = observerWordLists
+    .map((words) => ({ scores: score(words) }))
+    .sort((a, b) => compareProfiles(a.scores, b.scores));
+
   return (
     <div>
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -80,7 +90,7 @@ export function ComparisonView({
 
       {/* Alignment & divergence — the headline of a 360 read. */}
       {insights.length > 0 && (
-        <section className="mt-12 grid gap-4 sm:grid-cols-3">
+        <section className="mt-12 grid gap-4 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
           {insights.map((insight) => (
             <div
               key={insight.key}
@@ -170,12 +180,12 @@ export function ComparisonView({
           Observer by observer
         </p>
         <p className="mt-2 max-w-[520px] text-[14px] text-muted">
-          Each observer&rsquo;s own read, anonymized — there&rsquo;s no way to
-          tell who answered, only what they saw.
+          Each observer&rsquo;s own read, shown anonymously and in no particular
+          order — a column is a reading, never a name.
         </p>
         <div className="mt-7 grid gap-5 sm:grid-cols-2">
-          {observerWordLists.map((observerWords, i) => (
-            <ObserverCard key={i} index={i + 1} words={observerWords} />
+          {anonymizedObservers.map((observer, i) => (
+            <ObserverCard key={i} index={i + 1} scores={observer.scores} />
           ))}
         </div>
       </section>
@@ -217,8 +227,14 @@ function CompareBar({
   );
 }
 
-function ObserverCard({ index, words }: { index: number; words: string[] }) {
-  const top = rankScores(score(words))
+function ObserverCard({
+  index,
+  scores,
+}: {
+  index: number;
+  scores: TribeScore[];
+}) {
+  const top = rankScores(scores)
     .filter((r) => r.score > 0)
     .slice(0, 3);
 
@@ -263,6 +279,19 @@ function colorFor(slug: string): string {
 
 function bySlug(scores: TribeScore[]): Map<string, number> {
   return new Map(scores.map((s) => [s.slug, s.score]));
+}
+
+/**
+ * Order two observer profiles deterministically by content alone — walk the
+ * canonical-order score vectors and sort the higher score first at the first
+ * tribe they differ on. Carries no arrival-time information, so the drill-down's
+ * "Observer 1…N" labels can't be mapped back to who responded when (ADR-0003).
+ */
+function compareProfiles(a: TribeScore[], b: TribeScore[]): number {
+  for (let i = 0; i < a.length; i++) {
+    if (b[i].score !== a[i].score) return b[i].score - a[i].score;
+  }
+  return 0;
 }
 
 interface Insight {
