@@ -51,6 +51,16 @@ describe("divergences", () => {
     expect(divergences(rows)).toHaveLength(0);
   });
 
+  it("treats floating-point-noise gaps as agreement, not divergence", () => {
+    // Two mathematically-equal reads that differ only by rounding noise must
+    // not be surfaced as a divergence.
+    const rows = compareProfiles(
+      table({ levi: 0.3 }),
+      table({ levi: 0.3 + 1e-15 }),
+    );
+    expect(divergences(rows)).toHaveLength(0);
+  });
+
   it("marks who rates the tribe higher", () => {
     const rows = compareProfiles(
       table({ judah: 0.9, dan: 0.1 }),

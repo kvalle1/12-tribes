@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { getObserverResponses } from "@/lib/observer/repository";
-import { OBSERVER_UNLOCK_THRESHOLD } from "@/lib/observer/aggregate";
+import { OBSERVER_UNLOCK_THRESHOLD } from "@/lib/observer/constants";
 import { ComparisonReport } from "@/components/comparison-report";
 
 /**

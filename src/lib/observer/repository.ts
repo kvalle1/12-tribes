@@ -103,11 +103,7 @@ export async function getObserverResponses(
   subjectId: string,
 ): Promise<{ words: string[] }[]> {
   const rows = await db
-    .select({
-      words: observerResponses.words,
-      createdAt: observerResponses.createdAt,
-      id: observerResponses.id,
-    })
+    .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
     .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));

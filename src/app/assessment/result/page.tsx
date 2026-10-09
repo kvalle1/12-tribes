@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { countObserverResponses } from "@/lib/observer/repository";
-import { OBSERVER_UNLOCK_THRESHOLD } from "@/lib/observer/aggregate";
+import { OBSERVER_UNLOCK_THRESHOLD } from "@/lib/observer/constants";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 

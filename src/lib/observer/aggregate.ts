@@ -2,6 +2,10 @@ import "server-only";
 import { tribes } from "@/lib/tribes";
 import { score, type TribeScore } from "@/lib/assessment/score";
 
+// Re-exported so server callers can pull the threshold alongside the aggregator;
+// the canonical, client-safe definition lives in `./constants`.
+export { OBSERVER_UNLOCK_THRESHOLD } from "./constants";
+
 /**
  * Equal-weight aggregation of anonymous 360 Observer responses (issue #9,
  * ADR-0003). Each Observer is scored individually with the same normalized core
@@ -14,13 +18,6 @@ import { score, type TribeScore } from "@/lib/assessment/score";
  * that must never reach the client (ADR-0009). Pure and dependency-free beyond
  * that core, so its external behavior is unit-tested directly.
  */
-
-/**
- * The comparison report unlocks only once at least this many Observers have
- * responded (ADR-0003). Below the threshold the average isn't meaningful and
- * individual anonymity is weaker, so the report stays locked.
- */
-export const OBSERVER_UNLOCK_THRESHOLD = 3;
 
 /** One anonymous Observer's selected words — the only thing a response carries. */
 export interface ObserverResponse {

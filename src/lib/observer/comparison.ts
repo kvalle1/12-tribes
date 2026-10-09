@@ -14,6 +14,14 @@ import type { TribeScore } from "@/lib/assessment/score";
 /** Who reads a tribe more strongly. */
 export type DivergenceDirection = "self-higher" | "others-higher";
 
+/**
+ * Gaps at or below this are treated as agreement, not divergence. Normalized
+ * scores divide by fractional denominators, so two mathematically-equal reads
+ * can differ by floating-point noise (~1e-17); without this, such a tribe could
+ * be padded into the highlights and printed as a confident "others see more…".
+ */
+const DIVERGENCE_EPSILON = 1e-9;
+
 export interface ComparisonRow extends TribeScore {
   /** The Subject's own normalized score for this tribe. */
   self: number;
@@ -39,12 +47,11 @@ export function compareProfiles(
   others: readonly TribeScore[],
 ): ComparisonRow[] {
   const othersBySlug = new Map(others.map((s) => [s.slug, s.score]));
-  const selfBySlug = new Map(self.map((s) => [s.slug, s]));
 
   // Drive off self's order (canonical, all twelve tribes) so the output is
   // complete and deterministic regardless of the inputs' ordering.
   return self.map((s) => {
-    const selfScore = selfBySlug.get(s.slug)?.score ?? 0;
+    const selfScore = s.score;
     const othersScore = othersBySlug.get(s.slug) ?? 0;
     return {
       slug: s.slug,
@@ -67,7 +74,7 @@ export function divergences(
   limit = rows.length,
 ): Divergence[] {
   return rows
-    .filter((row) => row.delta !== 0)
+    .filter((row) => Math.abs(row.delta) > DIVERGENCE_EPSILON)
     .map((row) => ({
       ...row,
       gap: Math.abs(row.delta),
