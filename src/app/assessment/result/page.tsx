@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
+import { OBSERVER_UNLOCK_THRESHOLD } from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -25,6 +27,9 @@ export default async function AssessmentResultPage() {
 
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
+
+  const observerCount = await countObserverResponses(session.user.id);
+  const comparisonUnlocked = observerCount >= OBSERVER_UNLOCK_THRESHOLD;
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -61,6 +66,28 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          {/* Entry into the comparison report (issue #9) once it unlocks. */}
+          <div className="mt-8 border-t border-hair pt-6">
+            {comparisonUnlocked ? (
+              <Link
+                href="/assessment/comparison"
+                className="inline-flex items-center gap-2 border-b border-gold pb-1 text-[14px] tracking-[0.04em] text-ink transition-colors hover:text-gold"
+              >
+                See how their read compares with yours →
+              </Link>
+            ) : (
+              <p className="text-[14px] text-muted">
+                {observerCount === 0
+                  ? "No responses yet."
+                  : observerCount === 1
+                    ? "1 person has responded."
+                    : `${observerCount} people have responded.`}{" "}
+                Your comparison unlocks once {OBSERVER_UNLOCK_THRESHOLD} have
+                responded.
+              </p>
+            )}
+          </div>
         </section>
       </div>
     </main>

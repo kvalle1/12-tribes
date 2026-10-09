@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,41 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * How many Observers have responded for a Subject. Backs the comparison-report
+ * unlock gate (issue #9): the report stays locked until this reaches
+ * `OBSERVER_UNLOCK_THRESHOLD`.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+  return row?.value ?? 0;
+}
+
+/**
+ * Every Observer response for a Subject, oldest-first, as bare word lists.
+ * Deliberately returns only the words — never the row id, timestamp, or any
+ * other attribute — so a response can't be tied back to who submitted it
+ * (ADR-0003 anonymity). The stable oldest-first order lets the report label them
+ * "Observer 1/2/3…" consistently across loads without leaking identity.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<{ words: string[] }[]> {
+  const rows = await db
+    .select({
+      words: observerResponses.words,
+      createdAt: observerResponses.createdAt,
+      id: observerResponses.id,
+    })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+  return rows.map((row) => ({ words: row.words }));
 }
