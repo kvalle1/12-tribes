@@ -76,3 +76,22 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every anonymous Observer response recorded for a Subject, oldest first,
+ * as plain word lists — nothing identifying an Observer is stored or returned
+ * (ADR-0003). Oldest-first ordering gives the comparison report's per-observer
+ * drill-down a stable, response-order labelling ("Observer 1", "Observer 2", …)
+ * that never leaks who answered. Returns `[]` when no one has responded yet.
+ */
+export async function getObserverWordLists(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt);
+
+  return rows.map((row) => row.words);
+}
