@@ -76,7 +76,6 @@ function buildRows(
   others: { slug: string; score: number }[],
 ): ComparisonRow[] {
   const selfBySlug = new Map(score(selfWords).map((s) => [s.slug, s.score]));
-  const othersBySlug = new Map(others.map((o) => [o.slug, o.score]));
 
   return others.map((o) => {
     const tribe = getTribeBySlug(o.slug);
@@ -85,7 +84,7 @@ function buildRows(
       name: tribe?.name ?? o.slug,
       accent: accentHex(tribe?.color ?? ""),
       self: selfBySlug.get(o.slug) ?? 0,
-      others: othersBySlug.get(o.slug) ?? 0,
+      others: o.score,
     };
   });
 }

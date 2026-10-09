@@ -36,16 +36,24 @@ export function ComparisonReport({
   rows: ComparisonRow[];
   observers: ObserverSummary[];
 }) {
-  // Scale every bar against the single largest score across both profiles, so
-  // the chart stays readable while keeping self and others on one shared axis.
-  const max = rows.reduce((m, r) => Math.max(m, r.self, r.others), 0);
-  const frac = (v: number) => (max > 0 ? v / max : 0);
+  // Scale each profile against its OWN strongest tribe, not a shared max. The
+  // "others" profile is an average of several observers, so its peaks are
+  // inherently flatter than the Subject's single peaky profile; a shared max
+  // would shrink every others-bar and make nearly every tribe read "You see
+  // more." Normalizing each view independently compares relative emphasis —
+  // which tribe each view ranks highest — so the divergence call is symmetric.
+  const selfMax = rows.reduce((m, r) => Math.max(m, r.self), 0);
+  const othersMax = rows.reduce((m, r) => Math.max(m, r.others), 0);
+  const selfFrac = (v: number) => (selfMax > 0 ? v / selfMax : 0);
+  const othersFrac = (v: number) => (othersMax > 0 ? v / othersMax : 0);
 
-  // Anchor the ordering on the stronger of the two views so the tribes that
-  // matter to either side rise to the top.
-  const ranked = [...rows].sort(
-    (a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others),
-  );
+  // Drop tribes neither the Subject nor any observer touched — an empty bar pair
+  // labeled "In sync" would imply agreement where there is simply no data. Order
+  // the rest by the stronger of the two views so prominent tribes rise.
+  const ranked = rows
+    .filter((r) => r.self > 0 || r.others > 0)
+    .map((r) => ({ row: r, self: selfFrac(r.self), others: othersFrac(r.others) }))
+    .sort((a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others));
 
   return (
     <div>
@@ -58,20 +66,21 @@ export function ComparisonReport({
       <p className="mt-3 max-w-[560px] text-[16px] text-muted">
         Your own read sits beside the combined read of your{" "}
         {observerCount} observers. Each observer counts equally, so no single
-        voice dominates. The gaps — where others see more or less of a tribe than
-        you do — are where the most useful insight lives.
+        voice dominates. Each view is drawn relative to its own strongest tribe,
+        so the bars compare emphasis — which tribes each side ranks highest. The
+        gaps are where the most useful insight lives.
       </p>
 
       <Legend />
 
       <section className="mt-8 border-t border-hair pt-8">
         <ul className="flex flex-col gap-5">
-          {ranked.map((row) => (
+          {ranked.map(({ row, self, others }) => (
             <ComparisonBars
               key={row.slug}
               row={row}
-              selfFrac={frac(row.self)}
-              othersFrac={frac(row.others)}
+              selfFrac={self}
+              othersFrac={others}
             />
           ))}
         </ul>
@@ -156,14 +165,14 @@ function ComparisonBars({
           frac={selfFrac}
           accent={row.accent}
           solid
-          ariaLabel={`You scored ${row.name} at ${Math.round(selfFrac * 100)}% of the top score`}
+          ariaLabel={`You rank ${row.name} at ${Math.round(selfFrac * 100)}% of your strongest tribe`}
         />
         <Bar
           label="Others"
           frac={othersFrac}
           accent={row.accent}
           solid={false}
-          ariaLabel={`Your observers scored ${row.name} at ${Math.round(othersFrac * 100)}% of the top score`}
+          ariaLabel={`Your observers rank ${row.name} at ${Math.round(othersFrac * 100)}% of their strongest tribe`}
         />
         <span
           className={`mt-0.5 text-[10px] uppercase tracking-[0.14em] ${
@@ -215,14 +224,17 @@ function Bar({
 
 function Legend() {
   return (
+    // Each tribe's bars are drawn in that tribe's own accent colour, so the cue
+    // that tells "You" from "Others" is opacity, not hue — the swatches use a
+    // single neutral tone at full vs reduced opacity to say exactly that.
     <div className="mt-6 flex items-center gap-6 text-[11px] uppercase tracking-[0.14em] text-muted">
       <span className="flex items-center gap-2">
-        <span className="h-2.5 w-7 rounded-full bg-ink" />
-        You
+        <span className="h-2.5 w-7 rounded-full bg-muted" />
+        You · solid
       </span>
       <span className="flex items-center gap-2">
-        <span className="h-2.5 w-7 rounded-full bg-ink/40" />
-        Others
+        <span className="h-2.5 w-7 rounded-full bg-muted/40" />
+        Others · faded
       </span>
     </div>
   );
