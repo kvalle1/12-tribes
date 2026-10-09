@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * The Subject's shareable 360 observer link (issue #8). Renders the full,
- * copyable URL — composed server-side from the request host so it works behind a
- * proxy without touching `window` — plus a one-click copy.
+ * copyable URL — composed server-side (from the configured `AUTH_URL` origin,
+ * falling back to the request host) so it works behind a proxy without touching
+ * `window` — plus a one-click copy.
  */
 export function ObserverShareLink({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { score } from "@/lib/assessment/score";
+import { rankScores } from "@/lib/assessment/ranking";
 import {
   aggregateObservers,
   isReportUnlocked,
@@ -94,11 +95,12 @@ function buildObserverSummaries(
   perObserver: { slug: string; name: string; score: number }[][],
 ): ObserverSummary[] {
   return perObserver.map((observer, i) => {
-    const ranked = [...observer]
+    // rankScores sorts highest-first and attaches each tribe's fill fraction
+    // relative to that observer's top score — the same convention the result
+    // view uses — so we only keep the strongest few that the observer touched.
+    const ranked = rankScores(observer)
       .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score)
       .slice(0, TOP_TRIBES_PER_OBSERVER);
-    const top = ranked[0]?.score ?? 0;
 
     return {
       label: `Observer ${i + 1}`,
@@ -108,7 +110,7 @@ function buildObserverSummaries(
           slug: s.slug,
           name: tribe?.name ?? s.slug,
           accent: accentHex(tribe?.color ?? ""),
-          relative: top > 0 ? s.score / top : 0,
+          relative: s.relative,
         };
       }),
     };

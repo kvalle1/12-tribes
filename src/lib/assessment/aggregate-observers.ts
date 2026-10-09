@@ -62,12 +62,10 @@ export function aggregateObservers(
   const perObserver = responses.map((words) => score(words));
   const count = perObserver.length;
 
-  const others: ObserverProfile[] = tribes.map((tribe) => {
-    const sum = perObserver.reduce(
-      (acc, observer) =>
-        acc + (observer.find((s) => s.slug === tribe.slug)?.score ?? 0),
-      0,
-    );
+  // `score()` returns every profile in canonical tribe order, so each tribe's
+  // scores line up positionally across observers — no per-tribe slug lookup.
+  const others: ObserverProfile[] = tribes.map((tribe, i) => {
+    const sum = perObserver.reduce((acc, observer) => acc + observer[i].score, 0);
     return {
       slug: tribe.slug,
       name: tribe.name,

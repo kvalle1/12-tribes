@@ -8,7 +8,7 @@ import { headers } from "next/headers";
  * copies; falls back to the request host for local/dev where `AUTH_URL` may be
  * unset, and finally to a relative path.
  */
-export async function observerLinkBase(): Promise<string> {
+async function observerLinkBase(): Promise<string> {
   const configured = process.env.AUTH_URL?.replace(/\/+$/, "");
   if (configured) return configured;
 
