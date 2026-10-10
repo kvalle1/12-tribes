@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,29 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/** An anonymous observer response, reduced to the only field aggregation uses. */
+export interface StoredObserverResponse {
+  words: string[];
+}
+
+/**
+ * Load every anonymous Observer response recorded for a Subject, oldest first,
+ * so the per-observer drill-down (Observer 1 / 2 / 3) stays in a stable order
+ * across renders. Only each response's `words` are returned — the rows carry no
+ * identity to begin with (ADR-0003), and nothing identifying is surfaced here.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<StoredObserverResponse[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    // `id` is a secondary key so rows with identical timestamps keep a stable,
+    // deterministic order across renders.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows;
 }
