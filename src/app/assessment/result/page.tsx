@@ -3,8 +3,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverAggregate } from "@/lib/observer/repository";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
+import { ComparisonReport } from "@/components/comparison-report";
 
 /**
  * The Subject's saved current result (ADR-0004). Login-gated; an unauthenticated
@@ -25,6 +27,10 @@ export default async function AssessmentResultPage() {
 
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
+
+  // The equal-weight "others" aggregate backing the 360 comparison report
+  // (issue #9). Locked until at least three Observers respond.
+  const observerAggregate = await getObserverAggregate(session.user.id);
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -62,6 +68,11 @@ export default async function AssessmentResultPage() {
           </p>
           <ObserverShareLink url={shareUrl} />
         </section>
+
+        <ComparisonReport
+          selfWords={row.words}
+          aggregate={observerAggregate}
+        />
       </div>
     </main>
   );
