@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { getObserverResponses } from "@/lib/observer/repository";
+import { observerLinkBase } from "@/lib/observer/link";
 import {
   hasEnoughObservers,
   OBSERVER_UNLOCK_THRESHOLD,
@@ -122,22 +122,4 @@ function LockedState({ count, shareUrl }: { count: number; shareUrl: string }) {
       </section>
     </div>
   );
-}
-
-/**
- * The origin the shareable observer link is built against — prefers the
- * configured `AUTH_URL` (trusted, set per deployment) so a forwarded `Host`
- * header can't skew the copied link, falling back to the request host for
- * local/dev, then to a relative path. Mirrors the result page's link base.
- */
-async function observerLinkBase(): Promise<string> {
-  const configured = process.env.AUTH_URL?.replace(/\/+$/, "");
-  if (configured) return configured;
-
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("host");
-  if (!host) return "";
-
-  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
 }

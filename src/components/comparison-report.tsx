@@ -31,8 +31,19 @@ export function ComparisonReport({
   const rows = buildComparison(selfScores, othersScores);
 
   const selfPrimary = deriveResult(selfScores).primary;
-  const othersTop = rankScores(othersScores)[0];
-  const agree = othersTop && othersTop.slug === selfPrimary.slug;
+  const othersRanked = rankScores(othersScores);
+  const othersTop = othersRanked[0];
+  // "Agree" is tie-aware: the two reads align when the Subject's Primary sits
+  // among the observers' tied-top tribes, not only when it is the single first
+  // row (a top tie broken by canonical order could otherwise mislabel the lead).
+  const othersTopScore = othersTop?.score ?? 0;
+  const agree =
+    othersTopScore > 0 &&
+    othersRanked.some(
+      (tribe) =>
+        tribe.slug === selfPrimary.slug &&
+        Math.abs(tribe.score - othersTopScore) < TIE_EPSILON,
+    );
 
   // The biggest gaps between the two reads — where the 360 insight lives. Keep
   // only differences large enough to be worth naming.
@@ -41,11 +52,23 @@ export function ComparisonReport({
     .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
     .slice(0, 3);
 
-  const perObserver = observerResponses.map((response) =>
-    rankScores(score(response.words))
-      .filter((tribe) => tribe.score > 0)
-      .slice(0, 3),
-  );
+  // Each observer's own top tribes. Ordered by content (their top-tribe slugs),
+  // deliberately *not* by submission time — so the "Observer 1/2/3" labels carry
+  // no arrival-order signal a Subject could use to attribute a read to a person
+  // (ADR-0003 anonymity). Averaging in `aggregateObservers` is order-independent,
+  // so this ordering is purely presentational.
+  const perObserver = observerResponses
+    .map((response) =>
+      rankScores(score(response.words))
+        .filter((tribe) => tribe.score > 0)
+        .slice(0, 3),
+    )
+    .sort((a, b) =>
+      a
+        .map((t) => t.slug)
+        .join(",")
+        .localeCompare(b.map((t) => t.slug).join(",")),
+    );
 
   return (
     <div>
@@ -201,6 +224,9 @@ export function ComparisonReport({
 
 /** Minimum absolute gap (on the 0–1 normalized scale) worth calling out. */
 const DIVERGENCE_THRESHOLD = 0.08;
+
+/** Scores within this of the top are treated as tied for the lead. */
+const TIE_EPSILON = 1e-9;
 
 function tribeColor(slug: string): string {
   return getTribeBySlug(slug)?.color ?? "";
