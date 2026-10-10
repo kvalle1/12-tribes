@@ -110,13 +110,17 @@ function UnlockedReport({
   // down their order seeing how others rate each tribe.
   const bySelf = [...rows].sort((a, b) => b.self - a.self);
 
-  const scored = rows.filter((r) => r.self > 0 || r.others > 0);
-  const alignment = scored.reduce<ComparisonRow | null>(
+  // Only consider tribes at least one side rates substantially, so "where you
+  // align" can't land on a tribe neither side cares about — two near-zero
+  // scores have a near-zero gap and would otherwise win the smallest-gap pick.
+  const candidates =
+    max > 0 ? rows.filter((r) => Math.max(r.self, r.others) >= max * 0.5) : [];
+  const alignment = candidates.reduce<ComparisonRow | null>(
     (best, r) =>
       best === null || Math.abs(r.gap) < Math.abs(best.gap) ? r : best,
     null,
   );
-  const divergence = scored.reduce<ComparisonRow | null>(
+  const divergence = candidates.reduce<ComparisonRow | null>(
     (worst, r) =>
       worst === null || Math.abs(r.gap) > Math.abs(worst.gap) ? r : worst,
     null,
@@ -255,15 +259,23 @@ function Bar({
  * N" with its top tribes — no name, no relationship, nothing that could
  * de-anonymize a respondent (ADR-0003). Native `<details>` keeps it collapsible
  * server-side.
+ *
+ * Responses are reordered by their content (not submission time) before being
+ * numbered, so "Observer N" carries no timing signal: a Subject who knows when
+ * people responded still can't map a number back to a person.
  */
 function ObserverDrilldown({ aggregate }: { aggregate: ObserverAggregate }) {
+  const ordered = [...aggregate.perObserver].sort((a, b) =>
+    observerSortKey(a).localeCompare(observerSortKey(b)),
+  );
+
   return (
     <details className="mt-10 border-t border-hair pt-6">
       <summary className="cursor-pointer text-[12px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-ink">
         See each response (anonymous)
       </summary>
       <ul className="mt-5 flex flex-col gap-4">
-        {aggregate.perObserver.map((scores, i) => {
+        {ordered.map((scores, i) => {
           const top = [...scores]
             .sort((a, b) => b.score - a.score)
             .filter((s) => s.score > 0)
@@ -284,6 +296,19 @@ function ObserverDrilldown({ aggregate }: { aggregate: ObserverAggregate }) {
       </ul>
     </details>
   );
+}
+
+/**
+ * A content-derived, submission-order-independent sort key for an observer's
+ * profile: tribes ranked by score (ties broken by slug) so two identical
+ * profiles key the same and the ordering never reflects when a response
+ * arrived. Used only to number the anonymous drill-down.
+ */
+function observerSortKey(scores: TribeScore[]): string {
+  return [...scores]
+    .sort((a, b) => b.score - a.score || a.slug.localeCompare(b.slug))
+    .map((s) => `${s.slug}:${s.score.toFixed(4)}`)
+    .join("|");
 }
 
 /** Pair self and aggregated-others scores per tribe in canonical order. */
