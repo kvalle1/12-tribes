@@ -86,6 +86,18 @@ describe("topDivergences", () => {
     expect(topDivergences(rows)).toHaveLength(0);
   });
 
+  it("treats a sub-epsilon float gap as aligned, not a divergence", () => {
+    // Self and others reach ~0.3 by different float paths; the residual gap is
+    // a rounding artifact, not a real divergence, so it must not surface.
+    const rows = buildComparison(
+      tableFrom({ judah: 0.1 + 0.2 }),
+      tableFrom({ judah: 0.3 }),
+    );
+    const judah = rowFor("judah", rows);
+    expect(judah.gap).not.toBe(0); // the artifact is genuinely non-zero
+    expect(topDivergences(rows)).toHaveLength(0);
+  });
+
   it("respects the limit", () => {
     const rows = buildComparison(
       tableFrom({ judah: 0.9, levi: 0.8, reuben: 0.7, simeon: 0.6 }),

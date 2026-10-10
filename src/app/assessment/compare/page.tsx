@@ -78,8 +78,8 @@ function LockedState({ observerCount }: { observerCount: number }) {
       <p className="mt-4 max-w-[560px] text-[15px] text-muted">
         The comparison opens once{" "}
         <span className="text-ink">at least {OBSERVER_UNLOCK_THRESHOLD}</span>{" "}
-        people have answered anonymously. Waiting for a few keeps every
-        individual read private and makes the combined read worth trusting.
+        people have answered anonymously. Waiting for a few keeps each response
+        anonymous and makes the combined read worth trusting.
       </p>
 
       <div className="mt-10 rounded-[2px] border border-hair p-6">

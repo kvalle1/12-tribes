@@ -69,17 +69,26 @@ export function buildComparison(
 }
 
 /**
+ * Gaps below this magnitude count as "aligned". The self score (one normalized
+ * profile) and the others score (an average of several) reach a given value by
+ * different float paths, so two genuinely matching reads can differ by a few
+ * ULPs; treating anything under this epsilon as zero keeps a ~1e-17 rounding
+ * artifact from surfacing as a spurious divergence.
+ */
+export const GAP_EPSILON = 1e-9;
+
+/**
  * The tribes where the Subject's own read and the aggregated others read diverge
- * the most, largest absolute gap first, limited to `limit`. Rows where either
- * side scored something are considered; a perfectly aligned pair (gap 0) is
- * never surfaced. Used to headline "where reads diverge" in the report.
+ * the most, largest absolute gap first, limited to `limit`. A pair that is
+ * aligned to within {@link GAP_EPSILON} is never surfaced. Used to headline
+ * "where reads diverge" in the report.
  */
 export function topDivergences(
   rows: readonly ComparisonRow[],
   limit = 3,
 ): ComparisonRow[] {
   return [...rows]
-    .filter((r) => r.gap !== 0)
+    .filter((r) => Math.abs(r.gap) > GAP_EPSILON)
     .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
     .slice(0, limit);
 }
