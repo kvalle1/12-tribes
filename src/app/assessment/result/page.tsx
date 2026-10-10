@@ -3,6 +3,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverResponses } from "@/lib/observer/repository";
+import {
+  isReportUnlocked,
+  OBSERVER_UNLOCK_THRESHOLD,
+} from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -31,6 +36,9 @@ export default async function AssessmentResultPage() {
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
   const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+
+  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const unlocked = isReportUnlocked(observerCount);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,6 +69,25 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {unlocked ? (
+              <Link
+                href="/assessment/compare"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                See how your reads compare →
+              </Link>
+            ) : (
+              <Link
+                href="/assessment/compare"
+                className="text-[13px] tracking-[0.02em] text-muted transition-colors hover:text-ink"
+              >
+                {observerCount} of {OBSERVER_UNLOCK_THRESHOLD} responses · the
+                comparison unlocks at {OBSERVER_UNLOCK_THRESHOLD}
+              </Link>
+            )}
+          </div>
         </section>
       </div>
     </main>
