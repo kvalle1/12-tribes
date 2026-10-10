@@ -76,3 +76,23 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every anonymous Observer response recorded for a Subject, oldest first,
+ * as plain word lists. The stable `createdAt` then `id` ordering gives the
+ * comparison report's drill-down its deterministic "Observer 1/2/3" numbering
+ * (issue #9); nothing identifying is selected, so the rows stay anonymous. The
+ * caller aggregates these with `aggregateObservers` — this function does no
+ * scoring, only I/O.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt, observerResponses.id);
+
+  return rows.map((row) => row.words);
+}
