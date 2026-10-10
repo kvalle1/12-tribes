@@ -1,10 +1,11 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
+import { aggregateObservers, type ObserverAggregate } from "./aggregate";
 
 /**
  * Server-only persistence for the 360 Observer flow (issue #8, ADR-0003). The
@@ -75,4 +76,35 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every Observer's selected words for a Subject, oldest first, as the raw
+ * input to the equal-weight aggregation (issue #9). Ordered by `createdAt` then
+ * `id` so the anonymous drill-down's "Observer 1/2/3" labels stay stable across
+ * renders. Returns only the words — never any observer identity, which the row
+ * does not carry (ADR-0003).
+ */
+export async function getObserverWords(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
+}
+
+/**
+ * The Subject's equal-weight "others" aggregate — the self-vs-others comparison
+ * report's data source (issue #9). Loads the Subject's Observer responses and
+ * folds them through the pure `aggregateObservers`, so scoring and the
+ * word→tribe mapping stay server-side (ADR-0009).
+ */
+export async function getObserverAggregate(
+  subjectId: string,
+): Promise<ObserverAggregate> {
+  return aggregateObservers(await getObserverWords(subjectId));
 }
