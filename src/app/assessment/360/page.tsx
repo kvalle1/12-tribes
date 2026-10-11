@@ -38,8 +38,27 @@ export default async function ComparisonReportPage() {
   if (!row) redirect("/assessment");
 
   const responses = await getObserverResponsesForSubject(session.user.id);
-  const unlocked = isObserverReportUnlocked(responses.length);
-  const aggregate = aggregateObservers(responses);
+
+  let content;
+  if (isObserverReportUnlocked(responses.length)) {
+    // Aggregate only once the report is unlocked — the scoring pass is wasted
+    // work in the locked state, which never reads it.
+    const aggregate = aggregateObservers(responses);
+    content = (
+      <ComparisonReport
+        self={score(row.words)}
+        others={aggregate.others}
+        perObserver={aggregate.perObserver}
+      />
+    );
+  } else {
+    content = (
+      <LockedReport
+        count={responses.length}
+        shareUrl={await observerShareUrl(row.shareToken)}
+      />
+    );
+  }
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -51,18 +70,7 @@ export default async function ComparisonReportPage() {
           ← Your result
         </Link>
 
-        {unlocked ? (
-          <ComparisonReport
-            self={score(row.words)}
-            others={aggregate.others}
-            perObserver={aggregate.perObserver}
-          />
-        ) : (
-          <LockedReport
-            count={responses.length}
-            shareUrl={await observerShareUrl(row.shareToken)}
-          />
-        )}
+        {content}
       </div>
     </main>
   );

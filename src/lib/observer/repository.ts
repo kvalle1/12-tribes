@@ -91,7 +91,10 @@ export async function getObserverResponsesForSubject(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    // `id` breaks `createdAt` ties so the order (and the Observer 1/2/3…
+    // labels) is deterministic across report views even when two rows share a
+    // timestamp.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }

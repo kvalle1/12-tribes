@@ -190,11 +190,13 @@ export function ComparisonReport({
 }
 
 function divergenceSentence(row: Row): string {
+  // self and others are normalized 0–1 scores shown as percentages, so their
+  // difference is a gap in percentage points — not a relative "X% stronger".
   const gap = Math.round(Math.abs(row.divergence) * 100);
   if (row.divergence > 0) {
-    return `others read this ${gap}% stronger in you than you do yourself.`;
+    return `others read this ${gap} points higher in you than you do yourself.`;
   }
-  return `you read this ${gap}% stronger in yourself than others do.`;
+  return `you read this ${gap} points higher in yourself than others do.`;
 }
 
 function PairedBars({
@@ -217,13 +219,13 @@ function PairedBars({
         max={max}
         accent={accent}
         solid
-        label={`You see ${name} at ${pct(self)} of your top tribe strength`}
+        label={`You scored ${name} at ${pct(self)} strength`}
       />
       <Bar
         value={others}
         max={max}
         accent={accent}
-        label={`Others see ${name} at ${pct(others)} of the strongest tribe`}
+        label={`Others scored ${name} at ${pct(others)} strength`}
       />
     </div>
   );
