@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,42 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, oldest first, as just
+ * the selected words — no ids, timestamps, or anything that could identify an
+ * Observer (ADR-0003). Oldest-first order gives the comparison report a stable
+ * "Observer 1 / 2 / 3" numbering across page loads without exposing identity.
+ * These rows feed `aggregateObservers` (issue #9) and the per-observer
+ * drill-down; the equal-weight averaging happens in the pure scoring layer.
+ */
+export async function getObserverWords(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    // `id` breaks ties on equal `createdAt` so the "Observer 1 / 2 / 3"
+    // numbering is deterministic across page loads.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
+}
+
+/**
+ * Count a Subject's Observer responses without loading their word payloads —
+ * the result-page unlock gate only needs the count, so a `COUNT(*)` avoids
+ * transferring and deserializing every response's JSONB `words` array.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.value ?? 0;
 }
