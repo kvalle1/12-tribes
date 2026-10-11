@@ -1,8 +1,13 @@
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
-import { score } from "@/lib/assessment/score";
+import { score, type TribeScore } from "@/lib/assessment/score";
 import { rankScores } from "@/lib/assessment/ranking";
-import { aggregateObservers, scoreObservers } from "@/lib/observer/aggregate";
+import { averageProfiles, scoreObservers } from "@/lib/observer/aggregate";
 import { buildComparison, type ComparisonRow } from "@/lib/observer/comparison";
+import { hasEnoughObservers } from "@/lib/observer/constants";
+
+// Divergences worth naming: where others and self disagree most. A small floor
+// keeps noise (tribes near zero on both sides) out of the callouts.
+const GAP_FLOOR = 0.08;
 
 /**
  * The 360 comparison report (issue #9, ADR-0003): the Subject's own profile
@@ -12,9 +17,9 @@ import { buildComparison, type ComparisonRow } from "@/lib/observer/comparison";
  * Server component: it imports the `server-only` scoring core and aggregation, so
  * the word→tribe mapping never reaches the client (ADR-0009). It renders only
  * from the Subject's stored `words` and the anonymous Observer word lists —
- * nothing here can identify an Observer. The caller (the report page) is
- * responsible for the ≥3-Observer unlock gate; this component assumes it is only
- * rendered once unlocked.
+ * nothing here can identify an Observer. The caller (the report page) enforces the
+ * ≥3-Observer unlock gate; the per-Observer drill-down re-checks it anyway, so a
+ * future caller can never de-anonymise a 1–2 Observer set.
  */
 export function ComparisonReport({
   words,
@@ -24,13 +29,12 @@ export function ComparisonReport({
   responses: string[][];
 }) {
   const self = score(words);
-  const others = aggregateObservers(responses);
-  const rows = buildComparison(self, others);
+  // Score each Observer once; the "others" average is derived from the same
+  // profiles the drill-down shows, rather than scoring every response twice.
   const perObserver = scoreObservers(responses);
+  const others = averageProfiles(perObserver);
+  const rows = buildComparison(self, others);
 
-  // Divergences worth naming: where others and self disagree most. A small floor
-  // keeps noise (tribes near zero on both sides) out of the callouts.
-  const GAP_FLOOR = 0.08;
   const divergences = [...rows]
     .filter((r) => Math.abs(r.gap) >= GAP_FLOOR)
     .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
@@ -110,7 +114,12 @@ export function ComparisonReport({
       </section>
 
       {/* Anonymous per-observer drill-down. Native <details> keeps this a server
-          component — no client JS — while staying keyboard-accessible. */}
+          component — no client JS — while staying keyboard-accessible. Gated on
+          the ≥3 unlock as a second line of defence: showing a 1–2 Observer set
+          here would effectively de-anonymise the responses. Ordered by content,
+          not submission time, so the "Observer N" label can't be mapped back to
+          who answered first. */}
+      {hasEnoughObservers(perObserver.length) && (
       <section className="mt-14 border-t border-hair pt-8">
         <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
           Each response, anonymously
@@ -120,7 +129,7 @@ export function ComparisonReport({
           identifies who answered.
         </p>
         <ul className="mt-5 flex flex-col gap-2.5">
-          {perObserver.map((profile, i) => {
+          {anonymizeOrder(perObserver).map((profile, i) => {
             const ranked = rankScores(profile).slice(0, 3);
             return (
               <li key={i}>
@@ -164,8 +173,21 @@ export function ComparisonReport({
           })}
         </ul>
       </section>
+      )}
     </div>
   );
+}
+
+/**
+ * Order the Observer profiles deterministically by their *content* so the
+ * "Observer N" labels can't be mapped back to the order people responded in
+ * (which the Subject might know). Two identical profiles are indistinguishable
+ * anyway, so their relative order does not matter. The input is not mutated.
+ */
+function anonymizeOrder(profiles: TribeScore[][]): TribeScore[][] {
+  const key = (profile: TribeScore[]) =>
+    profile.map((s) => s.score.toFixed(4)).join(",");
+  return [...profiles].sort((a, b) => key(a).localeCompare(key(b)));
 }
 
 /** One tribe's paired self/others bars on the shared scale. */
@@ -209,36 +231,44 @@ function LabeledBar({
       <span className="w-[42px] shrink-0 text-[10px] uppercase tracking-[0.1em] text-faint">
         {label}
       </span>
-      <div
-        className="h-2 flex-1 overflow-hidden rounded-full bg-hair/50"
-        role="img"
-        aria-label={`${label}: ${Math.round(fraction * 100)}% of the top score`}
-      >
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${Math.max(fraction * 100, fraction > 0 ? 3 : 0)}%`,
-            backgroundColor: color,
-            opacity,
-          }}
-        />
-      </div>
+      <Bar
+        fraction={fraction}
+        color={color}
+        opacity={opacity}
+        ariaLabel={`${label}: ${Math.round(fraction * 100)}% of the top score`}
+      />
     </div>
   );
 }
 
-function Bar({ fraction, color }: { fraction: number; color: string }) {
+/** A single proportional bar on a 0–1 scale, with a small floor so a non-zero
+ * value is always visible. Shared by the paired self/others bars and the
+ * per-observer drill-down. */
+function Bar({
+  fraction,
+  color,
+  opacity = 1,
+  ariaLabel,
+}: {
+  fraction: number;
+  color: string;
+  opacity?: number;
+  ariaLabel?: string;
+}) {
   return (
     <div
-      className="h-2 overflow-hidden rounded-full bg-hair/50"
+      className="h-2 flex-1 overflow-hidden rounded-full bg-hair/50"
       role="img"
-      aria-label={`${Math.round(fraction * 100)}% of their top score`}
+      aria-label={
+        ariaLabel ?? `${Math.round(fraction * 100)}% of the top score`
+      }
     >
       <div
         className="h-full rounded-full"
         style={{
           width: `${Math.max(fraction * 100, fraction > 0 ? 3 : 0)}%`,
           backgroundColor: color,
+          opacity,
         }}
       />
     </div>

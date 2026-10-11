@@ -30,15 +30,16 @@ export function scoreObservers(
 }
 
 /**
- * The equal-weight "others" profile: the per-tribe average of the Observers'
- * individually-normalized scores, in canonical (tribe `number`) order. Returns
- * an all-zero profile when there are no responses, so callers never divide by
- * zero. Matching is by slug so the result never depends on score array ordering.
+ * The per-tribe equal-weight average of already-scored profiles, in canonical
+ * (tribe `number`) order. Returns an all-zero profile for no profiles, so callers
+ * never divide by zero. Matching is by slug so the result never depends on the
+ * order of scores within a profile. Split out from {@link aggregateObservers} so
+ * a caller that already needs the per-observer profiles (the drill-down) can
+ * score each Observer once and average the result rather than scoring twice.
  */
-export function aggregateObservers(
-  responses: readonly (readonly string[])[],
+export function averageProfiles(
+  profiles: readonly (readonly TribeScore[])[],
 ): TribeScore[] {
-  const profiles = scoreObservers(responses);
   const n = profiles.length;
 
   return tribes.map((tribe) => {
@@ -53,4 +54,14 @@ export function aggregateObservers(
       score: n > 0 ? sum / n : 0,
     };
   });
+}
+
+/**
+ * The equal-weight "others" profile: the per-tribe average of the Observers'
+ * individually-normalized scores, in canonical (tribe `number`) order.
+ */
+export function aggregateObservers(
+  responses: readonly (readonly string[])[],
+): TribeScore[] {
+  return averageProfiles(scoreObservers(responses));
 }

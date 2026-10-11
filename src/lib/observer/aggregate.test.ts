@@ -2,7 +2,11 @@ import { describe, it, expect } from "vitest";
 import { tribes } from "@/lib/tribes";
 import { WORDS } from "@/lib/assessment/words";
 import { score, type TribeScore } from "@/lib/assessment/score";
-import { aggregateObservers, scoreObservers } from "./aggregate";
+import {
+  aggregateObservers,
+  averageProfiles,
+  scoreObservers,
+} from "./aggregate";
 
 const scoreFor = (slug: string, scores: TribeScore[]) =>
   scores.find((s) => s.slug === slug)!.score;
@@ -82,6 +86,17 @@ describe("aggregateObservers", () => {
     const b = aggregateObservers([wordsForTribe("levi"), ["Courageous"]]);
     for (const tribe of tribes) {
       expect(scoreFor(tribe.slug, a)).toBeCloseTo(scoreFor(tribe.slug, b));
+    }
+  });
+
+  it("is equivalent to averaging the per-observer profiles directly", () => {
+    const responses = [["Courageous"], wordsForTribe("levi"), ["Bold"]];
+    const viaResponses = aggregateObservers(responses);
+    const viaProfiles = averageProfiles(scoreObservers(responses));
+    for (const tribe of tribes) {
+      expect(scoreFor(tribe.slug, viaProfiles)).toBeCloseTo(
+        scoreFor(tribe.slug, viaResponses),
+      );
     }
   });
 

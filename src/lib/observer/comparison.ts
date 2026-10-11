@@ -40,6 +40,14 @@ export function buildComparison(
 ): ComparisonRow[] {
   const othersBySlug = new Map(others.map((s) => [s.slug, s.score]));
 
+  // One shared scale across both profiles, so a self bar and an others bar of the
+  // same length mean the same score.
+  const max = self.reduce(
+    (acc, s) => Math.max(acc, s.score, othersBySlug.get(s.slug) ?? 0),
+    0,
+  );
+  const relative = (value: number) => (max > 0 ? value / max : 0);
+
   const rows: ComparisonRow[] = self.map((s) => {
     const othersScore = othersBySlug.get(s.slug) ?? 0;
     return {
@@ -48,20 +56,10 @@ export function buildComparison(
       self: s.score,
       others: othersScore,
       gap: othersScore - s.score,
-      selfRelative: 0,
-      othersRelative: 0,
+      selfRelative: relative(s.score),
+      othersRelative: relative(othersScore),
     };
   });
-
-  const max = rows.reduce(
-    (acc, row) => Math.max(acc, row.self, row.others),
-    0,
-  );
-
-  for (const row of rows) {
-    row.selfRelative = max > 0 ? row.self / max : 0;
-    row.othersRelative = max > 0 ? row.others / max : 0;
-  }
 
   // Stable sort by the stronger side desc; ties keep canonical input order.
   return rows.sort(
