@@ -61,12 +61,6 @@ export function ComparisonReport({
   // Shared scale across both profiles so the two bars are directly comparable.
   const max = Math.max(...rows.map((r) => Math.max(r.self, r.others)), 0);
 
-  // The sharpest disagreements, largest absolute gap first.
-  const divergences = [...rows]
-    .filter((r) => Math.abs(r.gap) > 0.001)
-    .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
-    .slice(0, 2);
-
   // Strongest shared read: both views high and close together.
   const alignment = [...rows]
     .filter((r) => Math.min(r.self, r.others) > 0)
@@ -76,6 +70,14 @@ export function ComparisonReport({
         Math.abs(b.gap) -
         (Math.min(a.self, a.others) - Math.abs(a.gap)),
     )[0];
+
+  // The sharpest disagreements, largest absolute gap first. The alignment tribe
+  // is excluded so one tribe is never called both common ground and a blind
+  // spot at once.
+  const divergences = [...rows]
+    .filter((r) => Math.abs(r.gap) > 0.001 && r.slug !== alignment?.slug)
+    .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
+    .slice(0, 2);
 
   return (
     <div>
@@ -113,6 +115,11 @@ export function ComparisonReport({
         <ul className="flex flex-col gap-5">
           {rows.map((row) => {
             const accent = accentHex(getTribeBySlug(row.slug)?.color ?? "");
+            // Bars are scaled to the strongest read across both profiles, so the
+            // labels quote that same relative fill — screen-reader and visual
+            // readings of each bar always agree.
+            const selfPct = pct(row.self, max);
+            const othersPct = pct(row.others, max);
             return (
               <li
                 key={row.slug}
@@ -123,16 +130,16 @@ export function ComparisonReport({
                 </span>
                 <div className="flex flex-col gap-1.5">
                   <Bar
-                    widthPct={pct(row.self, max)}
+                    widthPct={selfPct}
                     color={accent}
                     solid
-                    label={`You see ${row.name}: ${Math.round(row.self * 100)} out of 100`}
+                    label={`You see ${row.name}: ${Math.round(selfPct)}% of the strongest tribe read`}
                   />
                   <Bar
-                    widthPct={pct(row.others, max)}
+                    widthPct={othersPct}
                     color={accent}
                     solid={false}
-                    label={`Others see ${row.name}: ${Math.round(row.others * 100)} out of 100`}
+                    label={`Others see ${row.name}: ${Math.round(othersPct)}% of the strongest tribe read`}
                   />
                 </div>
               </li>

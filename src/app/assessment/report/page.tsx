@@ -6,7 +6,7 @@ import { getObserverWords } from "@/lib/observer/repository";
 import { observerShareUrl } from "@/lib/observer/link";
 import { score } from "@/lib/assessment/score";
 import {
-  aggregateObservers,
+  averageProfiles,
   isReportUnlocked,
   MIN_OBSERVERS,
 } from "@/lib/assessment/aggregate";
@@ -47,11 +47,19 @@ export default async function ComparisonReportPage() {
         </Link>
 
         {unlocked ? (
-          <ComparisonReport
-            self={score(row.words)}
-            others={aggregateObservers(observerWords)}
-            perObserver={observerWords.map((words) => score(words))}
-          />
+          (() => {
+            // Score each Observer once, then reuse those profiles for both the
+            // equal-weight aggregate and the per-observer drill-down so the two
+            // can never drift (and score() isn't run twice per Observer).
+            const perObserver = observerWords.map((words) => score(words));
+            return (
+              <ComparisonReport
+                self={score(row.words)}
+                others={averageProfiles(perObserver)}
+                perObserver={perObserver}
+              />
+            );
+          })()
         ) : (
           <LockedState
             observerCount={observerWords.length}

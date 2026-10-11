@@ -4,6 +4,7 @@ import { WORDS } from "./words";
 import { score, type TribeScore } from "./score";
 import {
   aggregateObservers,
+  averageProfiles,
   isReportUnlocked,
   MIN_OBSERVERS,
 } from "./aggregate";
@@ -99,6 +100,33 @@ describe("aggregateObservers", () => {
     const snapshot = [...words];
     aggregateObservers(responses);
     expect(words).toEqual(snapshot);
+  });
+});
+
+describe("averageProfiles", () => {
+  it("returns the all-zero canonical profile for no profiles", () => {
+    const avg = averageProfiles([]);
+    expect(avg.map((s) => s.slug)).toEqual(tribes.map((t) => t.slug));
+    expect(avg.every((s) => s.score === 0)).toBe(true);
+  });
+
+  it("means already-scored profiles per tribe (matches aggregateObservers)", () => {
+    const leviWords = wordsForTribe("levi");
+    const judahWords = wordsForTribe("judah");
+    const viaProfiles = averageProfiles([score(leviWords), score(judahWords)]);
+    const viaWords = aggregateObservers([leviWords, judahWords]);
+    for (const tribe of tribes) {
+      expect(scoreFor(tribe.slug, viaProfiles)).toBeCloseTo(
+        scoreFor(tribe.slug, viaWords),
+      );
+    }
+  });
+
+  it("does not mutate the input profiles", () => {
+    const profile = score(wordsForTribe("levi"));
+    const snapshot = profile.map((s) => s.score);
+    averageProfiles([profile, profile]);
+    expect(profile.map((s) => s.score)).toEqual(snapshot);
   });
 });
 

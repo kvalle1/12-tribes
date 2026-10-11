@@ -31,6 +31,43 @@ export function isReportUnlocked(responseCount: number): boolean {
   return responseCount >= MIN_OBSERVERS;
 }
 
+/** The all-zero profile in canonical (tribe `number`) order. */
+function zeroProfile(): TribeScore[] {
+  return tribes.map((tribe) => ({
+    slug: tribe.slug,
+    name: tribe.name,
+    score: 0,
+  }));
+}
+
+/**
+ * Equal-weight mean of already-scored per-observer profiles — a normalized 0–1
+ * score per tribe, in canonical (tribe `number`) order. Every profile
+ * contributes exactly `1 / n`, so an Observer who picked more words gains no
+ * extra influence. With no profiles the result is all zeros. Inputs are not
+ * mutated.
+ *
+ * Works on scored profiles (not words) so the report page can score each
+ * Observer once and feed those same profiles to both this aggregate and the
+ * per-observer drill-down — the two can never drift apart. Each profile is
+ * assumed to be in canonical order (as `score` returns), so positions line up.
+ */
+export function averageProfiles(
+  profiles: readonly TribeScore[][],
+): TribeScore[] {
+  if (profiles.length === 0) return zeroProfile();
+
+  const totals = zeroProfile();
+  for (const profile of profiles) {
+    for (let i = 0; i < totals.length; i++) {
+      totals[i].score += profile[i].score;
+    }
+  }
+
+  for (const tribe of totals) tribe.score /= profiles.length;
+  return totals;
+}
+
 /**
  * Aggregate Observer responses into the equal-weight "others" profile — a
  * normalized 0–1 score per tribe, in canonical (tribe `number`) order, matching
@@ -42,26 +79,5 @@ export function isReportUnlocked(responseCount: number): boolean {
 export function aggregateObservers(
   responses: readonly (readonly string[])[],
 ): TribeScore[] {
-  const base = tribes.map((tribe) => ({
-    slug: tribe.slug,
-    name: tribe.name,
-    score: 0,
-  }));
-
-  if (responses.length === 0) return base;
-
-  // Sum each Observer's individually-normalized score per tribe, then divide by
-  // the Observer count so every Observer weighs the same regardless of how many
-  // words they picked. `score` returns tribes in canonical order, so positions
-  // line up with `base`.
-  const totals = base.map((tribe) => ({ ...tribe }));
-  for (const words of responses) {
-    const perObserver = score(words);
-    for (let i = 0; i < totals.length; i++) {
-      totals[i].score += perObserver[i].score;
-    }
-  }
-
-  for (const tribe of totals) tribe.score /= responses.length;
-  return totals;
+  return averageProfiles(responses.map((words) => score(words)));
 }

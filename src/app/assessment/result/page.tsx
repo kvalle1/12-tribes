@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
-import { getObserverWords } from "@/lib/observer/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
 import { observerShareUrl } from "@/lib/observer/link";
 import { isReportUnlocked, MIN_OBSERVERS } from "@/lib/assessment/aggregate";
 import { ResultView } from "@/components/result-view";
@@ -31,7 +31,7 @@ export default async function AssessmentResultPage() {
   // Compose the absolute observer link (see `observerShareUrl`), then count how
   // many observers have responded so far to drive the 360 report's unlock state.
   const shareUrl = await observerShareUrl(row.shareToken);
-  const observerCount = (await getObserverWords(session.user.id)).length;
+  const observerCount = await countObserverResponses(session.user.id);
   const reportUnlocked = isReportUnlocked(observerCount);
 
   return (
