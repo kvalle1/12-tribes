@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { getObserverResponses } from "@/lib/observer/repository";
+import { observerLinkFor } from "@/lib/observer/link";
+import { MIN_OBSERVERS_FOR_REPORT } from "@/lib/assessment/aggregateObservers";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -26,11 +28,12 @@ export default async function AssessmentResultPage() {
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
 
-  // Compose the absolute observer link. Prefer the canonical configured origin
-  // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
-  // be skewed by a forwarded `Host` header; fall back to the request host, then
-  // to a relative path, when it isn't set.
-  const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+  const shareUrl = await observerLinkFor(row.shareToken);
+
+  // How many observers have responded so far — drives whether the comparison
+  // report is unlocked yet (issue #9, ADR-0003: unlocks at ≥3).
+  const observerCount = (await getObserverResponses(session.user.id)).length;
+  const reportUnlocked = observerCount >= MIN_OBSERVERS_FOR_REPORT;
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,26 +64,29 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <p className="mt-6 text-[14px] text-muted">
+            {reportUnlocked ? (
+              <>
+                {observerCount} {observerCount === 1 ? "person has" : "people have"}{" "}
+                responded.{" "}
+                <Link
+                  href="/assessment/compare"
+                  className="border-b border-gold pb-0.5 text-ink transition-colors hover:text-gold"
+                >
+                  See how the room sees you →
+                </Link>
+              </>
+            ) : (
+              <>
+                {observerCount} of {MIN_OBSERVERS_FOR_REPORT} responses so far —
+                your comparison report unlocks once{" "}
+                {MIN_OBSERVERS_FOR_REPORT} people have answered.
+              </>
+            )}
+          </p>
         </section>
       </div>
     </main>
   );
-}
-
-/**
- * The origin the shareable observer link is built against. Prefers the
- * configured `AUTH_URL` (trusted, set per deployment) so a forwarded `Host`
- * header can't change the link a Subject copies; falls back to the request host
- * for local/dev where `AUTH_URL` may be unset, and finally to a relative path.
- */
-async function observerLinkBase(): Promise<string> {
-  const configured = process.env.AUTH_URL?.replace(/\/+$/, "");
-  if (configured) return configured;
-
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("host");
-  if (!host) return "";
-
-  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
 }
