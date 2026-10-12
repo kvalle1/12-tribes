@@ -131,12 +131,15 @@ function accentFor(slug: string): string {
   return accentHex(getTribeBySlug(slug)?.color ?? "");
 }
 
-/** Human-readable direction + size of a self/others gap. */
+/**
+ * Human-readable direction of a self/others gap. The direction is scale-
+ * independent and always correct; magnitude is left to the bars above, which
+ * avoids a number that could visually disagree with the shared-scale bars.
+ */
 function divergenceLabel(row: ComparisonRow): string {
-  const points = Math.round(Math.abs(row.delta) * 100);
   return row.delta > 0
-    ? `Others see more of this than you do (+${points})`
-    : `You see more of this than others do (+${points})`;
+    ? "Others see more of this than you do"
+    : "You see more of this than others do";
 }
 
 function ComparisonBars({ row }: { row: ComparisonRow }) {

@@ -31,7 +31,7 @@ export function ObserverDrilldown({
   return (
     <div>
       <div
-        role="tablist"
+        role="group"
         aria-label="Individual observers"
         className="flex flex-wrap gap-2"
       >
@@ -41,8 +41,7 @@ export function ObserverDrilldown({
             <button
               key={observer.label}
               type="button"
-              role="tab"
-              aria-selected={selected}
+              aria-pressed={selected}
               onClick={() => setActive(i)}
               className={
                 "rounded-[2px] border px-3.5 py-1.5 text-[12px] tracking-[0.06em] transition-colors " +

@@ -3,9 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { score } from "@/lib/assessment/score";
-import {
-  getObserverWordsForSubject,
-} from "@/lib/observer/repository";
+import { getObserverWordsForSubject } from "@/lib/observer/repository";
 import {
   aggregateObservers,
   OBSERVER_UNLOCK_THRESHOLD,
