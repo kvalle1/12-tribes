@@ -1,13 +1,25 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
+import { canViewSavedResult } from "@/lib/assessment/profile";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Surface a "View your results" entry only for a signed-in user who has a
+  // saved result (issue #18). It stays hidden for signed-out visitors and for
+  // signed-in users who haven't taken the assessment yet.
+  const session = await auth();
+  const savedResult = session?.user?.id
+    ? await getCurrentResult(session.user.id)
+    : null;
+  const showResultsEntry = canViewSavedResult(session?.user?.id, savedResult);
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -54,6 +66,14 @@ export default function Home() {
             >
               Take the Assessment
             </Link>
+            {showResultsEntry && (
+              <Link
+                href="/profile"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
