@@ -14,11 +14,20 @@ export default async function Home() {
   // Surface a "View your results" entry only for a signed-in user who has a
   // saved result (issue #18). It stays hidden for signed-out visitors and for
   // signed-in users who haven't taken the assessment yet.
-  const session = await auth();
-  const savedResult = session?.user?.id
-    ? await getCurrentResult(session.user.id)
-    : null;
-  const showResultsEntry = canViewSavedResult(session?.user?.id, savedResult);
+  //
+  // The lookup is best-effort: the landing page is mostly public content, so if
+  // the session or result lookup fails (e.g. a DB outage) we omit the entry
+  // rather than take the whole page down.
+  let showResultsEntry = false;
+  try {
+    const session = await auth();
+    const savedResult = session?.user?.id
+      ? await getCurrentResult(session.user.id)
+      : null;
+    showResultsEntry = canViewSavedResult(session?.user?.id, savedResult);
+  } catch {
+    showResultsEntry = false;
+  }
 
   return (
     <main className="min-h-screen bg-bone text-ink">
