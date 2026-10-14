@@ -39,11 +39,30 @@ describe("initialState / nextTurn", () => {
 });
 
 describe("appendAnswer", () => {
-  it("records the answer against the question that was being asked", () => {
+  it("records the answer against the question that was being asked, with its deltas", () => {
     const state = appendAnswer(initialState(), "I was teaching a friend to climb.");
     expect(state.turns).toEqual([
-      { question: QUESTIONS[0], answer: "I was teaching a friend to climb." },
+      {
+        question: QUESTIONS[0],
+        answer: "I was teaching a friend to climb.",
+        deltas: [],
+      },
     ]);
+  });
+
+  it("applies the scored deltas additively to the profile and traces them on the Turn", () => {
+    const deltas = [
+      {
+        markerId: "judah-strength-front",
+        tribeSlug: "judah",
+        type: "strength" as const,
+        delta: 1,
+        postureSignal: "neutral" as const,
+      },
+    ];
+    const state = appendAnswer(initialState(), "I led from the front.", deltas);
+    expect(state.profile.judah).toBe(1);
+    expect(state.turns[0].deltas).toEqual(deltas);
   });
 
   it("does not mutate the input state", () => {

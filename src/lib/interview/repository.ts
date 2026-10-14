@@ -2,7 +2,14 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { interviewSessions } from "@/db/schema";
-import { appendAnswer, emptyProfile, stubResult } from "./flow";
+import { scoreAnswer } from "./agent";
+import {
+  QUESTIONS,
+  TOTAL_QUESTIONS,
+  appendAnswer,
+  emptyProfile,
+  stubResult,
+} from "./flow";
 import type { InterviewState } from "./types";
 
 /**
@@ -52,9 +59,10 @@ function toState(row: InterviewSessionRow): InterviewState {
 
 /**
  * Record a participant's free-text answer against a Session and persist the
- * resulting state. Returns the updated row. If the Session is already complete
- * the answer is ignored (the pure flow treats it as a no-op) and the existing
- * row is returned unchanged.
+ * resulting state. The answer is scored by the agent against the Marker Catalog
+ * (ADR-0009, server-side only) and the resulting deltas are folded into the
+ * profile. Returns the updated row. If the Session is already complete the
+ * answer is ignored — no model call is made — and the row is returned unchanged.
  */
 export async function recordInterviewAnswer(
   id: string,
@@ -63,7 +71,15 @@ export async function recordInterviewAnswer(
   const row = await getInterviewSession(id);
   if (!row) return null;
 
-  const next = appendAnswer(toState(row), answer);
+  const state = toState(row);
+  // Mirror the pure flow's no-op so a completed Session never triggers scoring.
+  if (state.status === "complete" || state.turns.length >= TOTAL_QUESTIONS) {
+    return row;
+  }
+
+  const question = QUESTIONS[state.turns.length];
+  const deltas = await scoreAnswer({ question, answer });
+  const next = appendAnswer(state, answer, deltas);
   const result = next.status === "complete" ? stubResult(next) : null;
 
   const [updated] = await db

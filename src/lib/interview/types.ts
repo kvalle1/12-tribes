@@ -2,18 +2,52 @@
  * Interview domain types — pure, server-and-client safe (no DB, no LLM).
  *
  * These describe the server-authoritative Interview Session shape (ADR-0009:
- * scoring state lives on the server, never the client) for the walking-skeleton
- * slice. Real scoring (Marker deltas, Posture, confidence) arrives in later
- * slices; here the `profile` is a placeholder and the result is a stub.
+ * scoring state lives on the server, never the client). As of slice #16 the
+ * `profile` carries real Marker-scored strength and each Turn carries the
+ * Marker deltas that produced it (the score trace). The multi-Turn loop
+ * (#17), Posture surfacing (#20), and the score-trace view (#21) come later;
+ * `postureSignal` is captured here now so those slices build on real data.
+ *
+ * `MarkerType` is imported as a type only (erased at build) so this shared,
+ * client-safe module never pulls in the `server-only` Marker Catalog.
  */
+import type { MarkerType } from "./markers";
 
-/** A running per-tribe strength tally, keyed by tribe `slug`. Placeholder in this slice. */
+/** A running per-tribe strength tally, keyed by tribe `slug`. Real scores as of #16. */
 export type StrengthProfile = Record<string, number>;
 
-/** One completed exchange: the question the participant was shown and their free-text answer. */
+/**
+ * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
+ * Captured per scored delta so a later slice can aggregate Posture; it never
+ * affects strength here.
+ */
+export type PostureSignal = "active-shadow" | "neutral" | "integrated";
+
+/**
+ * One Marker delta the agent assigned to an answer (ADR-0003). Every delta
+ * cites a catalogued Marker `id` — the agent may not invent scoring rationale —
+ * and carries the Marker's `tribeSlug`/`type` (reconciled against the catalog)
+ * plus a bounded, non-negative `delta`. This is also the trace record: it lives
+ * on the Turn whose answer produced it, so a score always traces back to a
+ * specific answer and Marker.
+ */
+export interface ScoredDelta {
+  markerId: string;
+  tribeSlug: string;
+  type: MarkerType;
+  /** Bounded, non-negative contribution to the tribe's strength (ADR-0004: never lowers). */
+  delta: number;
+  postureSignal: PostureSignal;
+}
+
+/**
+ * One completed exchange: the question the participant was shown, their
+ * free-text answer, and the Marker deltas scored from it (the per-answer trace).
+ */
 export interface InterviewTurn {
   question: string;
   answer: string;
+  deltas: ScoredDelta[];
 }
 
 /** Server-authoritative Session state the pure flow logic operates on. */
