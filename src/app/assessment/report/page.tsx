@@ -5,7 +5,7 @@ import { getCurrentResult } from "@/lib/assessment/repository";
 import { getObserverResponses } from "@/lib/observer/repository";
 import { score } from "@/lib/assessment/score";
 import {
-  aggregateObservers,
+  averageProfiles,
   isReportUnlocked,
   MIN_OBSERVERS_FOR_REPORT,
 } from "@/lib/assessment/aggregateObservers";
@@ -46,11 +46,18 @@ export default async function ComparisonReportPage() {
         </Link>
 
         {unlocked ? (
-          <ComparisonReport
-            self={score(row.words)}
-            others={aggregateObservers(responses)}
-            perObserver={responses.map((words) => score(words))}
-          />
+          (() => {
+            // Score each Observer once, then reuse those profiles for both the
+            // equal-weight "others" aggregate and the per-observer drill-down.
+            const perObserver = responses.map((words) => score(words));
+            return (
+              <ComparisonReport
+                self={score(row.words)}
+                others={averageProfiles(perObserver)}
+                perObserver={perObserver}
+              />
+            );
+          })()
         ) : (
           <LockedState responseCount={responses.length} />
         )}

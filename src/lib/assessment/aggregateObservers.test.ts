@@ -4,6 +4,7 @@ import { WORDS } from "./words";
 import { score } from "./score";
 import {
   aggregateObservers,
+  averageProfiles,
   isReportUnlocked,
   MIN_OBSERVERS_FOR_REPORT,
 } from "./aggregateObservers";
@@ -17,9 +18,11 @@ const soleWordsForTribe = (slug: string) =>
 const scoreFor = (slug: string, scores: { slug: string; score: number }[]) =>
   scores.find((s) => s.slug === slug)!.score;
 
-// Two tribes whose words are mostly their own, with differing sole-word counts,
-// so an equal-weight average is visibly different from a pooled bag of words.
-const BIG = tribes[0].slug; // Judah — the first canonical tribe
+// Two distinct tribes sourced only from their sole (single-tribe) words, so each
+// observer's selection drives one tribe cleanly. The size asymmetry the pooling
+// test relies on comes from the differing `.slice()` lengths below, not from the
+// tribes themselves.
+const BIG = tribes[0].slug; // the first canonical tribe
 const SMALL = tribes[tribes.length - 1].slug; // the last canonical tribe
 
 describe("aggregateObservers", () => {
@@ -102,6 +105,36 @@ describe("aggregateObservers", () => {
         10,
       );
     }
+  });
+});
+
+describe("averageProfiles", () => {
+  it("equal-weight-averages already-scored profiles without re-scoring", () => {
+    const a = score(soleWordsForTribe(BIG).slice(0, 4));
+    const b = score(soleWordsForTribe(SMALL).slice(0, 3));
+
+    const result = averageProfiles([a, b]);
+
+    expect(result.map((r) => r.slug)).toEqual(tribes.map((t) => t.slug));
+    for (const tribe of tribes) {
+      const expected =
+        (scoreFor(tribe.slug, a) + scoreFor(tribe.slug, b)) / 2;
+      expect(scoreFor(tribe.slug, result)).toBeCloseTo(expected, 10);
+    }
+  });
+
+  it("is exactly what aggregateObservers produces from the same responses", () => {
+    const responses = [
+      soleWordsForTribe(BIG).slice(0, 4),
+      soleWordsForTribe(SMALL).slice(0, 2),
+    ];
+    expect(averageProfiles(responses.map((w) => score(w)))).toEqual(
+      aggregateObservers(responses),
+    );
+  });
+
+  it("returns an all-zero profile for no profiles", () => {
+    expect(averageProfiles([]).every((r) => r.score === 0)).toBe(true);
   });
 });
 

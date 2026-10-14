@@ -80,9 +80,10 @@ export async function recordObserverResponse(
 /**
  * Load every anonymous Observer response for a Subject, as the bare word
  * selections only — nothing that could identify who answered. Ordered oldest
- * first so the anonymous drill-down labels ("Observer 1", "Observer 2", …) stay
- * stable across renders. Feeds the equal-weight `aggregateObservers` and the 360
- * comparison report (issue #9).
+ * first, with the opaque row `id` as a tiebreaker so responses sharing a
+ * `createdAt` tick still get a deterministic order and the anonymous drill-down
+ * labels ("Observer 1", "Observer 2", …) stay stable across renders. Feeds the
+ * equal-weight `aggregateObservers` and the 360 comparison report (issue #9).
  */
 export async function getObserverResponses(
   subjectId: string,
@@ -91,7 +92,7 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }

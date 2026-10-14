@@ -64,6 +64,14 @@ export function ComparisonReport({
   const rows = buildRows(self, others);
   const observerCount = perObserver.length;
 
+  // A single scale across every individual Observer so the drill-down bars are
+  // comparable to each other — a weak read reads short, a strong read reads
+  // long — rather than each being rescaled to its own personal peak.
+  const observerScaleMax = Math.max(
+    0,
+    ...perObserver.flatMap((observer) => observer.map((s) => s.score)),
+  );
+
   // Divergence: where the Subject reads higher than others, and vice versa.
   const byGap = [...rows].sort(
     (a, b) => b.selfScore - b.othersScore - (a.selfScore - a.othersScore),
@@ -118,6 +126,9 @@ export function ComparisonReport({
                 >
                   {row.name}
                 </span>
+                {/* You (ink) and Others (gold) are kept to the two legend
+                    colors so the series stay distinguishable across tribes;
+                    each tribe's own accent lives on its name. */}
                 <div
                   className="flex flex-col gap-1.5"
                   role="img"
@@ -126,7 +137,7 @@ export function ComparisonReport({
                   )}, others ${Math.round(row.othersScore * 100)}`}
                 >
                   <Bar fill={row.selfFill} color="var(--ink, #1c1b18)" muted={false} />
-                  <Bar fill={row.othersFill} color={accent} muted />
+                  <Bar fill={row.othersFill} color="var(--gold, #a9842f)" muted />
                 </div>
               </li>
             );
@@ -172,7 +183,12 @@ export function ComparisonReport({
         </p>
         <div className="mt-5 flex flex-col gap-2">
           {perObserver.map((observer, i) => (
-            <ObserverDrilldown key={i} index={i + 1} scores={observer} />
+            <ObserverDrilldown
+              key={i}
+              index={i + 1}
+              scores={observer}
+              scaleMax={observerScaleMax}
+            />
           ))}
         </div>
       </section>
@@ -206,11 +222,13 @@ function Bar({
 function ObserverDrilldown({
   index,
   scores,
+  scaleMax,
 }: {
   index: number;
   scores: TribeScore[];
+  /** Shared max across all observers so bars are comparable between reads. */
+  scaleMax: number;
 }) {
-  const max = Math.max(0, ...scores.map((s) => s.score));
   const ranked = [...scores]
     .sort((a, b) => b.score - a.score)
     .filter((s) => s.score > 0)
@@ -238,7 +256,7 @@ function ObserverDrilldown({
             >
               <span className="text-[13px] text-muted">{row.name}</span>
               <Bar
-                fill={max > 0 ? row.score / max : 0}
+                fill={scaleMax > 0 ? row.score / scaleMax : 0}
                 color={accent}
                 muted={false}
               />

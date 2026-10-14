@@ -37,36 +37,45 @@ export function isReportUnlocked(observerCount: number): boolean {
 }
 
 /**
- * Aggregate a Subject's Observer responses into an equal-weight "others"
- * Strength Profile — a normalized 0–1 score per tribe, in canonical (tribe
- * `number`) order, matching the shape `score` returns so the comparison view can
- * rank it exactly like the Subject's own profile.
+ * Equal-weight average of already-scored profiles — the pure heart of the
+ * aggregation. Each profile contributes exactly `1/N` per tribe, in canonical
+ * (tribe `number`) order, matching the shape `score` returns. Keyed by slug so
+ * the result never depends on the input arrays' ordering. With no profiles the
+ * result is all zeros.
  *
- * Each element of `responses` is one Observer's selected words. With no
- * responses the profile is all zeros.
+ * Exposed so a caller that already scored each Observer once (e.g. to show a
+ * per-observer drill-down) can average those profiles without re-scoring.
  */
-export function aggregateObservers(
-  responses: readonly (readonly string[])[],
+export function averageProfiles(
+  profiles: readonly TribeScore[][],
 ): TribeScore[] {
-  const count = responses.length;
+  const count = profiles.length;
 
-  // Score every Observer individually, keyed by slug so the sum never depends
-  // on array ordering.
-  const perObserver = responses.map((words) => {
-    const byslug = new Map<string, number>();
-    for (const s of score(words)) byslug.set(s.slug, s.score);
-    return byslug;
+  const bySlug = profiles.map((profile) => {
+    const map = new Map<string, number>();
+    for (const s of profile) map.set(s.slug, s.score);
+    return map;
   });
 
   return tribes.map((tribe) => {
-    const total = perObserver.reduce(
-      (sum, observer) => sum + (observer.get(tribe.slug) ?? 0),
-      0,
-    );
+    const total = bySlug.reduce((sum, map) => sum + (map.get(tribe.slug) ?? 0), 0);
     return {
       slug: tribe.slug,
       name: tribe.name,
       score: count > 0 ? total / count : 0,
     };
   });
+}
+
+/**
+ * Aggregate a Subject's Observer responses into an equal-weight "others"
+ * Strength Profile. Scores every Observer individually through the normalized
+ * scoring core, then averages those profiles equally (see {@link
+ * averageProfiles}). Each element of `responses` is one Observer's selected
+ * words; with no responses the profile is all zeros.
+ */
+export function aggregateObservers(
+  responses: readonly (readonly string[])[],
+): TribeScore[] {
+  return averageProfiles(responses.map((words) => score(words)));
 }
