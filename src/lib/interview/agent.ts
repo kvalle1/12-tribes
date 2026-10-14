@@ -50,41 +50,39 @@ Hard rules:
 
 Call the ${SCORING_TOOL_NAME} tool exactly once with your deltas. Do not reply with prose.`;
 
-function tribeRoster(): string {
-  return tribes
-    .map((t) => `- ${t.slug} — ${t.name} (${t.callSign}): ${t.essence}`)
-    .join("\n");
-}
+const TRIBE_ROSTER = tribes
+  .map((t) => `- ${t.slug} — ${t.name} (${t.callSign}): ${t.essence}`)
+  .join("\n");
 
-function catalogForPrompt(): string {
-  return JSON.stringify(
-    markerCatalog.map((m) => ({
-      id: m.id,
-      tribeSlug: m.tribeSlug,
-      type: m.type,
-      weight: m.weight,
-      signal: m.signal,
-      ...(m.exemplar ? { exemplar: m.exemplar } : {}),
-      ...(m.counterExemplar ? { counterExemplar: m.counterExemplar } : {}),
-    })),
-    null,
-    2,
-  );
-}
+const CATALOG_JSON = JSON.stringify(
+  markerCatalog.map((m) => ({
+    id: m.id,
+    tribeSlug: m.tribeSlug,
+    type: m.type,
+    weight: m.weight,
+    signal: m.signal,
+    ...(m.exemplar ? { exemplar: m.exemplar } : {}),
+    ...(m.counterExemplar ? { counterExemplar: m.counterExemplar } : {}),
+  })),
+  null,
+  2,
+);
 
-/** The static, cacheable `system` context — identical on every Turn. */
-function systemBlocks(): Anthropic.TextBlockParam[] {
-  return [
-    { type: "text", text: RUBRIC },
-    { type: "text", text: `Tribe roster (slug — name):\n${tribeRoster()}` },
-    {
-      type: "text",
-      text: `Marker Catalog (JSON):\n${catalogForPrompt()}`,
-      // Cache the whole tools+system prefix; it repeats every Turn (ADR-0009).
-      cache_control: { type: "ephemeral" },
-    },
-  ];
-}
+/**
+ * The static, cacheable `system` context. Built once at module load — it is
+ * identical every Turn, so computing it once also guarantees the cached prefix
+ * is byte-for-byte stable across requests (ADR-0009 prompt caching).
+ */
+const SYSTEM_BLOCKS: Anthropic.TextBlockParam[] = [
+  { type: "text", text: RUBRIC },
+  { type: "text", text: `Tribe roster (slug — name):\n${TRIBE_ROSTER}` },
+  {
+    type: "text",
+    text: `Marker Catalog (JSON):\n${CATALOG_JSON}`,
+    // Cache the whole tools+system prefix; it repeats every Turn (ADR-0009).
+    cache_control: { type: "ephemeral" },
+  },
+];
 
 const scoringTool: Anthropic.Tool = {
   name: SCORING_TOOL_NAME,
@@ -137,8 +135,10 @@ export function buildScoringRequest(
 ): Anthropic.MessageCreateParamsNonStreaming {
   return {
     model: SCORING_MODEL,
-    max_tokens: 4096,
-    system: systemBlocks(),
+    // Opus 5.5 thinking is always on and counts toward this cap; keep ample
+    // headroom so adaptive reasoning never truncates the tool call.
+    max_tokens: 16000,
+    system: SYSTEM_BLOCKS,
     tools: [scoringTool],
     // Opus 5.5 rejects forced tool_choice; the rubric instructs the single call.
     tool_choice: { type: "auto" },
@@ -151,18 +151,24 @@ export function buildScoringRequest(
   };
 }
 
-/** Pull the raw deltas out of the model's `record_scoring` tool call, if any. */
-export function parseScoringMessage(message: Anthropic.Message): RawScoredDelta[] {
+/**
+ * Pull the raw deltas out of the model's `record_scoring` tool call. Returns
+ * the deltas (possibly empty — the answer legitimately evidenced nothing) when
+ * the tool was called, or `null` when the model did not call the tool at all.
+ * The caller treats `null` as an anomaly rather than a zero score.
+ */
+export function parseScoringMessage(
+  message: Anthropic.Message,
+): RawScoredDelta[] | null {
   for (const block of message.content) {
     if (block.type === "tool_use" && block.name === SCORING_TOOL_NAME) {
       const input = block.input as { deltas?: unknown };
-      if (Array.isArray(input.deltas)) {
-        return input.deltas as RawScoredDelta[];
-      }
-      return [];
+      return Array.isArray(input.deltas)
+        ? (input.deltas as RawScoredDelta[])
+        : [];
     }
   }
-  return [];
+  return null;
 }
 
 let cachedClient: Anthropic | null = null;
@@ -183,5 +189,13 @@ export async function scoreAnswer(
   const client = deps.client ?? defaultClient();
   const message = await client.messages.create(buildScoringRequest(input));
   const raw = parseScoringMessage(message);
+  if (raw === null) {
+    // No tool call means the Turn could not be scored (e.g. a truncated or
+    // prose response). Fail loudly rather than silently recording a complete,
+    // all-zero profile; the Turn is not persisted and can be retried.
+    throw new Error(
+      `Scoring model did not call ${SCORING_TOOL_NAME} (stop_reason: ${message.stop_reason}).`,
+    );
+  }
   return validateScoredDeltas(raw, markerCatalog);
 }

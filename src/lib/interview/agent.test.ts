@@ -54,11 +54,12 @@ describe("parseScoringMessage", () => {
     expect(raw).toEqual([{ markerId: "judah-strength-front", delta: 1 }]);
   });
 
-  it("returns an empty list when the model called no tool", () => {
+  it("returns null when the model called no tool (an anomaly, not a zero score)", () => {
     const message = {
       content: [{ type: "text", text: "I think you're a leader." }],
+      stop_reason: "end_turn",
     } as unknown as Anthropic.Message;
-    expect(parseScoringMessage(message)).toEqual([]);
+    expect(parseScoringMessage(message)).toBeNull();
   });
 
   it("returns an empty list when deltas is absent or not an array", () => {
@@ -101,5 +102,18 @@ describe("scoreAnswer", () => {
       tribeSlug: "judah",
       delta: 1,
     });
+  });
+
+  it("throws when the model does not call the scoring tool (fails loud)", async () => {
+    const message = {
+      content: [{ type: "text", text: "You're clearly a leader." }],
+      stop_reason: "end_turn",
+    } as unknown as Anthropic.Message;
+    const client: ScoringModelClient = {
+      messages: { create: vi.fn().mockResolvedValue(message) },
+    };
+    await expect(scoreAnswer({ question: "Q", answer: "A" }, { client })).rejects.toThrow(
+      /did not call/,
+    );
   });
 });

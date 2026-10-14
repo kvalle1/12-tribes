@@ -63,13 +63,17 @@ function coercePosture(value: unknown): PostureSignal {
  * to `[0, marker.weight]` so a single Marker's contribution stays bounded and
  * never negative. A delta clamped to 0 is kept in the trace (it records that the
  * Marker was considered) but contributes nothing to strength.
+ *
+ * Citations are deduplicated by `markerId`, keeping the strongest delta: the
+ * model output is untrusted, so citing one Marker twice must not let a tribe
+ * accumulate past that Marker's single bounded contribution.
  */
 export function validateScoredDeltas(
   raw: readonly RawScoredDelta[],
   markers: readonly Marker[],
 ): ScoredDelta[] {
   const byId = new Map(markers.map((m) => [m.id, m]));
-  const out: ScoredDelta[] = [];
+  const byMarkerId = new Map<string, ScoredDelta>();
 
   for (const proposed of raw) {
     const id = typeof proposed.markerId === "string" ? proposed.markerId : null;
@@ -77,16 +81,22 @@ export function validateScoredDeltas(
     const marker = byId.get(id);
     if (!marker) continue; // uncatalogued citation — dropped
 
-    out.push({
+    const candidate: ScoredDelta = {
       markerId: marker.id,
       tribeSlug: marker.tribeSlug,
       type: marker.type,
       delta: clampDelta(proposed.delta, marker.weight),
       postureSignal: coercePosture(proposed.postureSignal),
-    });
+    };
+
+    // Collapse repeat citations to one bounded entry (keep the strongest).
+    const existing = byMarkerId.get(marker.id);
+    if (!existing || candidate.delta > existing.delta) {
+      byMarkerId.set(marker.id, candidate);
+    }
   }
 
-  return out;
+  return [...byMarkerId.values()];
 }
 
 /**

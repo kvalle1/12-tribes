@@ -60,11 +60,32 @@ describe("validateScoredDeltas (Marker-constrained — ADR-0003)", () => {
         { markerId: "judah-s", delta: 5, postureSignal: "neutral" }, // over weight 1
         { markerId: "levi-sh", delta: -2, postureSignal: "neutral" }, // negative
         { markerId: "dan-fl", delta: Number.NaN, postureSignal: "neutral" }, // junk
-        { markerId: "dan-fl", delta: 1.5, postureSignal: "neutral" }, // within weight 3
       ],
       FIXTURE,
     );
-    expect(deltas.map((d) => d.delta)).toEqual([1, 0, 0, 1.5]);
+    expect(deltas.map((d) => d.delta)).toEqual([1, 0, 0]);
+  });
+
+  it("keeps a delta that is within the marker's weight", () => {
+    const [d] = validateScoredDeltas(
+      [{ markerId: "dan-fl", delta: 1.5, postureSignal: "neutral" }],
+      FIXTURE,
+    );
+    expect(d.delta).toBe(1.5);
+  });
+
+  it("collapses repeat citations of one Marker to a single bounded entry (keeps the strongest)", () => {
+    const out = validateScoredDeltas(
+      [
+        { markerId: "dan-fl", delta: 1, postureSignal: "neutral" },
+        { markerId: "dan-fl", delta: 3, postureSignal: "active-shadow" },
+        { markerId: "dan-fl", delta: 2, postureSignal: "neutral" },
+      ],
+      FIXTURE,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].delta).toBe(3); // not 1+3+2 = 6; a single Marker stays bounded
+    expect(out[0].postureSignal).toBe("active-shadow");
   });
 
   it("coerces an unknown posture signal to neutral and preserves a valid one", () => {
