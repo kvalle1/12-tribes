@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, as the bare word
+ * selections only — nothing that could identify who answered. Ordered oldest
+ * first, with the opaque row `id` as a tiebreaker so responses sharing a
+ * `createdAt` tick still get a deterministic order and the anonymous drill-down
+ * labels ("Observer 1", "Observer 2", …) stay stable across renders. Feeds the
+ * equal-weight `aggregateObservers` and the 360 comparison report (issue #9).
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
 }
