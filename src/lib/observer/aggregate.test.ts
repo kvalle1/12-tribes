@@ -2,11 +2,7 @@ import { describe, it, expect } from "vitest";
 import { tribes } from "@/lib/tribes";
 import { WORDS } from "@/lib/assessment/words";
 import { score, type TribeScore } from "@/lib/assessment/score";
-import {
-  aggregateObservers,
-  MIN_OBSERVERS,
-  type ObserverAggregation,
-} from "./aggregate";
+import { aggregateObservers, MIN_OBSERVERS } from "./aggregate";
 
 const scoreFor = (slug: string, scores: TribeScore[]) =>
   scores.find((s) => s.slug === slug)!.score;
@@ -137,7 +133,3 @@ describe("aggregateObservers", () => {
     }
   });
 });
-
-// Keeps the exported shape honest for consumers (the report page).
-const _typecheck: ObserverAggregation = aggregateObservers([]);
-void _typecheck;
