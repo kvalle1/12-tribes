@@ -1,10 +1,22 @@
 import Link from "next/link";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
-import { score, deriveResult, type TribeScore } from "@/lib/assessment/score";
+import {
+  score,
+  deriveResult,
+  type TribeScore,
+  type DerivedResult,
+} from "@/lib/assessment/score";
 import {
   aggregateObservers,
   MIN_OBSERVERS,
 } from "@/lib/observer/aggregate";
+
+/**
+ * How far self and others must part (on the shared 0–1 axis) before the "widest
+ * gap" callout is worth making. Below this the two reads are effectively the
+ * same and declaring a "gap" would be noise.
+ */
+const MEANINGFUL_GAP = 0.05;
 
 /**
  * The 360 comparison report (issue #9, ADR-0003): the Subject's own profile set
@@ -64,14 +76,42 @@ export function ComparisonReport({
     .filter((row) => row.self > 0 || row.others > 0)
     .sort((a, b) => b.others - a.others);
 
-  // Alignment lives where self and others agree; growth lives in the gap. Pick
-  // the sharpest of each from the tribes that actually scored, so the callouts
-  // are never about two tribes nobody picked.
-  const byGap = [...rows].sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap));
-  const divergence = byGap[0];
-  const alignment = byGap[byGap.length - 1];
-  const hasContrast =
-    divergence && alignment && divergence.slug !== alignment.slug;
+  // Alignment lives where self and others agree; growth lives in the gap.
+  // Restrict alignment to tribes *both* sides actually read (self and others
+  // non-zero), so the card never celebrates agreement on a tribe nobody picked,
+  // and only call out a divergence once the gap is more than noise. Ties resolve
+  // by canonical order (stable sort over canonically-ordered rows).
+  const sharedRows = rows.filter((row) => row.self > 0 && row.others > 0);
+  const alignment =
+    sharedRows.length > 0
+      ? [...sharedRows].sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap))[0]
+      : undefined;
+  const widest = [...rows].sort(
+    (a, b) => Math.abs(b.gap) - Math.abs(a.gap),
+  )[0];
+  const divergence =
+    widest && Math.abs(widest.gap) >= MEANINGFUL_GAP ? widest : undefined;
+
+  const contrastCards = [
+    alignment && alignment.slug !== divergence?.slug
+      ? { tone: "align" as const, label: "Closest agreement", row: alignment }
+      : null,
+    divergence
+      ? { tone: "diverge" as const, label: "Widest gap", row: divergence }
+      : null,
+  ].filter((card) => card !== null);
+
+  // Order the drill-down by *content* — the tribe each observer saw most — not
+  // by when they answered, so the "Observer n" labels carry no timing signal a
+  // Subject could trace back to a specific person. Deterministic and stable.
+  const observerReads = agg.perObserver
+    .map((scores) => deriveResult(scores))
+    .sort((a, b) => {
+      const an = getTribeBySlug(a.primary.slug)?.number ?? 0;
+      const bn = getTribeBySlug(b.primary.slug)?.number ?? 0;
+      if (an !== bn) return an - bn;
+      return b.primary.score - a.primary.score;
+    });
 
   return (
     <div>
@@ -109,18 +149,20 @@ export function ComparisonReport({
         </span>
       </div>
 
-      {hasContrast && (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <ContrastCard
-            label="Closest agreement"
-            row={alignment}
-            tone="align"
-          />
-          <ContrastCard
-            label="Widest gap"
-            row={divergence}
-            tone="diverge"
-          />
+      {contrastCards.length > 0 && (
+        <div
+          className={`mt-8 grid gap-4 ${
+            contrastCards.length > 1 ? "sm:grid-cols-2" : ""
+          }`}
+        >
+          {contrastCards.map((card) => (
+            <ContrastCard
+              key={card.tone}
+              label={card.label}
+              row={card.row}
+              tone={card.tone}
+            />
+          ))}
         </div>
       )}
 
@@ -166,12 +208,13 @@ export function ComparisonReport({
           Each voice, anonymously
         </p>
         <p className="mt-2 max-w-[520px] text-[14px] text-muted">
-          Every response is fully anonymous — no names, no labels, no order you
-          can trace back to a person. Here is the tribe each one saw most in you.
+          Every response is fully anonymous — no names, no labels, nothing that
+          ties a read back to a person. Here is the tribe each one saw most in
+          you.
         </p>
         <ul className="mt-6 flex flex-col gap-3">
-          {agg.perObserver.map((table, i) => (
-            <ObserverRow key={i} index={i + 1} scores={table} />
+          {observerReads.map((result, i) => (
+            <ObserverRow key={i} index={i + 1} result={result} />
           ))}
         </ul>
       </section>
@@ -249,12 +292,12 @@ function ContrastCard({
 /** One anonymous observer's headline read (Observer n → their primary tribe). */
 function ObserverRow({
   index,
-  scores,
+  result,
 }: {
   index: number;
-  scores: TribeScore[];
+  result: DerivedResult;
 }) {
-  const { primary, secondary } = deriveResult(scores);
+  const { primary, secondary } = result;
   const primaryTribe = getTribeBySlug(primary.slug);
   const secondaryTribe = secondary ? getTribeBySlug(secondary.slug) : undefined;
 
@@ -277,7 +320,7 @@ function ObserverRow({
             className="font-serif text-[16px]"
             style={{ color: accentHex(secondaryTribe.color) }}
           >
-            {secondary!.name}
+            {secondaryTribe.name}
           </span>
         </span>
       )}
