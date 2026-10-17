@@ -1,13 +1,24 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Surface "View your results" only to a signed-in user who has a saved
+  // result (issue #18). Signed-out visitors — and signed-in users who haven't
+  // taken the assessment yet — never see it, so the entry can't dead-end on a
+  // sign-in wall or a missing result.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? Boolean(await getCurrentResult(session.user.id))
+    : false;
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -19,6 +30,9 @@ export default function Home() {
           <div className="flex gap-7 text-[12px] uppercase tracking-[0.18em] text-muted">
             <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
             <Link href="/assessment" className="transition-colors hover:text-ink">The Assessment</Link>
+            {hasResult && (
+              <Link href="/profile" className="transition-colors hover:text-ink">Your Results</Link>
+            )}
             <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
             <AuthNav />
           </div>
@@ -48,12 +62,21 @@ export default function Home() {
             Twelve ancient archetypes to help you find it.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-[22px]">
-            <Link
-              href="/assessment"
-              className="rounded-[2px] bg-ink px-[34px] py-[15px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
-            >
-              Take the Assessment
-            </Link>
+            {hasResult ? (
+              <Link
+                href="/profile"
+                className="rounded-[2px] bg-ink px-[34px] py-[15px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+              >
+                View your results
+              </Link>
+            ) : (
+              <Link
+                href="/assessment"
+                className="rounded-[2px] bg-ink px-[34px] py-[15px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+              >
+                Take the Assessment
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
