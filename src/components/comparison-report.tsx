@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
-import { score, deriveResult, type TribeScore } from "@/lib/assessment/score";
+import { score, deriveResult } from "@/lib/assessment/score";
+import { rankScores } from "@/lib/assessment/ranking";
 import { aggregateObservers } from "@/lib/assessment/aggregate";
 
 /**
@@ -40,30 +41,34 @@ export function ComparisonReport({
   const self = score(selfWords);
   const others = aggregateObservers(observerResponses);
 
-  // A shared scale across both profiles, so "you" and "others" bars for the
-  // same tribe are directly comparable and the longest bar in the whole chart
-  // fills its track.
+  // Rank both profiles with the shared helper (sorted desc, ties keep canonical
+  // order) so this view can never drift from the Self result view's ordering.
+  const selfRanked = rankScores(self);
+  const selfPrimary = selfRanked[0];
+  const othersPrimary = rankScores(others)[0];
+  const primariesAgree = selfPrimary.slug === othersPrimary.slug;
+
+  // One shared scale across both profiles, so a tribe's "you" and "others" bars
+  // — and the divergence figures below — are all read against the single
+  // longest bar in the chart.
   const max = Math.max(...self.map((t) => t.score), ...others.map((t) => t.score));
+  const relative = (value: number) => (max > 0 ? value / max : 0);
 
   const othersBySlug = new Map(others.map((t) => [t.slug, t.score]));
 
-  // Order rows by the Subject's own ranking (their profile is the anchor);
-  // ties keep canonical order, matching the rest of the app.
-  const rows = [...self]
-    .sort((a, b) => b.score - a.score)
-    .map((t) => ({
-      slug: t.slug,
-      name: t.name,
-      self: t.score,
-      others: othersBySlug.get(t.slug) ?? 0,
-    }));
+  // Rows follow the Subject's own ranking (their profile is the anchor), each
+  // carrying both bars' fill fractions on that shared scale.
+  const rows = selfRanked.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    selfRel: relative(t.score),
+    othersRel: relative(othersBySlug.get(t.slug) ?? 0),
+  }));
 
-  const selfPrimary = topTribe(self);
-  const othersPrimary = topTribe(others);
-  const primariesAgree = selfPrimary.slug === othersPrimary.slug;
-
+  // Divergence is measured in the same shared-scale units the bars use, so a
+  // reported gap always matches the visible gap between a tribe's two bars.
   const divergences = rows
-    .map((r) => ({ ...r, diff: r.others - r.self }))
+    .map((r) => ({ slug: r.slug, name: r.name, diff: r.othersRel - r.selfRel }))
     .filter((r) => Math.abs(r.diff) >= DIVERGENCE_THRESHOLD)
     .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
   const seeMore = divergences.filter((d) => d.diff > 0).slice(0, 3);
@@ -131,15 +136,13 @@ export function ComparisonReport({
                 <div className="flex flex-col gap-1.5">
                   <ProfileBar
                     label="You"
-                    score={row.self}
-                    max={max}
+                    relative={row.selfRel}
                     accent={accent}
                     filled
                   />
                   <ProfileBar
                     label="Others"
-                    score={row.others}
-                    max={max}
+                    relative={row.othersRel}
                     accent={accent}
                   />
                 </div>
@@ -263,7 +266,7 @@ function LockedState({ count }: { count: number }) {
           href="/assessment/result"
           className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
         >
-          Share your 360 link
+          Back to your result to share your link
         </Link>
       </div>
     </div>
@@ -272,18 +275,15 @@ function LockedState({ count }: { count: number }) {
 
 function ProfileBar({
   label,
-  score,
-  max,
+  relative,
   accent,
   filled = false,
 }: {
   label: string;
-  score: number;
-  max: number;
+  relative: number;
   accent: string;
   filled?: boolean;
 }) {
-  const relative = max > 0 ? score / max : 0;
   return (
     <div className="flex items-center gap-3">
       <div
@@ -294,7 +294,7 @@ function ProfileBar({
         <div
           className="h-full rounded-full transition-[width]"
           style={{
-            width: `${Math.max(relative * 100, score > 0 ? 3 : 0)}%`,
+            width: `${Math.max(relative * 100, relative > 0 ? 3 : 0)}%`,
             backgroundColor: accent,
             opacity: filled ? 1 : 0.4,
           }}
@@ -356,9 +356,4 @@ function HeadlineTribe({ slug }: { slug: string }) {
       {tribe?.name ?? slug}
     </strong>
   );
-}
-
-/** The top-scoring tribe in a profile; ties keep canonical order. */
-function topTribe(scores: TribeScore[]): TribeScore {
-  return [...scores].sort((a, b) => b.score - a.score)[0];
 }
