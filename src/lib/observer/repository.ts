@@ -76,3 +76,23 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every Observer response for a Subject, oldest first, as the raw selected
+ * words. Ordering is stable (by `createdAt`, then `id` to break same-timestamp
+ * ties) so the anonymous "Observer 1 / 2 / 3" drill-down labels in the
+ * comparison report (issue #9) stay put across reloads. Returns only the words
+ * — never any observer identity, of which none is stored (ADR-0003). The
+ * equal-weight aggregation and the ≥3 unlock gate are applied by the caller.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(observerResponses.createdAt, observerResponses.id);
+
+  return rows.map((row) => row.words);
+}
