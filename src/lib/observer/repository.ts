@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,24 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject as a list of selected-word
+ * arrays, oldest first. Ordering is stable (by `createdAt`) so the anonymous
+ * drill-down labels (Observer 1, Observer 2, …) stay consistent between views.
+ * Returns only the words — never a row id, timestamp, or anything that could tie
+ * a response back to who submitted it — so the 360 read stays anonymous (#9,
+ * ADR-0003). The equal-weight aggregation of these lists is `aggregateObservers`.
+ */
+export async function getObserverResponsesForSubject(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => row.words);
 }
