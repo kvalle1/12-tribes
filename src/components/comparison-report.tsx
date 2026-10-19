@@ -35,7 +35,6 @@ export function ComparisonReport({
   }
 
   const selfScores = score(selfWords);
-  const selfBySlug = new Map(selfScores.map((s) => [s.slug, s.score]));
   const othersBySlug = new Map(agg.average.map((s) => [s.slug, s.score]));
 
   // One row per tribe with both reads and the gap between them. Ranked by the
@@ -43,9 +42,14 @@ export function ComparisonReport({
   // top; a shared max keeps the two bars on one comparable scale.
   const rows = selfScores
     .map((s) => {
-      const self = selfBySlug.get(s.slug) ?? 0;
       const others = othersBySlug.get(s.slug) ?? 0;
-      return { slug: s.slug, name: s.name, self, others, gap: others - self };
+      return {
+        slug: s.slug,
+        name: s.name,
+        self: s.score,
+        others,
+        gap: others - s.score,
+      };
     })
     .sort((a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others));
 
@@ -59,8 +63,7 @@ export function ComparisonReport({
   return (
     <div>
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
-        Your 360 read · {agg.observerCount}{" "}
-        {agg.observerCount === 1 ? "response" : "responses"}
+        Your 360 read · {agg.observerCount} responses
       </p>
       <h2 className="mt-2 font-serif text-[clamp(30px,5vw,44px)] font-semibold leading-[1.05]">
         You, and how others see you
@@ -192,8 +195,8 @@ function CompareBar({
         className="h-2.5 flex-1 overflow-hidden rounded-full bg-hair/50"
         role="img"
         aria-label={`${tribeName}, ${label.toLowerCase()}: ${Math.round(
-          value * 100,
-        )}%`}
+          (value / max) * 100,
+        )}% of the strongest read`}
       >
         <div
           className="h-full rounded-full transition-[width]"

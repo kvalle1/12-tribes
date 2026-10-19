@@ -91,7 +91,10 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt));
+    // `id` breaks ties so same-timestamp rows (defaultNow() has limited
+    // precision) keep a stable oldest-first order across page loads — the
+    // Observer 1/2/3 numbering must not shuffle between visits.
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
 
   return rows.map((row) => row.words);
 }
