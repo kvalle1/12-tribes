@@ -4,6 +4,7 @@ import { score, type TribeScore } from "./score";
 import {
   aggregateObservers,
   isReportUnlocked,
+  orderObserverResponses,
   MIN_OBSERVERS,
 } from "./aggregate";
 
@@ -109,6 +110,50 @@ describe("aggregateObservers", () => {
     aggregateObservers(responses);
     expect(responses).toEqual([["Courageous"]]);
     expect(obs1).toEqual(["Courageous"]);
+  });
+});
+
+describe("orderObserverResponses", () => {
+  const A = ["Courageous", "Honorable"];
+  const B = ["Comforting", "Nurturing"];
+  const C = ["Alert", "Vigilant"];
+
+  it("orders purely by content, independent of input order", () => {
+    // The same set of responses in any submission order yields the same display
+    // order — so the order can't encode who answered when (anonymity, #9).
+    const one = orderObserverResponses([A, B, C]);
+    const two = orderObserverResponses([C, A, B]);
+    const three = orderObserverResponses([B, C, A]);
+    expect(two).toEqual(one);
+    expect(three).toEqual(one);
+  });
+
+  it("is a permutation of the input — same responses, nothing added or dropped", () => {
+    const ordered = orderObserverResponses([C, A, B]);
+    expect(ordered).toHaveLength(3);
+    expect([...ordered].sort()).toEqual([A, B, C].sort());
+  });
+
+  it("is stable for content-identical responses", () => {
+    const dup1 = ["Alert", "Vigilant"];
+    const dup2 = ["Alert", "Vigilant"];
+    const ordered = orderObserverResponses([dup1, dup2, B]);
+    expect(ordered).toHaveLength(3);
+    expect(ordered.filter((r) => r.join() === "Alert,Vigilant")).toHaveLength(2);
+  });
+
+  it("treats word order within a response as the same content", () => {
+    const forward = orderObserverResponses([["Courageous", "Honorable"], B]);
+    const reversed = orderObserverResponses([["Honorable", "Courageous"], B]);
+    expect(reversed.map((r) => [...r].sort())).toEqual(
+      forward.map((r) => [...r].sort()),
+    );
+  });
+
+  it("does not mutate the input", () => {
+    const input = [C, A, B];
+    orderObserverResponses(input);
+    expect(input).toEqual([C, A, B]);
   });
 });
 

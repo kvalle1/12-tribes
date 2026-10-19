@@ -34,6 +34,28 @@ export function isReportUnlocked(observerCount: number): boolean {
   return observerCount >= MIN_OBSERVERS;
 }
 
+/**
+ * Order Observer responses for the anonymous drill-down by their **content**
+ * rather than submission time. The repository returns responses in creation
+ * order; displaying them that way would let a Subject who knows roughly when
+ * each person replied map "Observer 1/2/3" back to an individual, which the
+ * 3-observer floor alone doesn't prevent. Sorting by a stable key derived from
+ * the selected words (order-insensitive) decouples the labels from timing while
+ * staying deterministic across page loads. Responses with identical content are
+ * interchangeable, so their relative order carries no information. Pure; the
+ * input is not mutated.
+ */
+export function orderObserverResponses(
+  responses: readonly (readonly string[])[],
+): string[][] {
+  const keyed = responses.map((words) => ({
+    words: [...words],
+    key: [...words].sort().join("\u0000"),
+  }));
+  keyed.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return keyed.map((entry) => entry.words);
+}
+
 export interface ObserverAggregate {
   /** How many Observers contributed to this aggregate. */
   observerCount: number;

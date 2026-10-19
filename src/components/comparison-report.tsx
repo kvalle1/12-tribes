@@ -45,10 +45,16 @@ export function ComparisonReport({
   const othersTop = deriveResult(agg.average).primary;
   const aligned = selfTop.slug === othersTop.slug;
 
-  // The sharpest disagreement: the tribe where self and others differ most.
+  // The sharpest disagreement: the tribe where self and others differ most. A
+  // small gap is noise — averaging N observers dilutes any single peak — so the
+  // callout only speaks up when the gap clears a modest threshold.
   const divergence = [...rows].sort(
     (a, b) => Math.abs(b.self - b.others) - Math.abs(a.self - a.others),
   )[0];
+  const DIVERGENCE_THRESHOLD = 0.12;
+  const hasDivergence =
+    !!divergence &&
+    Math.abs(divergence.self - divergence.others) >= DIVERGENCE_THRESHOLD;
 
   return (
     <div>
@@ -76,7 +82,7 @@ export function ComparisonReport({
             </>
           )}
         </p>
-        {divergence && Math.abs(divergence.self - divergence.others) > 0 && (
+        {hasDivergence && (
           <p className="text-[15px] leading-relaxed text-muted">
             The widest gap is <TribeName slug={divergence.slug} />:{" "}
             {divergence.others > divergence.self

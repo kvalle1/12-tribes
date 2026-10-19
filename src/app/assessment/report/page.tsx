@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
 import { getObserverResponsesForSubject } from "@/lib/observer/repository";
-import { isReportUnlocked, MIN_OBSERVERS } from "@/lib/assessment/aggregate";
+import {
+  isReportUnlocked,
+  orderObserverResponses,
+  MIN_OBSERVERS,
+} from "@/lib/assessment/aggregate";
 import { ComparisonReport } from "@/components/comparison-report";
 
 /**
@@ -27,7 +31,12 @@ export default async function ComparisonReportPage() {
   const row = await getCurrentResult(session.user.id);
   if (!row) redirect("/assessment");
 
-  const responses = await getObserverResponsesForSubject(session.user.id);
+  // Order the responses by content, not submission time, so the anonymous
+  // drill-down labels can't be mapped back to who replied when (see
+  // `orderObserverResponses`). The equal-weight average is order-independent.
+  const responses = orderObserverResponses(
+    await getObserverResponsesForSubject(session.user.id),
+  );
 
   return (
     <main className="min-h-screen bg-bone text-ink">
