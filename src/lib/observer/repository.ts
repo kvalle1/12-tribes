@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,23 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * All Observer word selections recorded for a Subject, oldest first. Returns
+ * only the `words` arrays — never the row id, timestamp, or anything else — so
+ * nothing identifying leaks and the stable order backs the anonymous
+ * "Observer 1/2/3…" drill-down in the comparison report (issue #9). Feeds
+ * straight into `aggregateObservers`.
+ */
+export async function getObserverResponsesForSubject(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt));
+
+  return rows.map((row) => row.words);
 }
