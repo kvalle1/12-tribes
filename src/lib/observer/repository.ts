@@ -91,7 +91,9 @@ export async function getObserverResponses(
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(observerResponses.createdAt);
+    // `id` breaks ties so the per-observer drill-down labels ("Observer 1 / 2
+    // /…") stay put across loads even when two rows share a `createdAt`.
+    .orderBy(observerResponses.createdAt, observerResponses.id);
 
   return rows.map((row) => row.words);
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -36,7 +37,23 @@ export default async function ComparisonReportPage() {
 
   const responses = await getObserverResponses(session.user.id);
   const observerCount = responses.length;
-  const others = aggregateObservers(responses);
+
+  let body: ReactNode;
+  if (isReportUnlocked(observerCount)) {
+    // Only aggregate once we're actually going to render the comparison; the
+    // locked state needs just the count. `others.observerCount` is the single
+    // source of truth for the number shown alongside the report.
+    const others = aggregateObservers(responses);
+    body = (
+      <ComparisonReport
+        comparison={compareProfiles(score(row.words), others.scores)}
+        perObserver={others.perObserver}
+        observerCount={others.observerCount}
+      />
+    );
+  } else {
+    body = <LockedReport observerCount={observerCount} />;
+  }
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -48,15 +65,7 @@ export default async function ComparisonReportPage() {
           ← Your result
         </Link>
 
-        {isReportUnlocked(observerCount) ? (
-          <ComparisonReport
-            comparison={compareProfiles(score(row.words), others.scores)}
-            perObserver={others.perObserver}
-            observerCount={observerCount}
-          />
-        ) : (
-          <LockedReport observerCount={observerCount} />
-        )}
+        {body}
       </div>
     </main>
   );

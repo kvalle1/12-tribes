@@ -48,18 +48,21 @@ export function aggregateObservers(
   const perObserver = responses.map((words) => score(words));
   const observerCount = perObserver.length;
 
-  const scores: TribeScore[] = tribes.map((tribe, index) => {
-    const total = perObserver.reduce(
-      // `score` returns tribes in canonical order, so column `index` is this tribe.
-      (sum, observer) => sum + observer[index].score,
-      0,
-    );
-    return {
-      slug: tribe.slug,
-      name: tribe.name,
-      score: observerCount > 0 ? total / observerCount : 0,
-    };
-  });
+  // Sum each tribe across observers by slug, so the average never leans on the
+  // column order `score` happens to emit (it is canonical, but we join
+  // explicitly — matching `compareProfiles` — rather than trust the position).
+  const totalBySlug: Record<string, number> = {};
+  for (const observer of perObserver) {
+    for (const s of observer) {
+      totalBySlug[s.slug] = (totalBySlug[s.slug] ?? 0) + s.score;
+    }
+  }
+
+  const scores: TribeScore[] = tribes.map((tribe) => ({
+    slug: tribe.slug,
+    name: tribe.name,
+    score: observerCount > 0 ? (totalBySlug[tribe.slug] ?? 0) / observerCount : 0,
+  }));
 
   return { observerCount, scores, perObserver };
 }
