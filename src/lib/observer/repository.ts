@@ -76,3 +76,24 @@ export async function recordObserverResponse(
 
   return true;
 }
+
+/**
+ * Load every anonymous Observer response for a Subject, as the raw selected-word
+ * lists the equal-weight aggregation (`aggregateObservers`, issue #9) consumes.
+ * Only the words are returned — never a row id, timestamp, or anything that could
+ * de-anonymize an Observer. Ordered oldest-first so the per-observer drill-down
+ * labels ("Observer 1 / 2 / 3…") are stable across page loads.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    // `id` breaks ties so the per-observer drill-down labels ("Observer 1 / 2
+    // /…") stay put across loads even when two rows share a `createdAt`.
+    .orderBy(observerResponses.createdAt, observerResponses.id);
+
+  return rows.map((row) => row.words);
+}
