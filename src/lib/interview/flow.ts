@@ -8,15 +8,14 @@ import type {
 } from "./types";
 
 /**
- * Pure Interview flow logic for the walking-skeleton slice (issue #14).
+ * Pure Interview flow logic: given a Session's state it decides what to show
+ * next and how to fold in a new answer, with no LLM and no persistence.
  *
- * No LLM and no real scoring yet: the questions are hardcoded and the result is
- * a placeholder. This module is the testable seam — given a Session's state it
- * decides what to show next and how to fold in a new answer — so the end-to-end
- * UI → server → persistence path can be proven before any model is wired in.
- *
- * Later slices replace the hardcoded question list and stub result with the
- * Funnel planner, Marker scoring, and Confidence/Stop evaluator (ADRs 0005/0006).
+ * Real Marker scoring (slice 3, issue #16) lives in `agent.ts` + `scoring.ts`
+ * and is driven from `repository.ts` as each answer is recorded — this module
+ * stays pure. The opening question is still authored and a single Turn
+ * completes the Session; the Funnel planner and the multi-Turn Confidence/Stop
+ * loop arrive in later slices (ADRs 0005/0006).
  */
 
 /**
@@ -46,7 +45,7 @@ export function emptyProfile(): StrengthProfile {
 
 /** The initial server-authoritative state for a newly created Session. */
 export function initialState(): InterviewState {
-  return { status: "in_progress", turns: [], profile: emptyProfile() };
+  return { status: "in_progress", turns: [], profile: emptyProfile(), trace: [] };
 }
 
 /**
