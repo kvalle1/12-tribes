@@ -168,14 +168,19 @@ function toPostureSignal(value: unknown): PostureSignal {
  * that doesn't cite a real Marker and bounding every delta by that Marker's
  * weight (ADR-0003). `tribeSlug` and `type` are taken from the catalogued
  * Marker, never from the model, so a mislabelled citation cannot score the wrong
- * tribe. Pure and total: malformed input yields an empty array, never a throw.
+ * tribe. Repeated citations of one Marker in a single answer are accumulated and
+ * then re-capped at the Marker's weight, so no Marker contributes beyond its
+ * bounded weight in a Turn even if the model emits it twice. Pure and total:
+ * malformed input yields an empty array, never a throw.
  */
 export function validateScorePayload(raw: unknown): MarkerDelta[] {
   if (typeof raw !== "object" || raw === null) return [];
   const deltas = (raw as { deltas?: unknown }).deltas;
   if (!Array.isArray(deltas)) return [];
 
-  const validated: MarkerDelta[] = [];
+  // Keyed by Marker id (first-seen order) so repeated citations collapse to one
+  // entry whose total is bounded by the Marker's weight.
+  const byMarker = new Map<string, MarkerDelta>();
   for (const entry of deltas) {
     if (typeof entry !== "object" || entry === null) continue;
     const { markerId, delta, postureSignal } = entry as RawDelta;
@@ -185,17 +190,22 @@ export function validateScorePayload(raw: unknown): MarkerDelta[] {
     if (!marker) continue; // must cite a catalogued Marker
 
     const value = typeof delta === "number" && Number.isFinite(delta) ? delta : 0;
-    const bounded = Math.min(Math.max(0, value), marker.weight);
+    const contribution = Math.max(0, value);
 
-    validated.push({
-      markerId: marker.id,
-      tribeSlug: marker.tribeSlug,
-      type: marker.type,
-      delta: bounded,
-      postureSignal: toPostureSignal(postureSignal),
-    });
+    const existing = byMarker.get(marker.id);
+    if (existing) {
+      existing.delta = Math.min(existing.delta + contribution, marker.weight);
+    } else {
+      byMarker.set(marker.id, {
+        markerId: marker.id,
+        tribeSlug: marker.tribeSlug,
+        type: marker.type,
+        delta: Math.min(contribution, marker.weight),
+        postureSignal: toPostureSignal(postureSignal),
+      });
+    }
   }
-  return validated;
+  return [...byMarker.values()];
 }
 
 /** Lazily constructed so importing this module never requires an API key (builds, tests). */

@@ -77,6 +77,29 @@ describe("validateScorePayload", () => {
     expect(delta.delta).toBe(0);
   });
 
+  it("collapses repeated citations of one Marker, capping its total at the weight", () => {
+    // judah-strength-front has weight 1; two citations must not sum to 2.
+    const deltas = validateScorePayload({
+      deltas: [
+        { markerId: "judah-strength-front", delta: 1 },
+        { markerId: "judah-strength-front", delta: 1 },
+      ],
+    });
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0].delta).toBe(1);
+  });
+
+  it("accumulates repeated citations up to the weight ceiling", () => {
+    // judah-fall-power has weight 3; 2 + 2 accumulates but caps at 3.
+    const [delta] = validateScorePayload({
+      deltas: [
+        { markerId: "judah-fall-power", delta: 2 },
+        { markerId: "judah-fall-power", delta: 2 },
+      ],
+    });
+    expect(delta.delta).toBe(3);
+  });
+
   it("returns an empty array for malformed payloads", () => {
     expect(validateScorePayload(null)).toEqual([]);
     expect(validateScorePayload({})).toEqual([]);
