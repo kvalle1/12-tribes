@@ -1,6 +1,7 @@
 import "server-only";
 
 import { tribes } from "@/lib/tribes";
+import type { MarkerType } from "./types";
 
 /**
  * The Marker Catalog — the rubric the Interview scores answers against
@@ -17,8 +18,9 @@ import { tribes } from "@/lib/tribes";
  * churn and a different audience.
  */
 
-/** Which field of a tribe's profile a Marker is distilled from. */
-export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
+/** Which field of a tribe's profile a Marker is distilled from (defined in the
+ * client-safe `types` module; re-exported here for existing callers). */
+export type { MarkerType };
 
 export interface Marker {
   /** Stable, unique, citable in the score trace. */
