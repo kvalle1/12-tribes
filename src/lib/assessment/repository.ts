@@ -69,3 +69,17 @@ export async function getCurrentResult(
     .limit(1);
   return row ?? null;
 }
+
+/**
+ * Whether the Account has a saved current result, without loading the whole
+ * row. Used by the home page to decide the "View your results" entry (issue
+ * #18) so it needn't fetch the words and share token just to test existence.
+ */
+export async function hasCurrentResult(userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ userId: assessmentResults.userId })
+    .from(assessmentResults)
+    .where(eq(assessmentResults.userId, userId))
+    .limit(1);
+  return row !== undefined;
+}

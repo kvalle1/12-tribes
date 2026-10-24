@@ -2,7 +2,7 @@ import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
 import { auth } from "@/auth";
-import { getCurrentResult } from "@/lib/assessment/repository";
+import { hasCurrentResult } from "@/lib/assessment/repository";
 import { shouldShowResultsEntry } from "@/lib/profile/home-entry";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
@@ -10,18 +10,31 @@ function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
+/**
+ * Resolve whether to show the home "View your results" entry (issue #18).
+ * Best-effort: any failure reading the session or the result falls back to
+ * hiding the entry rather than failing the landing page.
+ */
+async function resolveResultsEntry(): Promise<boolean> {
+  try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    return shouldShowResultsEntry({
+      signedIn: !!userId,
+      hasResult: userId ? await hasCurrentResult(userId) : false,
+    });
+  } catch {
+    return false;
+  }
+}
+
 export default async function Home() {
   // Surface "View your results" only to a signed-in Account that already has a
-  // saved result (issue #18). Reading the session opts this route into dynamic
-  // rendering; we only hit the DB when there's actually a session to key on.
-  const session = await auth();
-  const hasResult = session?.user?.id
-    ? (await getCurrentResult(session.user.id)) !== null
-    : false;
-  const showResultsEntry = shouldShowResultsEntry({
-    signedIn: !!session?.user?.id,
-    hasResult,
-  });
+  // saved result (issue #18). Reading the session opts this route out of static
+  // rendering into dynamic; we only hit the DB when there's actually a session
+  // to key on. The lookup is best-effort — this is the public landing page, so
+  // an auth/DB hiccup must not 500 it just to decide an optional link.
+  const showResultsEntry = await resolveResultsEntry();
 
   return (
     <main className="min-h-screen bg-bone text-ink">
