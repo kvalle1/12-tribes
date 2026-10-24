@@ -40,6 +40,31 @@ export function scoreEachObserver(
 }
 
 /**
+ * The equal-weight average of already-scored per-observer profiles, as a
+ * normalized `TribeScore[]` in canonical tribe order. Each input vector must be
+ * in canonical order (as `score`/`scoreEachObserver` produce). Returns an
+ * all-zero profile for no observers. Split out from `aggregateObservers` so a
+ * caller that already holds the per-observer vectors (e.g. to also show the
+ * drill-down) can average them without scoring every observer a second time.
+ */
+export function averageProfiles(
+  perObserver: readonly TribeScore[][],
+): TribeScore[] {
+  const count = perObserver.length;
+
+  return tribes.map((tribe, index) => {
+    // Each vector is in canonical order, so column `index` is this tribe across
+    // every observer — sum that column and divide by the observer count.
+    const total = perObserver.reduce((sum, obs) => sum + obs[index].score, 0);
+    return {
+      slug: tribe.slug,
+      name: tribe.name,
+      score: count > 0 ? total / count : 0,
+    };
+  });
+}
+
+/**
  * The equal-weight average "others" profile across all Observer responses, as a
  * normalized `TribeScore[]` in canonical tribe order (the same shape `score`
  * returns, so it drops straight into `rankScores` and the result view). Returns
@@ -48,17 +73,5 @@ export function scoreEachObserver(
 export function aggregateObservers(
   responses: readonly (readonly string[])[],
 ): TribeScore[] {
-  const perObserver = scoreEachObserver(responses);
-  const count = perObserver.length;
-
-  return tribes.map((tribe, index) => {
-    // `score` returns tribes in canonical order, so column `index` is this tribe
-    // across every observer — sum that column and divide by the observer count.
-    const total = perObserver.reduce((sum, obs) => sum + obs[index].score, 0);
-    return {
-      slug: tribe.slug,
-      name: tribe.name,
-      score: count > 0 ? total / count : 0,
-    };
-  });
+  return averageProfiles(scoreEachObserver(responses));
 }

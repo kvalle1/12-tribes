@@ -4,6 +4,7 @@ import { WORDS } from "@/lib/assessment/words";
 import { score } from "@/lib/assessment/score";
 import {
   aggregateObservers,
+  averageProfiles,
   scoreEachObserver,
   hasEnoughObservers,
   MIN_OBSERVERS_TO_UNLOCK,
@@ -89,6 +90,22 @@ describe("aggregateObservers", () => {
       expect(s.score).toBeGreaterThanOrEqual(0);
       expect(s.score).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("averageProfiles", () => {
+  it("averages pre-scored vectors identically to aggregateObservers", () => {
+    const responses = [wordsForTribe("levi"), ["Courageous"], ["Bold"]];
+    const perObserver = scoreEachObserver(responses);
+    // Averaging the already-scored vectors avoids re-scoring every observer and
+    // must match scoring-then-aggregating exactly.
+    expect(averageProfiles(perObserver)).toEqual(aggregateObservers(responses));
+  });
+
+  it("returns an all-zero canonical profile for no observers", () => {
+    const agg = averageProfiles([]);
+    expect(agg.map((s) => s.slug)).toEqual(tribes.map((t) => t.slug));
+    expect(agg.every((s) => s.score === 0)).toBe(true);
   });
 });
 

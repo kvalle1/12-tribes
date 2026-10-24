@@ -3,7 +3,7 @@ import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { rankScores } from "@/lib/assessment/ranking";
 import { score } from "@/lib/assessment/score";
 import {
-  aggregateObservers,
+  averageProfiles,
   scoreEachObserver,
   hasEnoughObservers,
   MIN_OBSERVERS_TO_UNLOCK,
@@ -38,8 +38,10 @@ export function ComparisonReport({
   }
 
   const selfScores = score(selfWords);
-  const otherScores = aggregateObservers(observerWordLists);
+  // Score each observer once, then average those vectors for the "others" read,
+  // so no observer is scored twice.
   const perObserver = scoreEachObserver(observerWordLists);
+  const otherScores = averageProfiles(perObserver);
 
   const otherBySlug = new Map(otherScores.map((s) => [s.slug, s.score]));
 
@@ -59,7 +61,7 @@ export function ComparisonReport({
         gap: others - self,
       };
     })
-    .sort((a, b) => (b.self + b.others) / 2 - (a.self + a.others) / 2);
+    .sort((a, b) => b.self + b.others - (a.self + a.others));
 
   // Scale every bar against the single largest read on the page so the chart
   // stays readable even when all normalized scores are small.
@@ -73,8 +75,10 @@ export function ComparisonReport({
   const agree = selfPrimary.slug === othersPrimary.slug;
 
   // The sharpest divergences (where others and you most disagree), either way.
+  // Filter on the rounded point magnitude the UI actually shows, so a gap that
+  // would display as "0 pts" is never surfaced as a divergence.
   const divergences = [...rows]
-    .filter((r) => Math.abs(r.gap) > 0.001)
+    .filter((r) => Math.round(Math.abs(r.gap) * 100) >= 1)
     .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
     .slice(0, 2);
 
@@ -122,9 +126,8 @@ export function ComparisonReport({
                 {d.gap > 0 ? "Others see more " : "You see more "}
                 <AccentName slug={d.slug} />{" "}
                 <span className="text-faint">
-                  ({d.gap > 0 ? "+" : "−"}
-                  {Math.round(Math.abs(d.gap) * 100)} pts
-                  {d.gap > 0 ? " from them" : " from you"})
+                  ({Math.round(Math.abs(d.gap) * 100)} pts
+                  {d.gap > 0 ? " stronger from them" : " stronger from you"})
                 </span>
               </li>
             ))}
@@ -294,7 +297,7 @@ function CompareBar({
       <div
         className="h-2.5 flex-1 overflow-hidden rounded-full bg-hair/50"
         role="img"
-        aria-label={`${label}: ${Math.round(value * 100)} of 100`}
+        aria-label={`${label}: ${Math.round(relative * 100)}% of the strongest read`}
       >
         <div
           className="h-full rounded-full transition-[width]"
