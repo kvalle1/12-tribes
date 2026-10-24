@@ -1,13 +1,28 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { getCurrentResult } from "@/lib/assessment/repository";
+import { shouldShowResultsEntry } from "@/lib/profile/home-entry";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+export default async function Home() {
+  // Surface "View your results" only to a signed-in Account that already has a
+  // saved result (issue #18). Reading the session opts this route into dynamic
+  // rendering; we only hit the DB when there's actually a session to key on.
+  const session = await auth();
+  const hasResult = session?.user?.id
+    ? (await getCurrentResult(session.user.id)) !== null
+    : false;
+  const showResultsEntry = shouldShowResultsEntry({
+    signedIn: !!session?.user?.id,
+    hasResult,
+  });
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -54,6 +69,14 @@ export default function Home() {
             >
               Take the Assessment
             </Link>
+            {showResultsEntry && (
+              <Link
+                href="/profile"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
