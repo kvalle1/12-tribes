@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,42 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load every anonymous Observer response for a Subject, as word-lists only, for
+ * the 360 comparison report (issue #9). Rows are ordered oldest-first (by
+ * `createdAt`, then `id` to break same-timestamp ties) so the ordering is stable
+ * across loads — that fixed order is what lets the report label them "Observer
+ * 1", "Observer 2", … deterministically. Nothing identifying is selected or
+ * returned: only the words, never the row id, timestamp, or any observer
+ * identity (there is none to return — ADR-0003). The equal-weight aggregation in
+ * `./aggregate` consumes exactly this shape.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<string[][]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+
+  return rows.map((row) => row.words);
+}
+
+/**
+ * How many Observers have responded for a Subject. Backs the result-page entry
+ * into the comparison report ("2 of 3 responses") without loading every row's
+ * words, and lets the caller decide whether the report has unlocked.
+ */
+export async function countObserverResponses(
+  subjectId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId));
+
+  return row?.value ?? 0;
 }

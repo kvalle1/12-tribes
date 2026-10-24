@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCurrentResult } from "@/lib/assessment/repository";
+import { countObserverResponses } from "@/lib/observer/repository";
+import { hasEnoughObservers, MIN_OBSERVERS_TO_UNLOCK } from "@/lib/observer/aggregate";
 import { ResultView } from "@/components/result-view";
 import { ObserverShareLink } from "@/components/observer-share-link";
 
@@ -31,6 +33,9 @@ export default async function AssessmentResultPage() {
   // be skewed by a forwarded `Host` header; fall back to the request host, then
   // to a relative path, when it isn't set.
   const shareUrl = `${await observerLinkBase()}/a/${row.shareToken}`;
+
+  const observerCount = await countObserverResponses(session.user.id);
+  const comparisonUnlocked = hasEnoughObservers(observerCount);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -61,6 +66,29 @@ export default async function AssessmentResultPage() {
             you&rsquo;ll see how their read compares with your own.
           </p>
           <ObserverShareLink url={shareUrl} />
+
+          <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {comparisonUnlocked ? (
+              <Link
+                href="/assessment/comparison"
+                className="rounded-[2px] bg-ink px-[26px] py-[12px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+              >
+                See how others see you
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/assessment/comparison"
+                  className="border-b border-hair pb-1 text-[13px] tracking-[0.08em] text-muted transition-colors hover:border-gold hover:text-ink"
+                >
+                  Comparison report
+                </Link>
+                <span className="text-[12px] uppercase tracking-[0.14em] text-faint">
+                  Unlocks at {MIN_OBSERVERS_TO_UNLOCK} · {observerCount} so far
+                </span>
+              </>
+            )}
+          </div>
         </section>
       </div>
     </main>
