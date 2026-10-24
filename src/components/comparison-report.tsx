@@ -18,6 +18,23 @@ import type { TribeScore } from "@/lib/assessment/score";
 /** A tribe whose self/others scores diverge enough to be worth calling out. */
 const DIVERGENCE_THRESHOLD = 0.08;
 
+/**
+ * The shared eyebrow + heading block for the 360 report, used by both the
+ * unlocked report and the locked state so their styling stays in one place.
+ */
+export function ReportHeading({ title }: { title: string }) {
+  return (
+    <>
+      <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
+        Your 360 read
+      </p>
+      <h1 className="mt-3 font-serif text-[clamp(32px,5vw,48px)] font-semibold leading-[1.05]">
+        {title}
+      </h1>
+    </>
+  );
+}
+
 export function ComparisonReport({
   self,
   others,
@@ -31,7 +48,6 @@ export function ComparisonReport({
   primarySlug: string;
   secondarySlug?: string | null;
 }) {
-  const selfBySlug = new Map(self.map((s) => [s.slug, s.score]));
   const othersBySlug = new Map(others.map((s) => [s.slug, s.score]));
 
   // A shared scale so the two bars are directly comparable: the top score across
@@ -45,8 +61,7 @@ export function ComparisonReport({
   // Rows sorted by whichever view rates the tribe highest, so the tribes that
   // matter in either profile surface first. `self` already covers all twelve
   // tribes in canonical order, so its slugs are the full, ordered list.
-  const rows = self.map(({ slug }) => {
-    const selfScore = selfBySlug.get(slug) ?? 0;
+  const rows = self.map(({ slug, score: selfScore }) => {
     const othersScore = othersBySlug.get(slug) ?? 0;
     return {
       slug,
@@ -67,12 +82,7 @@ export function ComparisonReport({
 
   return (
     <div>
-      <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
-        Your 360 read
-      </p>
-      <h1 className="mt-3 font-serif text-[clamp(32px,5vw,48px)] font-semibold leading-[1.05]">
-        You, and how others see you
-      </h1>
+      <ReportHeading title="You, and how others see you" />
       <p className="mt-4 max-w-[560px] text-[15px] text-muted">
         The lit bar is your own read; the outline bar is the equal-weight average
         of {perObserver.length} anonymous observers. The gap between them is where

@@ -9,7 +9,7 @@ import {
   isReportUnlocked,
   MIN_OBSERVERS_FOR_REPORT,
 } from "@/lib/observer/aggregate";
-import { ComparisonReport } from "@/components/comparison-report";
+import { ComparisonReport, ReportHeading } from "@/components/comparison-report";
 
 /**
  * The 360 comparison report (issue #9, ADR-0003): the Subject's own profile
@@ -70,12 +70,7 @@ function LockedState({ observerCount }: { observerCount: number }) {
   const remaining = MIN_OBSERVERS_FOR_REPORT - observerCount;
   return (
     <div>
-      <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
-        Your 360 read
-      </p>
-      <h1 className="mt-3 font-serif text-[clamp(32px,5vw,48px)] font-semibold leading-[1.05]">
-        Not unlocked yet
-      </h1>
+      <ReportHeading title="Not unlocked yet" />
       <p className="mt-5 max-w-[540px] text-[16px] text-muted">
         Your comparison report opens once at least {MIN_OBSERVERS_FOR_REPORT}{" "}
         people have described you. So far{" "}
@@ -99,16 +94,10 @@ function LockedState({ observerCount }: { observerCount: number }) {
 
       <div className="mt-10 flex flex-wrap items-center gap-[22px]">
         <Link
-          href="/assessment/result"
+          href="/assessment/result#share"
           className="rounded-[2px] bg-ink px-[30px] py-[13px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
         >
           Get your share link
-        </Link>
-        <Link
-          href="/assessment/result"
-          className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
-        >
-          ← Back to your result
         </Link>
       </div>
     </div>

@@ -48,7 +48,7 @@ export default async function AssessmentResultPage() {
           secondarySlug={row.secondarySlug}
         />
 
-        <section className="mt-14 border-t border-hair pt-8">
+        <section id="share" className="mt-14 border-t border-hair pt-8">
           <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
             Get a 360 read
           </p>
@@ -65,7 +65,7 @@ export default async function AssessmentResultPage() {
             href="/assessment/compare"
             className="mt-5 inline-block border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
           >
-            See how others see you →
+            View your 360 comparison →
           </Link>
         </section>
       </div>
