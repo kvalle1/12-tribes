@@ -106,9 +106,9 @@ function Unlocked({
   return (
     <div className="mt-5">
       <p className="max-w-[520px] text-[15px] text-muted">
-        Based on {observerCount} anonymous reads. Each person&rsquo;s answers are
-        weighted equally, so a longer list of words never counts for more than a
-        shorter one.
+        Based on {observerCount} anonymous reads. Each person&rsquo;s read is
+        scored on its own and the results are averaged one-for-one, so every
+        Observer counts equally — no one&rsquo;s answers are pooled together.
       </p>
 
       {(comparison.topAgreement || comparison.topDivergence) && (
@@ -214,12 +214,12 @@ function PairedRow({ row }: { row: ComparisonRow }) {
         <Bar
           pct={selfPct}
           colorVar="var(--ink)"
-          label={`You see ${row.name} at ${Math.round(row.selfRelative * 100)}% of your top score`}
+          label={`You see ${row.name} at ${Math.round(row.selfRelative * 100)}% of the strongest read`}
         />
         <Bar
           pct={othersPct}
           colorVar="var(--gold)"
-          label={`Others see ${row.name} at ${Math.round(row.othersRelative * 100)}% of the top score`}
+          label={`Others see ${row.name} at ${Math.round(row.othersRelative * 100)}% of the strongest read`}
         />
       </div>
     </li>

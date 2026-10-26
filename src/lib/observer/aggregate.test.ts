@@ -57,11 +57,11 @@ describe("aggregateObservers", () => {
     expect(scoreFor("levi", agg.average)).toBeCloseTo(0.5);
   });
 
-  it("gives a word-heavy observer no more influence than a word-light one", () => {
+  it("counts each observer once (1/N) rather than pooling their words", () => {
     // Observer A picks a single judah-only word; Observer B maxes issachar with
-    // ten words. Each observer is normalized first, so issachar — which only B
-    // scored — averages to exactly 0.5, not the ~1.0 a pooled scoring would give
-    // the word-heavy observer.
+    // ten words. Each observer is scored on its own and averaged 1/N, so
+    // issachar — which only B scored — averages to exactly 0.5, not the ~1.0 a
+    // pooled scoring would give the word-heavy observer.
     const light = ["Courageous"]; // judah-only, one word
     const heavy = wordsForTribe("issachar"); // ten words
     const agg = aggregateObservers([response(light), response(heavy)]);

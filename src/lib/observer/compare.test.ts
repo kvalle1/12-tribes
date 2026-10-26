@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { tribes } from "@/lib/tribes";
 import type { TribeScore } from "@/lib/assessment/score";
-import { compareProfiles, DIVERGENCE_THRESHOLD } from "./compare";
+import {
+  compareProfiles,
+  AGREEMENT_THRESHOLD,
+  DIVERGENCE_THRESHOLD,
+} from "./compare";
 
 /** Build a canonical-order score table, defaulting unlisted tribes to 0. */
 const tableFrom = (overrides: Record<string, number>): TribeScore[] =>
@@ -111,6 +115,16 @@ describe("compareProfiles", () => {
     expect(comparison.topDivergence?.slug).toBe("dan");
   });
 
+  it("does not call a faintly-shared tribe an agreement", () => {
+    // Both reads peak elsewhere (self judah, others dan at the shared max 1.0);
+    // levi is shared but tiny (0.05), far below AGREEMENT_THRESHOLD of the peak.
+    const comparison = compareProfiles(
+      tableFrom({ judah: 1.0, levi: 0.05 }),
+      tableFrom({ dan: 1.0, levi: 0.05 }),
+    );
+    expect(comparison.topAgreement).toBeUndefined();
+  });
+
   it("reports no agreement or divergence for two empty profiles", () => {
     const comparison = compareProfiles(tableFrom({}), tableFrom({}));
     expect(comparison.topAgreement).toBeUndefined();
@@ -119,8 +133,10 @@ describe("compareProfiles", () => {
     expect(comparison.rows.every((r) => r.selfRelative === 0)).toBe(true);
   });
 
-  it("exposes a tunable divergence threshold", () => {
+  it("exposes tunable agreement and divergence thresholds", () => {
     expect(DIVERGENCE_THRESHOLD).toBeGreaterThan(0);
     expect(DIVERGENCE_THRESHOLD).toBeLessThan(1);
+    expect(AGREEMENT_THRESHOLD).toBeGreaterThan(0);
+    expect(AGREEMENT_THRESHOLD).toBeLessThanOrEqual(1);
   });
 });

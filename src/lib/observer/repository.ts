@@ -78,18 +78,23 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load the anonymous Observer responses recorded for a Subject, oldest first, so
- * the equal-weight aggregation (issue #9) can score and average them. Returns
- * only the selected `words` — never any identity — in a stable order, so the
- * anonymous "Observer 1 … N" drill-down numbering stays consistent across
- * renders. Returns an empty array when no one has responded yet.
+ * Load the anonymous Observer responses recorded for a Subject so the
+ * equal-weight aggregation (issue #9) can score and average them. Returns only
+ * the selected `words` — never any identity.
+ *
+ * Ordered by the opaque random `id` (a v4 UUID), not by `createdAt`: that gives
+ * a stable order for consistent "Observer 1 … N" drill-down numbering across
+ * renders, while deliberately *not* following arrival time — so a Subject can't
+ * read "Observer 1" as whoever they asked first. Returns an empty array when no
+ * one has responded yet.
  */
 export async function getObserverResponses(
   subjectId: string,
 ): Promise<{ words: string[] }[]> {
-  return db
+  const rows = await db
     .select({ words: observerResponses.words })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
-    .orderBy(asc(observerResponses.createdAt), asc(observerResponses.id));
+    .orderBy(asc(observerResponses.id));
+  return rows;
 }

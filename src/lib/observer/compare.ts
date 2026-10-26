@@ -17,6 +17,14 @@ import type { TribeScore } from "@/lib/assessment/score";
  */
 export const DIVERGENCE_THRESHOLD = 0.33;
 
+/**
+ * A tribe only counts as a point of *agreement* when both reads place it at
+ * least this fraction of the strongest signal — otherwise a tribe both sides
+ * barely registered (a stray shared word) could be announced as something "you
+ * both see strongly," which would be misleading.
+ */
+export const AGREEMENT_THRESHOLD = 0.5;
+
 export interface ComparisonRow {
   slug: string;
   name: string;
@@ -39,7 +47,8 @@ export interface ProfileComparison {
   rows: ComparisonRow[];
   /**
    * The tribe the Subject and others most agree is strong — the highest shared
-   * floor (`min(self, others)`). Undefined when no tribe is seen by both.
+   * floor (`min(self, others)`) among tribes that clear `AGREEMENT_THRESHOLD`.
+   * Undefined when no tribe is seen strongly by both.
    */
   topAgreement?: ComparisonRow;
   /**
@@ -89,9 +98,16 @@ export function compareProfiles(
     (a, b) => Math.max(b.self, b.others) - Math.max(a.self, a.others),
   );
 
-  const topAgreement = rows
-    .filter((r) => Math.min(r.self, r.others) > 0)
-    .sort((a, b) => Math.min(b.self, b.others) - Math.min(a.self, a.others))[0];
+  const topAgreement =
+    sharedMax > 0
+      ? rows
+          .filter(
+            (r) => Math.min(r.self, r.others) / sharedMax >= AGREEMENT_THRESHOLD,
+          )
+          .sort(
+            (a, b) => Math.min(b.self, b.others) - Math.min(a.self, a.others),
+          )[0]
+      : undefined;
 
   const topDivergence = rows
     .filter((r) => r.divergent)
