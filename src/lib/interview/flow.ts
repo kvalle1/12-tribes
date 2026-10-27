@@ -1,7 +1,7 @@
 import { tribes } from "@/lib/tribes";
 import { evaluate } from "./confidence";
 import { CALIBRATION_QUESTIONS, DILEMMA_PROMPT, planNextTurn } from "./funnel";
-import { applyDeltas } from "./scoring";
+import { applyDeltas, routeMaturedFallLines } from "./scoring";
 import type {
   Dilemma,
   DilemmaChoice,
@@ -120,7 +120,11 @@ export function applyTurn(
     ? { question: state.pendingQuestion, answer, dilemma: state.pendingDilemma, choice }
     : { question: state.pendingQuestion, answer };
   const turns = [...state.turns, turn];
-  const applied = applyDeltas(state.profile, scored.deltas, turnIndex);
+  // Matured fall-lines route to the tribe's oil Marker before folding in
+  // (ADR-0004): the strength is unchanged, but Posture moves toward integrated
+  // and the trace records the cross-confirming oil Marker.
+  const deltas = routeMaturedFallLines(scored.deltas);
+  const applied = applyDeltas(state.profile, deltas, turnIndex);
   const profile = applied.profile;
   const trace = [...state.trace, ...applied.trace];
 
