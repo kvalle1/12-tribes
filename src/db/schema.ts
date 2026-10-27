@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
+  Dilemma,
   InterviewResult,
   InterviewTurn,
   ScoreTraceEntry,
@@ -157,6 +158,9 @@ export const interviewSessions = pgTable("interview_session", {
   // The question awaiting an answer, persisted each Turn so a refresh resumes
   // at the right question. Null once the Interview is complete.
   pendingQuestion: text("pendingQuestion"),
+  // Set when the pending Turn is a Dilemma (ADR-0008): its two unlabelled
+  // situations. Null for a free-text question or once complete.
+  pendingDilemma: jsonb("pendingDilemma").$type<Dilemma>(),
   // Primary/Contender result (ADR-0006), set once the Stop Condition is met.
   // Rows completed before slice 4 hold a legacy stub shape here instead.
   result: jsonb("result").$type<InterviewResult>(),

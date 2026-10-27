@@ -66,10 +66,30 @@ export interface ScoreTraceEntry {
   postureSignal: PostureSignal;
 }
 
-/** One completed exchange: the question the participant was shown and their free-text answer. */
+/**
+ * A forced-choice tie-breaker (ADR-0008): two concrete situations with **no
+ * tribe labels**. The scored signal is the trade-off the participant makes plus
+ * their free-text "why" — never the bare option picked — so nothing here maps
+ * an option to a tribe.
+ */
+export interface Dilemma {
+  situationA: string;
+  situationB: string;
+}
+
+/** Which of a Dilemma's two situations the participant chose. */
+export type DilemmaChoice = "A" | "B";
+
+/**
+ * One completed exchange: the prompt the participant was shown and their
+ * free-text answer. A Dilemma Turn also carries the two situations and the
+ * option chosen; `answer` is then the participant's reasoning.
+ */
 export interface InterviewTurn {
   question: string;
   answer: string;
+  dilemma?: Dilemma;
+  choice?: DilemmaChoice;
 }
 
 /**
@@ -98,11 +118,14 @@ export interface InterviewState {
   trace: ScoreTraceEntry[];
   /** The question awaiting an answer; null once the Interview is complete. */
   pendingQuestion: string | null;
+  /** Set when the pending Turn is a Dilemma rather than a free-text question. */
+  pendingDilemma: Dilemma | null;
   /** Set once the Stop Condition is met. */
   result: InterviewResult | null;
 }
 
-/** What the participant should be shown next: another question, or the result. */
+/** What the participant should be shown next: a question, a Dilemma, or the result. */
 export type NextTurn =
   | { kind: "question"; prompt: string; questionNumber: number }
+  | { kind: "dilemma"; prompt: string; dilemma: Dilemma; questionNumber: number }
   | { kind: "result" };

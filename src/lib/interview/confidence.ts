@@ -56,7 +56,7 @@ export function marginIsDecisive(leader: number, runner: number): boolean {
 }
 
 /** Tribes ordered strongest first; ties break by slug so ranking is deterministic. */
-function rank(profile: StrengthProfile): { slug: string; score: number }[] {
+export function rank(profile: StrengthProfile): { slug: string; score: number }[] {
   return Object.entries(profile)
     .map(([slug, score]) => ({ slug, score }))
     .sort((a, b) => b.score - a.score || (a.slug < b.slug ? -1 : 1));
@@ -91,26 +91,39 @@ export function summarize(profile: StrengthProfile): InterviewResult {
 }
 
 /**
- * The leader after each of the first `turnCount` Turns, replayed from the score
- * trace — so ranking stability needs no extra persisted state. A Turn with no
- * evidence yet has a null leader.
+ * The cumulative profile after each of the first `turnCount` Turns, replayed
+ * from the score trace — so per-Turn history needs no extra persisted state.
+ * Only tribes with evidence so far appear in each snapshot.
  */
-export function rankingHistory(
+export function profileHistory(
   trace: readonly ScoreTraceEntry[],
   turnCount: number,
-): (string | null)[] {
+): StrengthProfile[] {
   const running: StrengthProfile = {};
-  const leaders: (string | null)[] = [];
+  const snapshots: StrengthProfile[] = [];
   for (let turn = 0; turn < turnCount; turn++) {
     for (const entry of trace) {
       if (entry.turnIndex === turn) {
         running[entry.tribeSlug] = (running[entry.tribeSlug] ?? 0) + entry.delta;
       }
     }
-    const top = rank(running)[0];
-    leaders.push(top && top.score > 0 ? top.slug : null);
+    snapshots.push({ ...running });
   }
-  return leaders;
+  return snapshots;
+}
+
+/**
+ * The leader after each of the first `turnCount` Turns, replayed from the score
+ * trace. A Turn with no evidence yet has a null leader.
+ */
+export function rankingHistory(
+  trace: readonly ScoreTraceEntry[],
+  turnCount: number,
+): (string | null)[] {
+  return profileHistory(trace, turnCount).map((profile) => {
+    const top = rank(profile)[0];
+    return top && top.score > 0 ? top.slug : null;
+  });
 }
 
 export interface Verdict {

@@ -10,7 +10,8 @@ import {
   OPENING_QUESTION,
   type ScoredAnswer,
 } from "./flow";
-import type { InterviewState, MarkerDelta } from "./types";
+import { CALIBRATION_QUESTIONS, CALIBRATION_TURNS, DILEMMA_PROMPT } from "./funnel";
+import type { Dilemma, InterviewState, MarkerDelta } from "./types";
 
 const delta = (tribeSlug: string, value: number): MarkerDelta => ({
   markerId: `${tribeSlug}-m`,
@@ -34,9 +35,14 @@ const tied: ScoredAnswer = {
 
 function run(turns: number, scored: ScoredAnswer): InterviewState {
   let state = initialState();
-  for (let i = 0; i < turns; i++) state = applyTurn(state, `answer ${i}`, scored);
+  for (let i = 0; i < turns; i++) state = applyTurn(state, `answer ${i}`, scored, "A");
   return state;
 }
+
+const dilemma: Dilemma = {
+  situationA: "Stay late to finish the plan yourself.",
+  situationB: "Hand it off and protect the team's evening.",
+};
 
 describe("emptyProfile", () => {
   it("covers all 12 tribes, zeroed, keyed by slug", () => {
@@ -75,14 +81,71 @@ describe("applyTurn", () => {
     expect(state.trace.map((t) => t.turnIndex)).toEqual([0, 0, 0]);
   });
 
-  it("queues the agent's proposed next question", () => {
-    const state = applyTurn(initialState(), "a", { ...decisive, nextQuestion: "What drains you?" });
-    expect(nextTurn(state)).toEqual({ kind: "question", prompt: "What drains you?", questionNumber: 2 });
+  it("asks the fixed Calibration questions first, ignoring the agent's proposal", () => {
+    let state = initialState();
+    for (let i = 1; i < CALIBRATION_TURNS; i++) {
+      state = applyTurn(state, "a", { ...decisive, nextQuestion: "Agent question?" });
+      expect(state.pendingQuestion).toBe(CALIBRATION_QUESTIONS[i]);
+    }
+  });
+
+  it("queues the agent's proposed question once Discrimination begins", () => {
+    const state = run(CALIBRATION_TURNS - 1, decisive);
+    const next = applyTurn(state, "a", { ...decisive, nextQuestion: "What drains you?" });
+    expect(nextTurn(next)).toEqual({
+      kind: "question",
+      prompt: "What drains you?",
+      questionNumber: CALIBRATION_TURNS + 1,
+    });
   });
 
   it("falls back to an authored question when the agent proposes none", () => {
-    const state = applyTurn(initialState(), "a", { ...decisive, nextQuestion: null });
-    expect(state.pendingQuestion).toBe(FALLBACK_QUESTIONS[0]);
+    const state = run(CALIBRATION_TURNS - 1, decisive);
+    const next = applyTurn(state, "a", { ...decisive, nextQuestion: null });
+    expect(next.pendingQuestion).toBe(FALLBACK_QUESTIONS[(CALIBRATION_TURNS - 1) % FALLBACK_QUESTIONS.length]);
+  });
+
+  it("queues a Dilemma when a stubborn tie persists and the agent drafted one", () => {
+    const state = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    expect(nextTurn(state)).toEqual({
+      kind: "dilemma",
+      prompt: DILEMMA_PROMPT,
+      dilemma,
+      questionNumber: CALIBRATION_TURNS + 1,
+    });
+  });
+
+  it("does not queue a Dilemma without a stubborn tie, even if one was drafted", () => {
+    const state = run(CALIBRATION_TURNS, { ...decisive, dilemma });
+    expect(state.pendingDilemma).toBeNull();
+  });
+
+  it("falls back to a question when a tie calls for a Dilemma but none was drafted", () => {
+    const state = run(CALIBRATION_TURNS, tied);
+    expect(state.pendingDilemma).toBeNull();
+    expect(nextTurn(state)).toMatchObject({ kind: "question", prompt: "Next?" });
+  });
+
+  it("records a Dilemma answer with its situations, the choice, and the reasoning", () => {
+    const pending = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    const next = applyTurn(pending, "Because people matter more than plans.", tied, "B");
+    expect(next.turns.at(-1)).toEqual({
+      question: DILEMMA_PROMPT,
+      answer: "Because people matter more than plans.",
+      dilemma,
+      choice: "B",
+    });
+  });
+
+  it("ignores a Dilemma answer that has no choice", () => {
+    const pending = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    expect(applyTurn(pending, "why", tied)).toBe(pending);
+  });
+
+  it("never asks two Dilemmas in a row", () => {
+    const pending = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    const next = applyTurn(pending, "why", { ...tied, dilemma }, "A");
+    expect(next.pendingDilemma).toBeNull();
   });
 
   it("does not mutate the input state", () => {

@@ -34,7 +34,11 @@ export async function submitAnswer(formData: FormData): Promise<void> {
   const turnCount = Number(formData.get("turnCount"));
   if (!Number.isInteger(turnCount)) redirect("/interview");
 
-  const updated = await recordInterviewAnswer(id, answer, turnCount);
+  // Only set for a Dilemma Turn; the repository ignores a Dilemma answer without one.
+  const rawChoice = formData.get("choice");
+  const choice = rawChoice === "A" || rawChoice === "B" ? rawChoice : undefined;
+
+  const updated = await recordInterviewAnswer(id, answer, turnCount, { choice });
   if (!updated) redirect("/interview");
 
   redirect(updated.status === "complete" ? "/interview/result" : "/interview");

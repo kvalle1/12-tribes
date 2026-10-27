@@ -2,9 +2,12 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import { tribes } from "@/lib/tribes";
+import { isNeutralPhrasing, type TurnPlan } from "./funnel";
 import { getMarkerById, markerCatalog } from "./markers";
 import {
   POSTURE_SIGNALS,
+  type Dilemma,
+  type DilemmaChoice,
   type InterviewTurn,
   type MarkerDelta,
   type PostureSignal,
@@ -33,20 +36,37 @@ import {
  */
 const MODEL = process.env.INTERVIEW_MODEL ?? "claude-opus-5-5";
 
-/** The structured-output contract: cited Marker deltas plus the next question. */
+/**
+ * The structured-output contract: cited Marker deltas, the next question, and —
+ * only when the Funnel brief asks for one — a drafted Dilemma (ADR-0008). Every
+ * property is required under strict mode, so "no Dilemma" is two empty strings.
+ */
 export const SCORE_TOOL: Anthropic.Tool = {
   name: "score_answer",
   description:
     "Record how the participant's answer scores against the Marker Catalog. " +
     "Emit one entry per Marker whose signal the answer genuinely resonates with; " +
     "cite the Marker by its exact id. Do not invent Markers or rationale. " +
-    "Also propose the next interview question.",
+    "Also propose the next interview question, and draft a Dilemma only when asked.",
   strict: true,
   input_schema: {
     type: "object",
     additionalProperties: false,
-    required: ["deltas", "nextQuestion"],
+    required: ["deltas", "nextQuestion", "dilemma"],
     properties: {
+      dilemma: {
+        type: "object",
+        additionalProperties: false,
+        required: ["situationA", "situationB"],
+        description:
+          "A forced choice between two concrete, everyday situations, drafted only when " +
+          "the brief asks for one; otherwise leave both situations as empty strings. " +
+          "Never name or hint at a tribe, and make neither option the obviously virtuous one.",
+        properties: {
+          situationA: { type: "string", description: "The first situation, in one or two sentences." },
+          situationB: { type: "string", description: "The second situation, in one or two sentences." },
+        },
+      },
       nextQuestion: {
         type: "string",
         description:
@@ -115,6 +135,10 @@ export function buildScoringSystem(): Anthropic.TextBlockParam[] {
     "- Distinguish integrated (matured, first-person felt logic) from not-resonant (genuinely not this tribe).",
     "",
     "You also propose the next question (nextQuestion). It must be open-ended and answerable in a few sentences, ask about the participant's real experience, never name a tribe or Marker, never telegraph a 'right' answer, and explore territory the conversation has not yet covered.",
+    "Each request ends with a Funnel brief saying what the next Turn is for. When it names a leader to test, ask a situation/behaviour question whose honest answer could count AGAINST that leader or reveal the other named tribes — never a question that simply confirms the leader, and never a leading one (\"do you like being in charge?\").",
+    "When the brief asks for a Dilemma, also draft one: two concrete, everyday situations, with no tribe labels, where choosing between them exposes the trade-off that separates the two tied tribes. Otherwise leave both dilemma situations empty.",
+    "",
+    "Scoring a Dilemma answer: the participant picked one of two situations and explained why. Score the TRADE-OFF they made and their REASONING against the Markers. Never score the option label itself — options carry no tribe mapping.",
     "",
     "Return your scoring by calling the score_answer tool.",
   ].join("\n");
@@ -159,15 +183,60 @@ function escapeAnswer(answer: string): string {
   return answer.replaceAll("<", "&lt;");
 }
 
+/** The Dilemma-specific lines describing one Turn, if it was a Dilemma. */
+function dilemmaLines(turn: { dilemma?: Dilemma; choice?: DilemmaChoice }, label: string): string[] {
+  if (!turn.dilemma) return [];
+  return [
+    `${label} was a Dilemma.`,
+    `Situation A: ${escapeAnswer(turn.dilemma.situationA)}`,
+    `Situation B: ${escapeAnswer(turn.dilemma.situationB)}`,
+    `The participant chose situation ${turn.choice ?? "?"}; their reasoning is the answer.`,
+  ];
+}
+
+/** The Funnel brief: what the next Turn is for, from the planner's preview. */
+export function buildBrief(plan: TurnPlan | undefined): string[] {
+  if (!plan) return [];
+  if (plan.phase === "calibration") {
+    return [
+      "Funnel brief: the next Turn is a fixed Calibration question supplied by the server. Return an empty nextQuestion and leave the dilemma empty.",
+    ];
+  }
+  const lines = ["Funnel brief: Discrimination."];
+  if (plan.target) {
+    lines.push(
+      `Current leader to test (try to DEMOTE, not confirm): ${plan.target.demote}.`,
+      `Tribes to give a chance to surface: ${plan.target.promote.join(", ") || "none"}.`,
+    );
+  }
+  lines.push(
+    plan.kind === "dilemma"
+      ? `Stubborn tie between ${plan.pair[0]} and ${plan.pair[1]}: draft a Dilemma that separates them, and still propose a nextQuestion as a fallback.`
+      : "Propose a nextQuestion and leave the dilemma empty.",
+    "Never name a tribe in the question or the Dilemma.",
+  );
+  return lines;
+}
+
+/** Extra context for the latest Turn: its Dilemma and choice, and the Funnel brief. */
+export interface PromptExtras {
+  dilemma?: Dilemma;
+  choice?: DilemmaChoice;
+  plan?: TurnPlan;
+}
+
 export function buildUserPrompt(
   question: string,
   answer: string,
   history: readonly InterviewTurn[] = [],
+  extras: PromptExtras = {},
 ): string {
   const earlier = history.flatMap((turn, i) => [
     `Earlier question ${i + 1}: ${turn.question}`,
+    ...dilemmaLines(turn, `Earlier question ${i + 1}`),
     `<answer>${escapeAnswer(turn.answer)}</answer>`,
   ]);
+  const brief = buildBrief(extras.plan);
   return [
     "Score the latest answer against the Marker Catalog and propose the next question by calling score_answer.",
     "Earlier answers are context for choosing the next question only; they have already been scored.",
@@ -177,7 +246,9 @@ export function buildUserPrompt(
     ...earlier,
     ...(earlier.length ? [""] : []),
     `Latest question: ${question}`,
+    ...dilemmaLines(extras, "The latest question"),
     `<answer>${escapeAnswer(answer)}</answer>`,
+    ...(brief.length ? ["", ...brief] : []),
   ].join("\n");
 }
 
@@ -241,17 +312,38 @@ export function validateScorePayload(raw: unknown): MarkerDelta[] {
 /** Longest proposed question we will show; anything longer is treated as a miss. */
 export const MAX_QUESTION_LENGTH = 500;
 
+/** Trimmed text if it is a plausible, neutrally phrased prompt, else null. */
+function cleanPrompt(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed && trimmed.length <= MAX_QUESTION_LENGTH && isNeutralPhrasing(trimmed)
+    ? trimmed
+    : null;
+}
+
 /**
  * The proposed next question from a raw tool-use payload, or null when it is
- * missing, blank, or implausibly long — the caller then falls back to a neutral
- * authored question.
+ * missing, blank, implausibly long, or names a tribe (ADR-0005 neutrality) —
+ * the caller then falls back to a neutral authored question.
  */
 export function parseNextQuestion(raw: unknown): string | null {
   if (typeof raw !== "object" || raw === null) return null;
-  const value = (raw as { nextQuestion?: unknown }).nextQuestion;
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed && trimmed.length <= MAX_QUESTION_LENGTH ? trimmed : null;
+  return cleanPrompt((raw as { nextQuestion?: unknown }).nextQuestion);
+}
+
+/**
+ * The drafted Dilemma from a raw tool-use payload, or null unless both
+ * situations are present, distinct, plausibly sized, and neutrally phrased. Two
+ * empty situations are how the agent says "no Dilemma".
+ */
+export function parseDilemma(raw: unknown): Dilemma | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const value = (raw as { dilemma?: unknown }).dilemma;
+  if (typeof value !== "object" || value === null) return null;
+  const { situationA, situationB } = value as { situationA?: unknown; situationB?: unknown };
+  const a = cleanPrompt(situationA);
+  const b = cleanPrompt(situationB);
+  return a && b && a !== b ? { situationA: a, situationB: b } : null;
 }
 
 /** Lazily constructed so importing this module never requires an API key (builds, tests). */
@@ -260,18 +352,24 @@ function getClient(): Anthropic {
   return (client ??= new Anthropic());
 }
 
-/** One scored Turn: validated deltas plus the agent's proposed next question. */
+/** One scored Turn: validated deltas, the proposed next question, and any drafted Dilemma. */
 export interface ScoredTurn {
   deltas: MarkerDelta[];
   nextQuestion: string | null;
+  dilemma: Dilemma | null;
 }
 
-/** A function that scores one answer and proposes the next question. Injectable for tests. */
+/** A function that scores one answer and proposes the next Turn. Injectable for tests. */
 export type ScoreAnswer = (input: {
   question: string;
   answer: string;
   /** Earlier completed Turns, oldest first. */
   history: readonly InterviewTurn[];
+  /** Set when the answered Turn was a Dilemma: its situations and the option chosen. */
+  dilemma?: Dilemma;
+  choice?: DilemmaChoice;
+  /** The Funnel planner's preview of the next Turn, briefing the agent. */
+  plan?: TurnPlan;
 }) => Promise<ScoredTurn>;
 
 /**
@@ -281,14 +379,26 @@ export type ScoreAnswer = (input: {
  * `score_answer` tool_use block, which `validateScorePayload` turns into
  * catalog-bounded deltas.
  */
-export const scoreAnswer: ScoreAnswer = async ({ question, answer, history }) => {
+export const scoreAnswer: ScoreAnswer = async ({
+  question,
+  answer,
+  history,
+  dilemma,
+  choice,
+  plan,
+}) => {
   const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 4096,
     system: buildScoringSystem(),
     tools: [SCORE_TOOL],
     tool_choice: { type: "auto" },
-    messages: [{ role: "user", content: buildUserPrompt(question, answer, history) }],
+    messages: [
+      {
+        role: "user",
+        content: buildUserPrompt(question, answer, history, { dilemma, choice, plan }),
+      },
+    ],
   });
 
   const block = response.content.find(
@@ -301,5 +411,6 @@ export const scoreAnswer: ScoreAnswer = async ({ question, answer, history }) =>
   return {
     deltas: validateScorePayload(block.input),
     nextQuestion: parseNextQuestion(block.input),
+    dilemma: parseDilemma(block.input),
   };
 };
