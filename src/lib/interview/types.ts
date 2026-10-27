@@ -66,11 +66,65 @@ export interface ScoreTraceEntry {
   postureSignal: PostureSignal;
 }
 
+/**
+ * Which phase of the Funnel (ADR-0005) a turn belongs to. `calibration` is the
+ * fixed broad opening; `discrimination` is the information-gain phase that
+ * follows it.
+ */
+export type FunnelPhase = "calibration" | "discrimination";
+
+/**
+ * A forced-choice Dilemma deployed during Discrimination to break a stubborn tie
+ * between two Contenders (ADR-0008). Its two situations carry **no tribe labels**
+ * — the scored signal is the trade-off plus the participant's free-text "why",
+ * never the bare option picked, so mapping an option straight to a tribe is
+ * exactly the failure mode this type must avoid. `pair` is the Contender pair the
+ * Dilemma targets; it is internal planning metadata and never shown.
+ */
+export interface Dilemma {
+  id: string;
+  pair: [string, string];
+  /** The neutrally-phrased framing shown above the two options. */
+  prompt: string;
+  /** Concrete situation A, tribe-unlabelled. */
+  optionA: string;
+  /** Concrete situation B, tribe-unlabelled. */
+  optionB: string;
+}
+
+/** Which of a Dilemma's two options the participant chose. */
+export type DilemmaChoice = "A" | "B";
+
+/**
+ * The Dilemma context retained on a completed Turn: which situations were posed
+ * and which one the participant chose. Kept so the trade-off is auditable, but it
+ * is never mapped directly to a tribe score (ADR-0008) — scoring runs on the
+ * free-text "why" plus the trade-off, held in the Turn's `answer`.
+ */
+export interface DilemmaRecord {
+  id: string;
+  pair: [string, string];
+  optionA: string;
+  optionB: string;
+  choice: DilemmaChoice;
+}
+
 /** One completed exchange: the question the participant was shown and their free-text answer. */
 export interface InterviewTurn {
   question: string;
   answer: string;
+  /** Present when this Turn was a Dilemma rather than a free-text question. */
+  dilemma?: DilemmaRecord;
 }
+
+/**
+ * What the participant is shown next and must answer: a free-text question
+ * (carrying its Funnel phase) or a Dilemma. Persisted each Turn so a refresh
+ * resumes at the exact pending turn (ADR-0011).
+ */
+export type PendingTurn =
+  | { kind: "question"; phase: FunnelPhase; prompt: string }
+  | { kind: "dilemma"; phase: "discrimination"; dilemma: Dilemma };
 
 /**
  * The reported outcome of an Interview (ADR-0006). `primary` is a *set*: one
@@ -96,13 +150,14 @@ export interface InterviewState {
   profile: StrengthProfile;
   /** Every applied delta, oldest first, for the score trace. */
   trace: ScoreTraceEntry[];
-  /** The question awaiting an answer; null once the Interview is complete. */
-  pendingQuestion: string | null;
+  /** The turn awaiting an answer; null once the Interview is complete. */
+  pendingTurn: PendingTurn | null;
   /** Set once the Stop Condition is met. */
   result: InterviewResult | null;
 }
 
-/** What the participant should be shown next: another question, or the result. */
+/** What the participant should be shown next: another question, a Dilemma, or the result. */
 export type NextTurn =
-  | { kind: "question"; prompt: string; questionNumber: number }
+  | { kind: "question"; phase: FunnelPhase; prompt: string; questionNumber: number }
+  | { kind: "dilemma"; dilemma: Dilemma; questionNumber: number }
   | { kind: "result" };

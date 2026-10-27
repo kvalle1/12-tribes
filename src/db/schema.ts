@@ -10,6 +10,7 @@ import type { AdapterAccountType } from "next-auth/adapters";
 import type {
   InterviewResult,
   InterviewTurn,
+  PendingTurn,
   ScoreTraceEntry,
   StrengthProfile,
 } from "@/lib/interview/types";
@@ -155,8 +156,15 @@ export const interviewSessions = pgTable("interview_session", {
   // Score trace: every applied Marker delta, oldest first (ADR-0003 traceability).
   trace: jsonb("trace").$type<ScoreTraceEntry[]>().notNull().default([]),
   // The question awaiting an answer, persisted each Turn so a refresh resumes
-  // at the right question. Null once the Interview is complete.
+  // at the right question. Null once the Interview is complete. Superseded by
+  // `pendingTurn` (slice 5), but still written for plain questions so rows stay
+  // resumable by either column across a deploy.
   pendingQuestion: text("pendingQuestion"),
+  // The full pending Turn (ADR-0005/0008): a free-text question carrying its
+  // Funnel phase, or a Dilemma with its two tribe-unlabelled situations. Null
+  // once the Interview is complete; also null on pre-slice-5 rows, which fall
+  // back to `pendingQuestion`.
+  pendingTurn: jsonb("pendingTurn").$type<PendingTurn>(),
   // Primary/Contender result (ADR-0006), set once the Stop Condition is met.
   // Rows completed before slice 4 hold a legacy stub shape here instead.
   result: jsonb("result").$type<InterviewResult>(),

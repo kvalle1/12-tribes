@@ -56,7 +56,7 @@ export function marginIsDecisive(leader: number, runner: number): boolean {
 }
 
 /** Tribes ordered strongest first; ties break by slug so ranking is deterministic. */
-function rank(profile: StrengthProfile): { slug: string; score: number }[] {
+export function rank(profile: StrengthProfile): { slug: string; score: number }[] {
   return Object.entries(profile)
     .map(([slug, score]) => ({ slug, score }))
     .sort((a, b) => b.score - a.score || (a.slug < b.slug ? -1 : 1));
