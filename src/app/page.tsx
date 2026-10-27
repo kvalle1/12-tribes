@@ -1,13 +1,41 @@
 import Link from "next/link";
 import { accentHex, tribes } from "@/lib/tribes";
 import { AuthNav } from "@/components/auth-nav";
+import { auth } from "@/auth";
+import { hasCurrentResult } from "@/lib/assessment/repository";
+import { shouldShowResultsEntry } from "@/lib/profile/home-entry";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
   return hebrew.replace(/[֑-ׇ]/g, "").charAt(0);
 }
 
-export default function Home() {
+/**
+ * Resolve whether to show the home "View your results" entry (issue #18).
+ * Best-effort: any failure reading the session or the result falls back to
+ * hiding the entry rather than failing the landing page.
+ */
+async function resolveResultsEntry(): Promise<boolean> {
+  try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    return shouldShowResultsEntry({
+      signedIn: !!userId,
+      hasResult: userId ? await hasCurrentResult(userId) : false,
+    });
+  } catch {
+    return false;
+  }
+}
+
+export default async function Home() {
+  // Surface "View your results" only to a signed-in Account that already has a
+  // saved result (issue #18). Reading the session opts this route out of static
+  // rendering into dynamic; we only hit the DB when there's actually a session
+  // to key on. The lookup is best-effort — this is the public landing page, so
+  // an auth/DB hiccup must not 500 it just to decide an optional link.
+  const showResultsEntry = await resolveResultsEntry();
+
   return (
     <main className="min-h-screen bg-bone text-ink">
       {/* Nav */}
@@ -54,6 +82,14 @@ export default function Home() {
             >
               Take the Assessment
             </Link>
+            {showResultsEntry && (
+              <Link
+                href="/profile"
+                className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
+              >
+                View your results
+              </Link>
+            )}
             <Link
               href="#twelve"
               className="border-b border-gold pb-1 text-[13px] tracking-[0.08em] text-ink transition-colors hover:text-gold"
