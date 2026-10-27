@@ -1,7 +1,10 @@
 import { tribes } from "@/lib/tribes";
 import { evaluate } from "./confidence";
+import { CALIBRATION_QUESTIONS, DILEMMA_PROMPT, planNextTurn } from "./funnel";
 import { applyDeltas } from "./scoring";
 import type {
+  Dilemma,
+  DilemmaChoice,
   InterviewState,
   InterviewTurn,
   MarkerDelta,
@@ -16,17 +19,19 @@ import type {
  * Each Turn (slice 4, issue #17): the answer is recorded against the pending
  * question, its scored deltas are applied, and the Confidence / Stop evaluator
  * (ADR-0006) decides whether to report or ask the agent's proposed next
- * question. The model call itself happens in `repository.ts`; this module only
- * folds its output in. The Funnel planner (ADR-0005) arrives in a later slice.
+ * Turn. The Funnel planner (ADR-0005, issue #19) then picks the kind of Turn:
+ * a fixed Calibration question, a Discrimination question worded by the agent,
+ * or a Dilemma when two Contenders are stubbornly tied. The model call itself
+ * happens in `repository.ts`; this module only folds its output in.
  */
 
-/** The authored opening question every Interview starts with. */
-export const OPENING_QUESTION =
-  "To begin, tell me about a recent time you felt most like yourself. What were you doing, and what made it feel right?";
+/** The authored opening question every Interview starts with: the first Calibration question. */
+export const OPENING_QUESTION = CALIBRATION_QUESTIONS[0];
 
 /**
- * Neutral, broad questions used only if the agent fails to propose one, so a
- * missing `nextQuestion` never stalls the loop. Cycled by Turn number.
+ * Neutral, broad questions used only if the agent fails to propose one during
+ * Discrimination, so a missing `nextQuestion` never stalls the loop. Cycled by
+ * Turn number.
  */
 export const FALLBACK_QUESTIONS: readonly string[] = [
   "Think of a time you were under real pressure. What did you do, and why that?",
@@ -54,6 +59,7 @@ export function initialState(): InterviewState {
     profile: emptyProfile(),
     trace: [],
     pendingQuestion: OPENING_QUESTION,
+    pendingDilemma: null,
     result: null,
   };
 }
@@ -67,6 +73,14 @@ export function nextTurn(state: InterviewState): NextTurn {
   if (state.status === "complete" || state.pendingQuestion === null) {
     return { kind: "result" };
   }
+  if (state.pendingDilemma) {
+    return {
+      kind: "dilemma",
+      prompt: state.pendingQuestion,
+      dilemma: state.pendingDilemma,
+      questionNumber: state.turns.length + 1,
+    };
+  }
   return {
     kind: "question",
     prompt: state.pendingQuestion,
@@ -78,25 +92,33 @@ export function nextTurn(state: InterviewState): NextTurn {
 export interface ScoredAnswer {
   deltas: readonly MarkerDelta[];
   nextQuestion: string | null;
+  /** A drafted Dilemma, used only if the planner calls for one. */
+  dilemma?: Dilemma | null;
 }
 
 /**
  * Fold a scored answer into the state, returning a new state (no mutation). The
- * answer is recorded against the question that was actually pending, its deltas
- * are applied, and the Stop Condition decides between completing with a result
- * and queueing the next question. Answering a complete Session is a no-op.
+ * answer is recorded against the Turn that was actually pending (with the
+ * Dilemma and the option chosen, for a Dilemma Turn), its deltas are applied,
+ * and the Stop Condition decides between completing with a result and queueing
+ * the next Turn, whose kind the Funnel planner decides. Answering a complete
+ * Session, or a pending Dilemma without a choice, is a no-op.
  */
 export function applyTurn(
   state: InterviewState,
   answer: string,
   scored: ScoredAnswer,
+  choice?: DilemmaChoice,
 ): InterviewState {
   if (state.status === "complete" || state.pendingQuestion === null) {
     return state;
   }
+  if (state.pendingDilemma && !choice) return state;
 
   const turnIndex = state.turns.length;
-  const turn: InterviewTurn = { question: state.pendingQuestion, answer };
+  const turn: InterviewTurn = state.pendingDilemma
+    ? { question: state.pendingQuestion, answer, dilemma: state.pendingDilemma, choice }
+    : { question: state.pendingQuestion, answer };
   const turns = [...state.turns, turn];
   const applied = applyDeltas(state.profile, scored.deltas, turnIndex);
   const profile = applied.profile;
@@ -110,8 +132,22 @@ export function applyTurn(
       profile,
       trace,
       pendingQuestion: null,
+      pendingDilemma: null,
       result: verdict.result,
     };
+  }
+
+  const plan = planNextTurn({ profile, trace, turns });
+  const fallback = FALLBACK_QUESTIONS[turnIndex % FALLBACK_QUESTIONS.length];
+  let pendingQuestion: string;
+  let pendingDilemma: Dilemma | null = null;
+  if (plan.phase === "calibration") {
+    pendingQuestion = plan.prompt;
+  } else if (plan.kind === "dilemma" && scored.dilemma) {
+    pendingQuestion = DILEMMA_PROMPT;
+    pendingDilemma = scored.dilemma;
+  } else {
+    pendingQuestion = scored.nextQuestion ?? fallback;
   }
 
   return {
@@ -119,8 +155,8 @@ export function applyTurn(
     turns,
     profile,
     trace,
-    pendingQuestion:
-      scored.nextQuestion ?? FALLBACK_QUESTIONS[turnIndex % FALLBACK_QUESTIONS.length],
+    pendingQuestion,
+    pendingDilemma,
     result: null,
   };
 }

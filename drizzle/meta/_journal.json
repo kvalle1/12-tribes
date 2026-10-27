@@ -43,6 +43,13 @@
       "when": 1793130827916,
       "tag": "0005_interview_pending_question",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793134535617,
+      "tag": "0006_interview_pending_dilemma",
+      "breakpoints": true
     }
   ]
 }
