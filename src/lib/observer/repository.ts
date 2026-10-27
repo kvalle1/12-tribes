@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
@@ -75,4 +75,27 @@ export async function recordObserverResponse(
     .values({ subjectId: subject.subjectId, words });
 
   return true;
+}
+
+/**
+ * Load the anonymous Observer responses recorded for a Subject so the
+ * equal-weight aggregation (issue #9) can score and average them. Returns only
+ * the selected `words` — never any identity.
+ *
+ * Ordered by the opaque random `id` (a v4 UUID), not by `createdAt`: that gives
+ * a stable order within one render for "Observer 1 … N" drill-down numbering
+ * (numbering is not persistent: a new response can reshuffle it), while
+ * deliberately *not* following arrival time — so a Subject can't
+ * read "Observer 1" as whoever they asked first. Returns an empty array when no
+ * one has responded yet.
+ */
+export async function getObserverResponses(
+  subjectId: string,
+): Promise<{ words: string[] }[]> {
+  const rows = await db
+    .select({ words: observerResponses.words })
+    .from(observerResponses)
+    .where(eq(observerResponses.subjectId, subjectId))
+    .orderBy(asc(observerResponses.id));
+  return rows;
 }
