@@ -31,7 +31,10 @@ export async function submitAnswer(formData: FormData): Promise<void> {
   const answer = String(formData.get("answer") ?? "").trim();
   if (!answer) redirect("/interview");
 
-  const updated = await recordInterviewAnswer(id, answer);
+  const turnCount = Number(formData.get("turnCount"));
+  if (!Number.isInteger(turnCount)) redirect("/interview");
+
+  const updated = await recordInterviewAnswer(id, answer, turnCount);
   if (!updated) redirect("/interview");
 
   redirect(updated.status === "complete" ? "/interview/result" : "/interview");

@@ -1,10 +1,9 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { interviewSessions } from "@/db/schema";
 import { scoreAnswer, type ScoreAnswer } from "./agent";
-import { appendAnswer, emptyProfile, stubResult } from "./flow";
-import { applyDeltas } from "./scoring";
+import { applyTurn, initialState, OPENING_QUESTION } from "./flow";
 import type { InterviewState } from "./types";
 
 /**
@@ -22,15 +21,17 @@ export type InterviewSessionRow = typeof interviewSessions.$inferSelect;
 export async function createInterviewSession(
   userId?: string | null,
 ): Promise<InterviewSessionRow> {
+  const state = initialState();
   const [row] = await db
     .insert(interviewSessions)
     .values({
       userId: userId ?? null,
-      status: "in_progress",
-      profile: emptyProfile(),
-      turns: [],
+      status: state.status,
+      profile: state.profile,
+      turns: state.turns,
       turnCount: 0,
-      trace: [],
+      trace: state.trace,
+      pendingQuestion: state.pendingQuestion,
     })
     .returning();
   return row;
@@ -48,51 +49,64 @@ export async function getInterviewSession(
   return row ?? null;
 }
 
-/** Project a persisted row onto the pure flow state. */
-function toState(row: InterviewSessionRow): InterviewState {
+/**
+ * Project a persisted row onto the pure flow state. Sessions created before
+ * slice 4 have no `pendingQuestion`; an in-progress one of those has not been
+ * answered yet (the old flow completed after one Turn), so it resumes at the
+ * opening question.
+ */
+export function toState(row: InterviewSessionRow): InterviewState {
+  const legacyPending = row.status === "in_progress" ? OPENING_QUESTION : null;
   return {
     status: row.status,
     turns: row.turns,
     profile: row.profile,
     trace: row.trace,
+    pendingQuestion: row.pendingQuestion ?? legacyPending,
+    result: row.status === "complete" ? row.result : null,
   };
 }
 
 /**
  * Record a participant's free-text answer against a Session, score it, and
- * persist the resulting state. Returns the updated row. If the Session is
- * already complete the answer is ignored (the pure flow treats it as a no-op)
- * and the existing row is returned unchanged.
+ * persist the resulting state — one Turn of the loop (ADR-0009). Returns the
+ * updated row. If the Session is already complete the answer is ignored and the
+ * existing row is returned unchanged.
  *
- * The scoring call (ADR-0009) runs here on the server: the newly recorded
- * answer is scored into validated, catalog-bounded Marker deltas, which the
- * pure Scoring engine folds into the running Strength Profile and trace. The
- * scorer is injected (defaulting to the real agent) so this seam is substitutable.
+ * The scoring call runs here on the server: the answer is scored into
+ * validated, catalog-bounded Marker deltas plus a proposed next question, and
+ * the pure flow folds them in and applies the Stop Condition (ADR-0006). The
+ * scorer is injected (defaulting to the real agent) so this seam is
+ * substitutable.
+ *
+ * `expectedTurnCount` is the Turn count the participant's form was rendered
+ * at; a mismatch means the answer was to a different question, so it is
+ * ignored. The write is likewise conditional on the Turn count it was computed
+ * from, so a concurrent double submit cannot record the same Turn twice: the
+ * losing write changes nothing and the current row is returned instead.
  */
 export async function recordInterviewAnswer(
   id: string,
   answer: string,
+  expectedTurnCount: number,
   scorer: ScoreAnswer = scoreAnswer,
 ): Promise<InterviewSessionRow | null> {
   const row = await getInterviewSession(id);
   if (!row) return null;
 
+  // A stale form (e.g. a second tab still showing an earlier question) must not
+  // be recorded as the answer to whatever question is pending now.
+  if (row.turnCount !== expectedTurnCount) return row;
+
   const state = toState(row);
-  const next = appendAnswer(state, answer);
+  if (state.status === "complete" || state.pendingQuestion === null) return row;
 
-  // A no-op append (already complete) leaves nothing new to score.
-  const scoredANewTurn = next.turns.length > state.turns.length;
-  let profile = state.profile;
-  let trace = state.trace;
-  if (scoredANewTurn) {
-    const turnIndex = next.turns.length - 1;
-    const deltas = await scorer({ question: next.turns[turnIndex].question, answer });
-    const applied = applyDeltas(profile, deltas, turnIndex);
-    profile = applied.profile;
-    trace = [...trace, ...applied.trace];
-  }
-
-  const result = next.status === "complete" ? stubResult(next) : null;
+  const scored = await scorer({
+    question: state.pendingQuestion,
+    answer,
+    history: state.turns,
+  });
+  const next = applyTurn(state, answer, scored);
 
   const [updated] = await db
     .update(interviewSessions)
@@ -100,12 +114,18 @@ export async function recordInterviewAnswer(
       status: next.status,
       turns: next.turns,
       turnCount: next.turns.length,
-      profile,
-      trace,
-      result,
+      profile: next.profile,
+      trace: next.trace,
+      pendingQuestion: next.pendingQuestion,
+      result: next.result,
       updatedAt: new Date(),
     })
-    .where(eq(interviewSessions.id, id))
+    .where(
+      and(
+        eq(interviewSessions.id, id),
+        eq(interviewSessions.turnCount, row.turnCount),
+      ),
+    )
     .returning();
-  return updated;
+  return updated ?? getInterviewSession(id);
 }

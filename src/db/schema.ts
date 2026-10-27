@@ -8,10 +8,10 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
+  InterviewResult,
   InterviewTurn,
   ScoreTraceEntry,
   StrengthProfile,
-  StubResult,
 } from "@/lib/interview/types";
 
 /**
@@ -154,8 +154,12 @@ export const interviewSessions = pgTable("interview_session", {
   turnCount: integer("turnCount").notNull().default(0),
   // Score trace: every applied Marker delta, oldest first (ADR-0003 traceability).
   trace: jsonb("trace").$type<ScoreTraceEntry[]>().notNull().default([]),
-  // Stub result, set once the flow completes.
-  result: jsonb("result").$type<StubResult>(),
+  // The question awaiting an answer, persisted each Turn so a refresh resumes
+  // at the right question. Null once the Interview is complete.
+  pendingQuestion: text("pendingQuestion"),
+  // Primary/Contender result (ADR-0006), set once the Stop Condition is met.
+  // Rows completed before slice 4 hold a legacy stub shape here instead.
+  result: jsonb("result").$type<InterviewResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
