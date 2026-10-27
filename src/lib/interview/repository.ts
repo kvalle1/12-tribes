@@ -2,7 +2,9 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { interviewSessions } from "@/db/schema";
+import { scoreAnswer, type ScoreAnswer } from "./agent";
 import { appendAnswer, emptyProfile, stubResult } from "./flow";
+import { applyDeltas } from "./scoring";
 import type { InterviewState } from "./types";
 
 /**
@@ -28,6 +30,7 @@ export async function createInterviewSession(
       profile: emptyProfile(),
       turns: [],
       turnCount: 0,
+      trace: [],
     })
     .returning();
   return row;
@@ -47,23 +50,48 @@ export async function getInterviewSession(
 
 /** Project a persisted row onto the pure flow state. */
 function toState(row: InterviewSessionRow): InterviewState {
-  return { status: row.status, turns: row.turns, profile: row.profile };
+  return {
+    status: row.status,
+    turns: row.turns,
+    profile: row.profile,
+    trace: row.trace,
+  };
 }
 
 /**
- * Record a participant's free-text answer against a Session and persist the
- * resulting state. Returns the updated row. If the Session is already complete
- * the answer is ignored (the pure flow treats it as a no-op) and the existing
- * row is returned unchanged.
+ * Record a participant's free-text answer against a Session, score it, and
+ * persist the resulting state. Returns the updated row. If the Session is
+ * already complete the answer is ignored (the pure flow treats it as a no-op)
+ * and the existing row is returned unchanged.
+ *
+ * The scoring call (ADR-0009) runs here on the server: the newly recorded
+ * answer is scored into validated, catalog-bounded Marker deltas, which the
+ * pure Scoring engine folds into the running Strength Profile and trace. The
+ * scorer is injected (defaulting to the real agent) so this seam is substitutable.
  */
 export async function recordInterviewAnswer(
   id: string,
   answer: string,
+  scorer: ScoreAnswer = scoreAnswer,
 ): Promise<InterviewSessionRow | null> {
   const row = await getInterviewSession(id);
   if (!row) return null;
 
-  const next = appendAnswer(toState(row), answer);
+  const state = toState(row);
+  const next = appendAnswer(state, answer);
+
+  // A no-op append (already complete) leaves nothing new to score.
+  const scoredANewTurn = next.turns.length > state.turns.length;
+  let profile = state.profile;
+  let trace = state.trace;
+  if (scoredANewTurn) {
+    const turnIndex = next.turns.length - 1;
+    const deltas = await scorer({ question: next.turns[turnIndex].question, answer });
+    const applied = applyDeltas(profile, deltas, turnIndex);
+    profile = applied.profile;
+    trace = [...trace, ...applied.trace];
+  }
+
   const result = next.status === "complete" ? stubResult(next) : null;
 
   const [updated] = await db
@@ -72,7 +100,8 @@ export async function recordInterviewAnswer(
       status: next.status,
       turns: next.turns,
       turnCount: next.turns.length,
-      profile: next.profile,
+      profile,
+      trace,
       result,
       updatedAt: new Date(),
     })
