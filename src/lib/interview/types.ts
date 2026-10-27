@@ -33,8 +33,34 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
   "integrated",
 ] as const;
 
+/**
+ * Where a tribe sits on its fall→oil arc once its posture-bearing evidence is
+ * tallied (ADR-0004). `unknown` means no posture-bearing evidence yet (only
+ * neutral strength signals); `mixed` means the evidence pulls both ways without
+ * a clear lean.
+ */
+export type PostureArc = "active-shadow" | "mixed" | "integrated" | "unknown";
+
+/**
+ * A tribe's accumulated Posture: the weight of evidence pulling toward each pole
+ * of its arc, plus the resulting arc position. Posture is orthogonal to strength
+ * (ADR-0004) — it reads *how* the wiring shows up, never *whether* it is present,
+ * so the poles are tallied from the same deltas that drive strength but never
+ * feed back into it.
+ */
+export interface TribePosture {
+  /** Accumulated delta weight of answers reading as active-shadow. */
+  activeShadow: number;
+  /** Accumulated delta weight of answers reading as integrated (matured). */
+  integrated: number;
+  arc: PostureArc;
+}
+
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;
+
+/** A per-tribe Posture tally, keyed by tribe `slug` (ADR-0004). */
+export type PostureProfile = Record<string, TribePosture>;
 
 /**
  * One validated scoring contribution the agent assigned to an answer, citing a
