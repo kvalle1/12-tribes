@@ -86,6 +86,12 @@ describe("Discrimination targeting (demote the leader)", () => {
     expect(plan.target?.promote).toEqual(["levi", "dan"]);
   });
 
+  it("only names a dark horse that has some evidence", () => {
+    const plan = planNextTurn(pastCalibration(0, { judah: 4, levi: 3.2 }));
+    if (plan.phase !== "discrimination") throw new Error("expected discrimination");
+    expect(plan.target?.promote).toEqual(["levi"]);
+  });
+
   it("still names a dark horse when the leader stands alone", () => {
     const plan = planNextTurn(pastCalibration(0, { judah: 4, gad: 1 }));
     if (plan.phase !== "discrimination") throw new Error("expected discrimination");
@@ -103,8 +109,8 @@ describe("Discrimination targeting (demote the leader)", () => {
 describe("Dilemma (stubborn tie only)", () => {
   const tied = { judah: 2, levi: 2, dan: 0.5 };
 
-  it("triggers when the same two Contenders stay inseparable over recent Turns", () => {
-    const plan = planNextTurn(pastCalibration(0, tied));
+  it("triggers when the same two Contenders stay inseparable over recent Discrimination Turns", () => {
+    const plan = planNextTurn(pastCalibration(DILEMMA_TIE_TURNS, tied));
     expect(plan).toMatchObject({ phase: "discrimination", kind: "dilemma", pair: ["judah", "levi"] });
   });
 
@@ -122,12 +128,17 @@ describe("Dilemma (stubborn tie only)", () => {
     expect(planNextTurn(stateOf(repeat(CALIBRATION_TURNS - 1, tied))).kind).toBe("question");
   });
 
+  it("does not count Calibration Turns toward the tie", () => {
+    // Tied all through Calibration, but no targeted question has tried to break it yet.
+    expect(planNextTurn(pastCalibration(DILEMMA_TIE_TURNS - 1, tied)).kind).toBe("question");
+  });
+
   it("needs the tie to hold for the full window", () => {
     expect(DILEMMA_TIE_TURNS).toBeGreaterThan(1);
   });
 
   it("does not ask two Dilemmas in a row", () => {
-    const n = CALIBRATION_TURNS + 1;
+    const n = CALIBRATION_TURNS + DILEMMA_TIE_TURNS + 1;
     const turns = repeat<Partial<InterviewTurn>>(n, {});
     turns[n - 1] = { dilemma: { situationA: "x", situationB: "y" }, choice: "A" };
     expect(planNextTurn(stateOf(repeat(n, tied), turns)).kind).toBe("question");
@@ -144,7 +155,7 @@ describe("previewPlan (the brief sent with the scoring call)", () => {
   });
 
   it("asks for a Dilemma draft when the tie would become stubborn if this answer keeps it", () => {
-    const state = pastCalibration(-1, { judah: 2, levi: 2 });
+    const state = pastCalibration(DILEMMA_TIE_TURNS - 1, { judah: 2, levi: 2 });
     expect(planNextTurn(state).kind).toBe("question");
     expect(previewPlan(state)).toMatchObject({ kind: "dilemma", pair: ["judah", "levi"] });
   });

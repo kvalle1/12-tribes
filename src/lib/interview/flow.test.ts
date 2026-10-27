@@ -10,7 +10,15 @@ import {
   OPENING_QUESTION,
   type ScoredAnswer,
 } from "./flow";
-import { CALIBRATION_QUESTIONS, CALIBRATION_TURNS, DILEMMA_PROMPT } from "./funnel";
+import {
+  CALIBRATION_QUESTIONS,
+  CALIBRATION_TURNS,
+  DILEMMA_PROMPT,
+  DILEMMA_TIE_TURNS,
+} from "./funnel";
+
+/** Enough Turns for a tie to have held through the Dilemma window. */
+const TIE_WINDOW = CALIBRATION_TURNS + DILEMMA_TIE_TURNS;
 import type { Dilemma, InterviewState, MarkerDelta } from "./types";
 
 const delta = (tribeSlug: string, value: number): MarkerDelta => ({
@@ -106,12 +114,12 @@ describe("applyTurn", () => {
   });
 
   it("queues a Dilemma when a stubborn tie persists and the agent drafted one", () => {
-    const state = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    const state = run(TIE_WINDOW, { ...tied, dilemma });
     expect(nextTurn(state)).toEqual({
       kind: "dilemma",
       prompt: DILEMMA_PROMPT,
       dilemma,
-      questionNumber: CALIBRATION_TURNS + 1,
+      questionNumber: TIE_WINDOW + 1,
     });
   });
 
@@ -121,13 +129,13 @@ describe("applyTurn", () => {
   });
 
   it("falls back to a question when a tie calls for a Dilemma but none was drafted", () => {
-    const state = run(CALIBRATION_TURNS, tied);
+    const state = run(TIE_WINDOW, tied);
     expect(state.pendingDilemma).toBeNull();
     expect(nextTurn(state)).toMatchObject({ kind: "question", prompt: "Next?" });
   });
 
   it("records a Dilemma answer with its situations, the choice, and the reasoning", () => {
-    const pending = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    const pending = run(TIE_WINDOW, { ...tied, dilemma });
     const next = applyTurn(pending, "Because people matter more than plans.", tied, "B");
     expect(next.turns.at(-1)).toEqual({
       question: DILEMMA_PROMPT,
@@ -138,12 +146,12 @@ describe("applyTurn", () => {
   });
 
   it("ignores a Dilemma answer that has no choice", () => {
-    const pending = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    const pending = run(TIE_WINDOW, { ...tied, dilemma });
     expect(applyTurn(pending, "why", tied)).toBe(pending);
   });
 
   it("never asks two Dilemmas in a row", () => {
-    const pending = run(CALIBRATION_TURNS, { ...tied, dilemma });
+    const pending = run(TIE_WINDOW, { ...tied, dilemma });
     const next = applyTurn(pending, "why", { ...tied, dilemma }, "A");
     expect(next.pendingDilemma).toBeNull();
   });

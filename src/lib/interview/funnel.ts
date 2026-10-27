@@ -38,8 +38,9 @@ export const CALIBRATION_TURNS = CALIBRATION_QUESTIONS.length;
 
 /**
  * A Dilemma is called for only when the same top two tribes have been
- * inseparable (within the Co-Primary band) for this many consecutive Turns — a
- * *stubborn* tie that free-text questions have not broken.
+ * inseparable (within the Co-Primary band) after this many consecutive
+ * Discrimination Turns — a *stubborn* tie that targeted free-text questions
+ * have not broken. Calibration Turns never count toward it.
  */
 export const DILEMMA_TIE_TURNS = 3;
 
@@ -80,21 +81,25 @@ export function phaseFor(turnIndex: number): FunnelPhase {
 /**
  * Who to separate: the leader to demote, and the tribes to give a chance —
  * every other live Contender, plus the strongest tribe outside the Contender
- * band as a dark horse. Null before any evidence exists.
+ * band with any evidence as a dark horse. Null before any evidence exists.
  */
 function discriminationTarget(state: FunnelState): DiscriminationTarget | null {
   const { contenders } = summarize(state.profile);
   if (contenders.length === 0) return null;
   const [leader, ...rest] = contenders;
-  const darkHorse = rank(state.profile).find((r) => !contenders.includes(r.slug));
+  const darkHorse = rank(state.profile).find(
+    (r) => r.score > 0 && !contenders.includes(r.slug),
+  );
   return { demote: leader, promote: darkHorse ? [...rest, darkHorse.slug] : rest };
 }
 
 /**
  * The tied pair if the same top two tribes have been inseparable after each of
- * the last `DILEMMA_TIE_TURNS` of the first `turnCount` Turns, else null.
+ * the last `DILEMMA_TIE_TURNS` of the first `turnCount` Turns, all of them
+ * Discrimination Turns, else null.
  */
 function stubbornTie(state: FunnelState, turnCount: number): [string, string] | null {
+  if (turnCount - DILEMMA_TIE_TURNS < CALIBRATION_TURNS) return null;
   const recent = profileHistory(state.trace, turnCount).slice(-DILEMMA_TIE_TURNS);
   if (recent.length < DILEMMA_TIE_TURNS) return null;
 
