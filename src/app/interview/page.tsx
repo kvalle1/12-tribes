@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { nextTurn } from "@/lib/interview/flow";
+import { toState } from "@/lib/interview/repository";
 import { currentSession } from "@/lib/interview/session";
 import { startInterview, submitAnswer } from "./actions";
 
@@ -22,14 +23,7 @@ export default async function InterviewPage() {
     redirect("/interview/result");
   }
 
-  const turn = session
-    ? nextTurn({
-        status: session.status,
-        turns: session.turns,
-        profile: session.profile,
-        trace: session.trace,
-      })
-    : null;
+  const turn = session ? nextTurn(toState(session)) : null;
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -63,13 +57,17 @@ export default async function InterviewPage() {
         ) : (
           <>
             <div className="mt-8 text-[11px] uppercase tracking-[0.16em] text-faint">
-              Question {turn.questionNumber} of {turn.totalQuestions}
+              Question {turn.questionNumber}
             </div>
             <p className="mt-4 font-serif text-[22px] leading-[1.4]">
               {turn.prompt}
             </p>
 
-            <form action={submitAnswer} className="mt-8 flex flex-col gap-3">
+            <form
+              key={turn.questionNumber}
+              action={submitAnswer}
+              className="mt-8 flex flex-col gap-3"
+            >
               <label htmlFor="answer" className="sr-only">
                 Your answer
               </label>

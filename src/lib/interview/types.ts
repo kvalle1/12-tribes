@@ -72,6 +72,21 @@ export interface InterviewTurn {
   answer: string;
 }
 
+/**
+ * The reported outcome of an Interview (ADR-0006). `primary` is a *set*: one
+ * tribe normally, or honest Co-Primaries when the top tribes are inseparable at
+ * the Turn cap. `contenders` is the Primary plus every tribe within a margin of
+ * it, ordered strongest first. `percentages` are the display shares for all 12
+ * tribes (ADR-0002) and `confidence` is 0–1.
+ */
+export interface InterviewResult {
+  primary: string[];
+  contenders: string[];
+  coPrimary: boolean;
+  confidence: number;
+  percentages: Record<string, number>;
+}
+
 /** Server-authoritative Session state the pure flow logic operates on. */
 export interface InterviewState {
   status: "in_progress" | "complete";
@@ -81,15 +96,13 @@ export interface InterviewState {
   profile: StrengthProfile;
   /** Every applied delta, oldest first, for the score trace. */
   trace: ScoreTraceEntry[];
-}
-
-/** The stub result shown once the flow completes. */
-export interface StubResult {
-  headline: string;
-  note: string;
+  /** The question awaiting an answer; null once the Interview is complete. */
+  pendingQuestion: string | null;
+  /** Set once the Stop Condition is met. */
+  result: InterviewResult | null;
 }
 
 /** What the participant should be shown next: another question, or the result. */
 export type NextTurn =
-  | { kind: "question"; prompt: string; questionNumber: number; totalQuestions: number }
+  | { kind: "question"; prompt: string; questionNumber: number }
   | { kind: "result" };

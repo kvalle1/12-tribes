@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildScoringSystem,
+  buildUserPrompt,
+  parseNextQuestion,
   SCORE_TOOL,
   validateScorePayload,
 } from "./agent";
@@ -112,6 +114,34 @@ describe("SCORE_TOOL", () => {
   it("is a strict tool so the structured scoring payload validates (no free-form rationale)", () => {
     expect(SCORE_TOOL.strict).toBe(true);
     expect(SCORE_TOOL.input_schema.properties).toHaveProperty("deltas");
+  });
+
+  it("asks the same call to propose the next question (ADR-0009)", () => {
+    expect(SCORE_TOOL.input_schema.required).toContain("nextQuestion");
+  });
+});
+
+describe("parseNextQuestion", () => {
+  it("returns the trimmed proposed question", () => {
+    expect(parseNextQuestion({ nextQuestion: "  What drains you?  " })).toBe("What drains you?");
+  });
+
+  it("returns null when the question is missing, blank, or malformed", () => {
+    expect(parseNextQuestion(null)).toBeNull();
+    expect(parseNextQuestion({})).toBeNull();
+    expect(parseNextQuestion({ nextQuestion: "   " })).toBeNull();
+    expect(parseNextQuestion({ nextQuestion: 7 })).toBeNull();
+  });
+});
+
+describe("buildUserPrompt", () => {
+  it("includes earlier Turns so the next question does not repeat covered ground", () => {
+    const prompt = buildUserPrompt("Q2", "second answer", [
+      { question: "Q1", answer: "first answer" },
+    ]);
+    expect(prompt).toContain("Q1");
+    expect(prompt).toContain("<answer>first answer</answer>");
+    expect(prompt.indexOf("first answer")).toBeLessThan(prompt.indexOf("second answer"));
   });
 });
 
