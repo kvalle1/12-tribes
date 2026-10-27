@@ -28,9 +28,11 @@ import type {
  *    #1 (ADR-0005). When two Contenders are stuck in a persistent tie, the planner
  *    deploys a **Dilemma** (ADR-0008) instead of another free-text question.
  *
- * Pure and client-safe in spirit (no catalog, no secrets, no I/O); it reads only
- * the running profile and score trace. The authored Calibration questions and
- * Dilemma bank are participant-facing content, so they live here with the logic.
+ * Pure and side-effect-free (no catalog, no secrets, no I/O); it reads only the
+ * running profile and score trace. It is server-side, though — it reuses the
+ * ranking helpers from the `server-only` `confidence` module — so it must not be
+ * imported into a client bundle. The authored Calibration questions and Dilemma
+ * bank are participant-facing content, so they live here with the logic.
  */
 
 /**

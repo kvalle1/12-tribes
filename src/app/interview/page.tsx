@@ -104,6 +104,7 @@ export default async function InterviewPage() {
                 name="why"
                 required
                 rows={5}
+                autoFocus
                 placeholder="A sentence or two about what tipped it for you."
                 className="rounded-[2px] border border-hair bg-white px-4 py-3 text-[16px] leading-[1.6] outline-none focus:border-gold"
               />

@@ -206,10 +206,22 @@ export function buildUserPrompt(
   history: readonly InterviewTurn[] = [],
   guidance?: FunnelGuidance,
 ): string {
-  const earlier = history.flatMap((turn, i) => [
-    `Earlier question ${i + 1}: ${turn.question}`,
-    `<answer>${escapeAnswer(turn.answer)}</answer>`,
-  ]);
+  const earlier = history.flatMap((turn, i) => {
+    // A Dilemma turn carries the trade-off it posed; surface the two options and
+    // the chosen side so the model's context isn't a bare "why" (ADR-0008).
+    if (turn.dilemma) {
+      return [
+        `Earlier Dilemma ${i + 1}: ${turn.question}`,
+        `  Option A: ${turn.dilemma.optionA}`,
+        `  Option B: ${turn.dilemma.optionB}`,
+        `<answer>Leaned toward option ${turn.dilemma.choice}. ${escapeAnswer(turn.answer)}</answer>`,
+      ];
+    }
+    return [
+      `Earlier question ${i + 1}: ${turn.question}`,
+      `<answer>${escapeAnswer(turn.answer)}</answer>`,
+    ];
+  });
   return [
     "Score the latest answer against the Marker Catalog and propose the next question by calling score_answer.",
     "Earlier answers are context for choosing the next question only; they have already been scored.",
