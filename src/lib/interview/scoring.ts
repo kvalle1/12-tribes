@@ -44,7 +44,7 @@ export function applyDeltas(
   const trace: ScoreTraceEntry[] = [];
 
   for (const delta of deltas) {
-    if (!(delta.tribeSlug in next)) continue;
+    if (!Object.hasOwn(next, delta.tribeSlug)) continue;
 
     // Additive only: a contribution never lowers a tribe's strength.
     const applied = Math.max(0, delta.delta);
