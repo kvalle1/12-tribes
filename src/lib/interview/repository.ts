@@ -79,17 +79,24 @@ export function toState(row: InterviewSessionRow): InterviewState {
  * scorer is injected (defaulting to the real agent) so this seam is
  * substitutable.
  *
- * The write is conditional on the Turn count it was computed from, so a double
- * submit (or a resubmit after a refresh) cannot record the same Turn twice: the
+ * `expectedTurnCount` is the Turn count the participant's form was rendered
+ * at; a mismatch means the answer was to a different question, so it is
+ * ignored. The write is likewise conditional on the Turn count it was computed
+ * from, so a concurrent double submit cannot record the same Turn twice: the
  * losing write changes nothing and the current row is returned instead.
  */
 export async function recordInterviewAnswer(
   id: string,
   answer: string,
+  expectedTurnCount: number,
   scorer: ScoreAnswer = scoreAnswer,
 ): Promise<InterviewSessionRow | null> {
   const row = await getInterviewSession(id);
   if (!row) return null;
+
+  // A stale form (e.g. a second tab still showing an earlier question) must not
+  // be recorded as the answer to whatever question is pending now.
+  if (row.turnCount !== expectedTurnCount) return row;
 
   const state = toState(row);
   if (state.status === "complete" || state.pendingQuestion === null) return row;

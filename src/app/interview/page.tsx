@@ -68,6 +68,7 @@ export default async function InterviewPage() {
               action={submitAnswer}
               className="mt-8 flex flex-col gap-3"
             >
+              <input type="hidden" name="turnCount" value={turn.questionNumber - 1} />
               <label htmlFor="answer" className="sr-only">
                 Your answer
               </label>

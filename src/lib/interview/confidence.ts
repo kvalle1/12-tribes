@@ -55,11 +55,11 @@ export function marginIsDecisive(leader: number, runner: number): boolean {
   return marginZ(leader, runner) >= MARGIN_Z;
 }
 
-/** Tribes ordered strongest first; ties keep the profile's (catalog) order. */
+/** Tribes ordered strongest first; ties break by slug so ranking is deterministic. */
 function rank(profile: StrengthProfile): { slug: string; score: number }[] {
   return Object.entries(profile)
     .map(([slug, score]) => ({ slug, score }))
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || a.slug.localeCompare(b.slug));
 }
 
 /**
@@ -123,7 +123,9 @@ export interface Verdict {
 /**
  * Decide, after a Turn, whether to ask another question or report. Stops when
  * the floor, a decisive relative margin, a stable leader, and a separable
- * Primary all hold — or unconditionally at the cap, where inseparable top tribes
+ * Primary all hold. "Stable top ordering" (ADR-0006) is read as the leader
+ * being unchanged; Contender churn below it does not block stopping, since the
+ * Contender band is reported as a set anyway — or unconditionally at the cap, where inseparable top tribes
  * are reported as Co-Primaries rather than forcing a razor-thin winner.
  */
 export function evaluate(

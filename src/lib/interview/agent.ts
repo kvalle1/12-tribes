@@ -14,8 +14,9 @@ import {
  * The scoring agent (ADR-0009): one server-side Claude call per Turn that reads
  * a free-text answer and returns per-tribe Marker deltas via tool-use
  * structured output, plus a proposed next question. Whether that question is
- * actually asked is decided server-side by the Confidence / Stop evaluator. Scoring is *constrained* (ADR-0003) — the agent may only
- * score by citing catalogued Markers, and `validateScorePayload` reconciles
+ * actually asked is decided server-side by the Confidence / Stop evaluator.
+ * Scoring is *constrained* (ADR-0003) — the agent may only score by citing
+ * catalogued Markers, and `validateScorePayload` reconciles
  * every returned delta against the Marker Catalog so a mislabelled or
  * hallucinated citation cannot move a score.
  *
@@ -153,6 +154,11 @@ export function buildScoringSystem(): Anthropic.TextBlockParam[] {
   ];
 }
 
+/** Escape `<` so participant text can't close its `<answer>` tag early. */
+function escapeAnswer(answer: string): string {
+  return answer.replaceAll("<", "&lt;");
+}
+
 export function buildUserPrompt(
   question: string,
   answer: string,
@@ -160,7 +166,7 @@ export function buildUserPrompt(
 ): string {
   const earlier = history.flatMap((turn, i) => [
     `Earlier question ${i + 1}: ${turn.question}`,
-    `<answer>${turn.answer}</answer>`,
+    `<answer>${escapeAnswer(turn.answer)}</answer>`,
   ]);
   return [
     "Score the latest answer against the Marker Catalog and propose the next question by calling score_answer.",
@@ -171,7 +177,7 @@ export function buildUserPrompt(
     ...earlier,
     ...(earlier.length ? [""] : []),
     `Latest question: ${question}`,
-    `<answer>${answer}</answer>`,
+    `<answer>${escapeAnswer(answer)}</answer>`,
   ].join("\n");
 }
 
@@ -232,16 +238,20 @@ export function validateScorePayload(raw: unknown): MarkerDelta[] {
   return [...byMarker.values()];
 }
 
+/** Longest proposed question we will show; anything longer is treated as a miss. */
+export const MAX_QUESTION_LENGTH = 500;
+
 /**
  * The proposed next question from a raw tool-use payload, or null when it is
- * missing or blank — the caller then falls back to a neutral authored question.
+ * missing, blank, or implausibly long — the caller then falls back to a neutral
+ * authored question.
  */
 export function parseNextQuestion(raw: unknown): string | null {
   if (typeof raw !== "object" || raw === null) return null;
   const value = (raw as { nextQuestion?: unknown }).nextQuestion;
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  return trimmed ? trimmed : null;
+  return trimmed && trimmed.length <= MAX_QUESTION_LENGTH ? trimmed : null;
 }
 
 /** Lazily constructed so importing this module never requires an API key (builds, tests). */
