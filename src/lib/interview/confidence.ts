@@ -59,7 +59,7 @@ export function marginIsDecisive(leader: number, runner: number): boolean {
 function rank(profile: StrengthProfile): { slug: string; score: number }[] {
   return Object.entries(profile)
     .map(([slug, score]) => ({ slug, score }))
-    .sort((a, b) => b.score - a.score || a.slug.localeCompare(b.slug));
+    .sort((a, b) => b.score - a.score || (a.slug < b.slug ? -1 : 1));
 }
 
 /**
@@ -123,10 +123,12 @@ export interface Verdict {
 /**
  * Decide, after a Turn, whether to ask another question or report. Stops when
  * the floor, a decisive relative margin, a stable leader, and a separable
- * Primary all hold. "Stable top ordering" (ADR-0006) is read as the leader
- * being unchanged; Contender churn below it does not block stopping, since the
- * Contender band is reported as a set anyway — or unconditionally at the cap, where inseparable top tribes
- * are reported as Co-Primaries rather than forcing a razor-thin winner.
+ * Primary all hold — or unconditionally at the cap, where inseparable top
+ * tribes are reported as Co-Primaries rather than forcing a razor-thin winner.
+ *
+ * "Stable top ordering" (ADR-0006) is read as the leader being unchanged;
+ * Contender churn below it does not block stopping, since the Contender band is
+ * reported as a set anyway.
  */
 export function evaluate(
   profile: StrengthProfile,
