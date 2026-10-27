@@ -9,6 +9,7 @@ import {
 import type { AdapterAccountType } from "next-auth/adapters";
 import type {
   InterviewTurn,
+  ScoreTraceEntry,
   StrengthProfile,
   StubResult,
 } from "@/lib/interview/types";
@@ -146,11 +147,13 @@ export const interviewSessions = pgTable("interview_session", {
     .$type<"in_progress" | "complete">()
     .notNull()
     .default("in_progress"),
-  // Running strength profile (placeholder this slice).
+  // Running strength profile, accumulated from Marker deltas (ADR-0002).
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
   // Completed Turns, oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),
+  // Score trace: every applied Marker delta, oldest first (ADR-0003 traceability).
+  trace: jsonb("trace").$type<ScoreTraceEntry[]>().notNull().default([]),
   // Stub result, set once the flow completes.
   result: jsonb("result").$type<StubResult>(),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
