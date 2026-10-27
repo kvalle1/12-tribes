@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
+import { POSTURE_LABELS, statusFraming } from "@/lib/interview/posture";
+import { accumulatePosture } from "@/lib/interview/scoring";
 import { currentSession } from "@/lib/interview/session";
+import type { TribePosture } from "@/lib/interview/types";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { startInterview } from "../actions";
 
 /**
  * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
  * when the top tribes never separated (ADR-0006) — plus the dynamic Contender
- * band, each with its display percentage (ADR-0002), and the full twelve below.
- * Posture and the score trace arrive in later slices.
+ * band, each with its display percentage (ADR-0002) and Posture on the tribe's
+ * fall→oil arc (ADR-0004, slice 6), and the full twelve below. A disqualified
+ * or warning-tribe Primary gets non-condemning, arc-aware framing (ADR-0007).
+ * The score trace arrives in a later slice.
  *
  * Reached only once the Session is complete — an in-progress or missing Session
  * routes back to the hub, so a refresh here still resolves to the right place.
@@ -27,7 +32,9 @@ export default async function InterviewResultPage() {
   // reading from their profile instead.
   const result = Array.isArray(session.result?.primary)
     ? session.result
-    : summarize(session.profile);
+    : summarize(session.profile, session.trace);
+  // Results completed before slice 6 carry no Posture; replay it from the trace.
+  const posture = result.posture ?? accumulatePosture(session.trace, Object.keys(session.profile));
   const pct = result.percentages;
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
   const otherContenders = result.contenders.filter((slug) => !result.primary.includes(slug));
@@ -77,28 +84,53 @@ export default async function InterviewResultPage() {
                 const tribe = getTribeBySlug(slug);
                 const isPrimary = result.primary.includes(slug);
                 return (
-                  <li
-                    key={slug}
-                    className="flex items-baseline justify-between gap-4 border-b border-hair pb-3"
-                  >
-                    <Link
-                      href={`/tribes/${slug}`}
-                      className="font-serif text-[22px] transition-colors hover:text-gold"
-                    >
-                      {tribe?.name ?? slug}
-                      <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
-                        {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                  <li key={slug} className="border-b border-hair pb-3">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <Link
+                        href={`/tribes/${slug}`}
+                        className="font-serif text-[22px] transition-colors hover:text-gold"
+                      >
+                        {tribe?.name ?? slug}
+                        <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
+                          {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                        </span>
+                      </Link>
+                      <span className="text-[15px] tabular-nums text-muted">
+                        {Math.round(pct[slug] ?? 0)}%
                       </span>
-                    </Link>
-                    <span className="text-[15px] tabular-nums text-muted">
-                      {Math.round(pct[slug] ?? 0)}%
-                    </span>
+                    </div>
+                    {posture[slug] && (
+                      <PostureArc posture={posture[slug]} accent={accentHex(tribe?.color ?? "")} />
+                    )}
                   </li>
                 );
               })}
             </ul>
           </section>
         )}
+
+        {result.primary.map((slug) => {
+          const tribe = getTribeBySlug(slug);
+          const framing = tribe && statusFraming(tribe, posture[slug]?.reading ?? "unread");
+          if (!tribe || !framing) return null;
+          return (
+            <section
+              key={slug}
+              className="mt-12 rounded-[2px] border border-hair bg-white/40 p-8"
+            >
+              <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
+                {tribe.name} · {framing.label}
+              </p>
+              <p className="mt-4 text-[16px] leading-[1.6] text-ink/90">{framing.status}</p>
+              <p className="mt-3 text-[16px] leading-[1.6] text-muted">{framing.arc}</p>
+              {framing.exemplar && (
+                <p className="mt-4 border-l-2 border-gold/50 pl-4 text-[14px] italic leading-[1.6] text-muted">
+                  {framing.exemplar.description}
+                </p>
+              )}
+            </section>
+          );
+        })}
 
         <section className="mt-12 border-t border-hair pt-8">
           <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -145,5 +177,31 @@ export default async function InterviewResultPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+/**
+ * A tribe's Posture as a small fall→oil track (ADR-0004): shadow on the left,
+ * oil on the right, with a marker at the participant's arc position. An unread
+ * Posture shows the label alone, since there is no position to mark.
+ */
+function PostureArc({ posture, accent }: { posture: TribePosture; accent: string }) {
+  const position = posture.arc === null ? null : ((posture.arc + 1) / 2) * 100;
+  return (
+    <div className="mt-2.5 flex items-center gap-3 text-[11px] uppercase tracking-[0.14em] text-faint">
+      <span className="shrink-0">Shadow</span>
+      <span className="relative h-[4px] flex-1 rounded-full bg-hair/60">
+        {position !== null && (
+          <span
+            className="absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ left: `${position}%`, backgroundColor: accent }}
+          />
+        )}
+      </span>
+      <span className="shrink-0">Oil</span>
+      <span className="w-[96px] shrink-0 text-right normal-case tracking-normal text-muted">
+        {POSTURE_LABELS[posture.reading]}
+      </span>
+    </div>
   );
 }

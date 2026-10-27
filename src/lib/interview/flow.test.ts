@@ -183,6 +183,21 @@ describe("applyTurn", () => {
     expect(done.result?.primary).toEqual(["judah", "levi"]);
   });
 
+  it("reports each tribe's Posture alongside strength, routing a matured fall-line to oil", () => {
+    const matured: ScoredAnswer = {
+      deltas: [
+        ...decisive.deltas,
+        { markerId: "judah-fall-power", tribeSlug: "judah", type: "fallLine", delta: 3, postureSignal: "integrated" },
+      ],
+      nextQuestion: "Next?",
+    };
+    const done = run(MIN_TURNS, matured);
+    expect(done.status).toBe("complete");
+    expect(done.result?.posture?.judah.reading).toBe("integrated");
+    expect(done.result?.posture?.levi.reading).toBe("unread");
+    expect(done.trace.some((t) => t.routedFrom === "judah-fall-power" && t.type === "oil")).toBe(true);
+  });
+
   it("is a no-op once the session is already complete", () => {
     const complete = run(MIN_TURNS, decisive);
     expect(applyTurn(complete, "more", decisive)).toBe(complete);

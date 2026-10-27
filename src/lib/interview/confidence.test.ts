@@ -57,6 +57,16 @@ describe("summarize", () => {
     expect(summary.percentages.judah).toBeCloseTo(30);
   });
 
+  it("reports a Posture for all 12 tribes, read from the trace", () => {
+    const trace: ScoreTraceEntry[] = [
+      { turnIndex: 0, markerId: "dan-oil-trust", tribeSlug: "dan", type: "oil", delta: 3, postureSignal: "integrated" },
+    ];
+    const summary = summarize(profileOf({ dan: 3 }), trace);
+    expect(Object.keys(summary.posture ?? {})).toHaveLength(12);
+    expect(summary.posture?.dan.reading).toBe("integrated");
+    expect(summary.posture?.judah.reading).toBe("unread");
+  });
+
   it("returns no Primary when nothing has scored", () => {
     const summary = summarize(profileOf({}));
     expect(summary.primary).toEqual([]);

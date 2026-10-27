@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normalize } from "./scoring";
+import { accumulatePosture, normalize } from "./scoring";
 import type {
   InterviewResult,
   ScoreTraceEntry,
@@ -64,17 +64,22 @@ export function rank(profile: StrengthProfile): { slug: string; score: number }[
 
 /**
  * Who the profile currently names, with no stopping logic: the Primary set (the
- * leader plus anything inseparable from it), the Contender band, and display
- * percentages. Confidence is the margin over the highest non-Contender, as a
- * fraction of what the Stop Condition needs (capped at 1).
+ * leader plus anything inseparable from it), the Contender band, display
+ * percentages, and each tribe's Posture from the score trace (ADR-0004).
+ * Confidence is the margin over the highest non-Contender, as a fraction of
+ * what the Stop Condition needs (capped at 1).
  */
-export function summarize(profile: StrengthProfile): InterviewResult {
+export function summarize(
+  profile: StrengthProfile,
+  trace: readonly ScoreTraceEntry[] = [],
+): InterviewResult {
   const ranked = rank(profile);
   const percentages = normalize(profile);
+  const posture = accumulatePosture(trace, Object.keys(profile));
   const leader = ranked[0]?.score ?? 0;
 
   if (leader <= 0) {
-    return { primary: [], contenders: [], coPrimary: false, confidence: 0, percentages };
+    return { primary: [], contenders: [], coPrimary: false, confidence: 0, percentages, posture };
   }
 
   const primary = ranked.filter((r) => r.score >= leader * CO_PRIMARY_BAND).map((r) => r.slug);
@@ -87,6 +92,7 @@ export function summarize(profile: StrengthProfile): InterviewResult {
     coPrimary: primary.length > 1,
     confidence: Math.min(1, marginZ(leader, runner) / MARGIN_Z),
     percentages,
+    posture,
   };
 }
 
@@ -148,7 +154,7 @@ export function evaluate(
   trace: readonly ScoreTraceEntry[],
   turnCount: number,
 ): Verdict {
-  const result = summarize(profile);
+  const result = summarize(profile, trace);
 
   if (turnCount >= MAX_TURNS) {
     return { decision: "stop", reason: "cap", result };
