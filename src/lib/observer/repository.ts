@@ -5,6 +5,7 @@ import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
+import { partitionByRetake } from "./retake";
 
 /**
  * Server-only persistence for the 360 Observer flow (issue #8, ADR-0003). The
@@ -78,24 +79,35 @@ export async function recordObserverResponse(
 }
 
 /**
- * Load the anonymous Observer responses recorded for a Subject so the
- * equal-weight aggregation (issue #9) can score and average them. Returns only
- * the selected `words` — never any identity.
+ * Load the anonymous Observer responses recorded for a Subject's *current*
+ * result so the equal-weight aggregation (issue #9) can score and average them.
+ * Returns only the selected `words` — never any identity.
+ *
+ * Responses recorded before `resultTakenAt` (the current result's `updatedAt`)
+ * describe the Subject against an earlier retake, so they are left out of
+ * `current` and only counted in `staleCount` (issue #194, ADR-0012). They stay
+ * in the database; nothing is deleted.
  *
  * Ordered by the opaque random `id` (a v4 UUID), not by `createdAt`: that gives
  * a stable order within one render for "Observer 1 … N" drill-down numbering
  * (numbering is not persistent: a new response can reshuffle it), while
  * deliberately *not* following arrival time — so a Subject can't
- * read "Observer 1" as whoever they asked first. Returns an empty array when no
- * one has responded yet.
+ * read "Observer 1" as whoever they asked first. Returns an empty `current`
+ * when no one has responded since the current result was taken.
  */
 export async function getObserverResponses(
   subjectId: string,
-): Promise<{ words: string[] }[]> {
+  resultTakenAt: Date,
+): Promise<{ current: { words: string[] }[]; staleCount: number }> {
   const rows = await db
-    .select({ words: observerResponses.words })
+    .select({
+      words: observerResponses.words,
+      createdAt: observerResponses.createdAt,
+    })
     .from(observerResponses)
     .where(eq(observerResponses.subjectId, subjectId))
     .orderBy(asc(observerResponses.id));
-  return rows;
+
+  const { current, staleCount } = partitionByRetake(rows, resultTakenAt);
+  return { current: current.map(({ words }) => ({ words })), staleCount };
 }

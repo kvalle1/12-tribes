@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { assessmentResults } from "@/db/schema";
 import { WORDS } from "./words";
@@ -26,6 +26,10 @@ const KNOWN_WORDS = new Set(WORDS.map((w) => w.word));
  *
  * On retake the existing row is updated in place — the `shareToken` is left
  * untouched so any observer link already handed out keeps resolving (issue #8).
+ * `updatedAt` marks when the current result was taken: the comparison report
+ * counts only Observer responses recorded since then (issue #194, ADR-0012). It
+ * is stamped with the database clock — the same clock that stamps an observer
+ * response's `createdAt` — so app/DB clock skew can't misfile a response.
  */
 export async function saveCurrentResult(
   userId: string,
@@ -50,7 +54,7 @@ export async function saveCurrentResult(
         words,
         primarySlug: primary.slug,
         secondarySlug: secondary?.slug ?? null,
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       },
     })
     .returning();

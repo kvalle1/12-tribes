@@ -26,9 +26,12 @@ import { compareProfiles, type ComparisonRow } from "@/lib/observer/compare";
 export function ComparisonReport({
   selfWords,
   observerResponses,
+  staleCount = 0,
 }: {
   selfWords: string[];
   observerResponses: ObserverResponse[];
+  /** Responses recorded before the Subject's latest retake, left out (#194). */
+  staleCount?: number;
 }) {
   const { observerCount, average, perObserver } =
     aggregateObservers(observerResponses);
@@ -52,7 +55,29 @@ export function ComparisonReport({
           observerCount={observerCount}
         />
       )}
+
+      {staleCount > 0 && <RetakeNote staleCount={staleCount} />}
     </section>
+  );
+}
+
+/**
+ * Explains why reads gathered before a retake aren't counted (issue #194): they
+ * described the Subject against answers since replaced, so comparing them with
+ * the current self words would be misleading. The share link is unchanged, so
+ * the Subject can simply ask people to respond again.
+ */
+function RetakeNote({ staleCount }: { staleCount: number }) {
+  return (
+    <p className="mt-4 max-w-[520px] text-[13px] text-faint">
+      {staleCount === 1
+        ? "1 earlier response was"
+        : `${staleCount} earlier responses were`}{" "}
+      given before you retook the assessment, so{" "}
+      {staleCount === 1 ? "it isn’t" : "they aren’t"} compared with
+      your current answers. Your share link still works — ask people to respond
+      again for a fresh read.
+    </p>
   );
 }
 

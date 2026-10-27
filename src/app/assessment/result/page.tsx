@@ -29,8 +29,13 @@ export default async function AssessmentResultPage() {
   if (!row) redirect("/assessment");
 
   // The 360 comparison report reads the Subject's own Observer responses; it
-  // renders a locked state until at least three are in (issue #9).
-  const observerResponses = await getObserverResponses(session.user.id);
+  // renders a locked state until at least three are in (issue #9). Only reads
+  // recorded since the current result was taken count — a retake leaves earlier
+  // ones out of the comparison (issue #194).
+  const { current: observerResponses, staleCount } = await getObserverResponses(
+    session.user.id,
+    row.updatedAt,
+  );
 
   // Compose the absolute observer link. Prefer the canonical configured origin
   // (`AUTH_URL`, the same trusted origin Auth.js uses) so the copied link can't
@@ -72,6 +77,7 @@ export default async function AssessmentResultPage() {
         <ComparisonReport
           selfWords={row.words}
           observerResponses={observerResponses}
+          staleCount={staleCount}
         />
       </div>
     </main>

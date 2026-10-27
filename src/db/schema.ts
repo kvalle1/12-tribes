@@ -115,6 +115,8 @@ export const assessmentResults = pgTable("assessment_result", {
     .unique()
     .$defaultFn(() => crypto.randomUUID()),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  // When the current result was taken (bumped on every retake). The comparison
+  // report counts only Observer responses recorded since then (ADR-0012).
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
 
