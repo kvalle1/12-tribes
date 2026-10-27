@@ -5,6 +5,7 @@ import { score, type TribeScore } from "@/lib/assessment/score";
 import {
   aggregateObservers,
   MIN_OBSERVERS,
+  isUnlocked,
   type ObserverResponse,
 } from "./aggregate";
 
@@ -105,5 +106,7 @@ describe("aggregateObservers", () => {
 
   it("unlocks at three observers", () => {
     expect(MIN_OBSERVERS).toBe(3);
+    expect([0, 1, 2].map(isUnlocked)).toEqual([false, false, false]);
+    expect([3, 4].map(isUnlocked)).toEqual([true, true]);
   });
 });

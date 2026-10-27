@@ -83,8 +83,9 @@ export async function recordObserverResponse(
  * the selected `words` — never any identity.
  *
  * Ordered by the opaque random `id` (a v4 UUID), not by `createdAt`: that gives
- * a stable order for consistent "Observer 1 … N" drill-down numbering across
- * renders, while deliberately *not* following arrival time — so a Subject can't
+ * a stable order within one render for "Observer 1 … N" drill-down numbering
+ * (numbering is not persistent: a new response can reshuffle it), while
+ * deliberately *not* following arrival time — so a Subject can't
  * read "Observer 1" as whoever they asked first. Returns an empty array when no
  * one has responded yet.
  */

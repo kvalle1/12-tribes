@@ -28,6 +28,11 @@ import { score, type TribeScore } from "@/lib/assessment/score";
  */
 export const MIN_OBSERVERS = 3;
 
+/** Whether enough Observers have responded to reveal the comparison (ADR-0003). */
+export function isUnlocked(observerCount: number): boolean {
+  return observerCount >= MIN_OBSERVERS;
+}
+
 /** A single Observer's response, reduced to just the words they selected. */
 export interface ObserverResponse {
   readonly words: readonly string[];

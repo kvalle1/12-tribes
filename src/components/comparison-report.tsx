@@ -4,6 +4,7 @@ import { rankScores } from "@/lib/assessment/ranking";
 import {
   aggregateObservers,
   MIN_OBSERVERS,
+  isUnlocked,
   type ObserverResponse,
 } from "@/lib/observer/aggregate";
 import { compareProfiles, type ComparisonRow } from "@/lib/observer/compare";
@@ -41,7 +42,7 @@ export function ComparisonReport({
         How others see you
       </h2>
 
-      {observerCount < MIN_OBSERVERS ? (
+      {!isUnlocked(observerCount) ? (
         <LockedState observerCount={observerCount} />
       ) : (
         <Unlocked

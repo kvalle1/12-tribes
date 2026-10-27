@@ -4,6 +4,7 @@ import type { TribeScore } from "@/lib/assessment/score";
 import {
   compareProfiles,
   AGREEMENT_THRESHOLD,
+  type ComparisonRow,
   DIVERGENCE_THRESHOLD,
 } from "./compare";
 
@@ -15,7 +16,7 @@ const tableFrom = (overrides: Record<string, number>): TribeScore[] =>
     score: overrides[t.slug] ?? 0,
   }));
 
-const rowFor = (slug: string, rows: { slug: string }[]) =>
+const rowFor = (slug: string, rows: ComparisonRow[]) =>
   rows.find((r) => r.slug === slug)!;
 
 describe("compareProfiles", () => {
