@@ -83,8 +83,8 @@ function LockedState({ observerCount }: { observerCount: number }) {
         {remaining === 1
           ? "just one more read"
           : `${remaining} more reads`}{" "}
-        to go. Keeping it locked until then means no single answer can be singled
-        out, so your Observers stay anonymous.
+        to go. Keeping it locked until then means no single read stands out from
+        a thin aggregate.
       </p>
     </div>
   );

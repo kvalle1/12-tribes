@@ -5,6 +5,7 @@ import { assessmentResults, observerResponses, users } from "@/db/schema";
 import { WORDS } from "@/lib/assessment/words";
 import { isWithinSelectionRange } from "@/lib/assessment/constants";
 import { observerDisplayName } from "./display-name";
+import { isSelfSubmission } from "./anti-abuse";
 
 /**
  * Server-only persistence for the 360 Observer flow (issue #8, ADR-0003). The
@@ -57,15 +58,24 @@ export async function getSubjectByToken(
  * Unknown words are dropped and duplicates collapsed before the count is gated
  * to the 8–15 range (the same gate the Subject's submission uses, re-checked
  * here so an out-of-range or tampered submission can't slip past). Returns
- * `false` — recording nothing — when the token is unknown or the selection is
- * out of range; `true` once the anonymous row is written.
+ * `false` — recording nothing — when the token is unknown, the selection is
+ * out of range, or the submission is the Subject answering about themselves
+ * (`submitterUserId` equal to the Subject): a Subject must not be able to
+ * self-seed the ≥3 unlock gate (issue #193). Returns `true` once the anonymous
+ * row is written. `submitterUserId` is the signed-in visitor's id, or `null`
+ * for an anonymous Observer (the normal case — Observers never authenticate).
  */
 export async function recordObserverResponse(
   token: string,
   selectedWords: readonly string[],
+  submitterUserId: string | null = null,
 ): Promise<boolean> {
   const subject = await getSubjectByToken(token);
   if (!subject) return false;
+
+  // The Subject answering their own link is not an Observer read; blocking it
+  // keeps them from trivially self-unlocking the anonymized comparison.
+  if (isSelfSubmission(submitterUserId, subject.subjectId)) return false;
 
   const words = [...new Set(selectedWords)].filter((w) => KNOWN_WORDS.has(w));
   if (!isWithinSelectionRange(words.length)) return false;
