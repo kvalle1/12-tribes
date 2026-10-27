@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Cormorant_Garamond, Cinzel, Frank_Ruhl_Libre } from "next/font/google";
+import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 
 const inter = Inter({
@@ -42,7 +43,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${cormorant.variable} ${cinzel.variable} ${frankRuhl.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <SessionProvider>{children}</SessionProvider>
+      </body>
     </html>
   );
 }

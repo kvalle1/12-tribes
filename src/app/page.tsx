@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { tribes } from "@/lib/tribes";
+import { accentHex, tribes } from "@/lib/tribes";
+import { AuthNav } from "@/components/auth-nav";
 
 /** First Hebrew base letter, with vowel points (niqqud) stripped. */
 function hebrewInitial(hebrew: string): string {
@@ -17,8 +18,9 @@ export default function Home() {
           </div>
           <div className="flex gap-7 text-[12px] uppercase tracking-[0.18em] text-muted">
             <Link href="#twelve" className="transition-colors hover:text-ink">The Twelve</Link>
-            <Link href="#twelve" className="transition-colors hover:text-ink">The Assessment</Link>
+            <Link href="/assessment" className="transition-colors hover:text-ink">The Assessment</Link>
             <Link href="#twelve" className="transition-colors hover:text-ink">About</Link>
+            <AuthNav />
           </div>
         </nav>
       </div>
@@ -47,7 +49,7 @@ export default function Home() {
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-[22px]">
             <Link
-              href="#twelve"
+              href="/assessment"
               className="rounded-[2px] bg-ink px-[34px] py-[15px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
             >
               Take the Assessment
@@ -139,23 +141,4 @@ export default function Home() {
       </footer>
     </main>
   );
-}
-
-/** Maps a tribe's Tailwind color name to the accent hex used for the row bar + initial. */
-function accentHex(color: string): string {
-  const map: Record<string, string> = {
-    amber: "#b8860b",
-    violet: "#7c5cbf",
-    blue: "#2f6fb0",
-    emerald: "#2f8f63",
-    orange: "#c2691f",
-    red: "#b23535",
-    slate: "#6b7280",
-    cyan: "#1f97aa",
-    lime: "#6f9420",
-    zinc: "#7c7c85",
-    yellow: "#b8961a",
-    rose: "#bf3a52",
-  };
-  return map[color] ?? "#a9842f";
 }

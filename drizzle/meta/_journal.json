@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780944892782,
+      "tag": "0000_closed_gateway",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781178053706,
+      "tag": "0001_mean_the_anarchist",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782617900181,
+      "tag": "0002_closed_drax",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782851840574,
+      "tag": "0003_fair_talon",
+      "breakpoints": true
+    }
+  ]
+}
