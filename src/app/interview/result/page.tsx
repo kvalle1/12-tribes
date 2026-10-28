@@ -163,6 +163,11 @@ export default async function InterviewResultPage() {
               {traces.map((tribeTrace) => {
                 const tribe = getTribeBySlug(tribeTrace.tribeSlug);
                 const accent = accentHex(tribe?.color ?? "");
+                // Only answers that actually moved the score. A matured fall-line
+                // clamps to a +0 contribution (ADR-0004); showing it as a "0"
+                // signal would read as noise here (Posture framing is slice 6).
+                const shown = tribeTrace.contributions.filter((c) => c.delta > 0);
+                if (shown.length === 0) return null;
                 return (
                   <li key={tribeTrace.tribeSlug}>
                     <details className="rounded-[2px] border border-hair bg-white/50">
@@ -178,12 +183,11 @@ export default async function InterviewResultPage() {
                           </span>
                         </span>
                         <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
-                          {tribeTrace.contributions.length}{" "}
-                          {tribeTrace.contributions.length === 1 ? "signal" : "signals"}
+                          {shown.length} {shown.length === 1 ? "signal" : "signals"}
                         </span>
                       </summary>
                       <ul className="flex flex-col gap-2.5 border-t border-hair px-4 py-3">
-                        {tribeTrace.contributions.map((contribution, i) => (
+                        {shown.map((contribution, i) => (
                           <li
                             key={`${contribution.markerId}-${contribution.questionNumber}-${i}`}
                             className="flex items-baseline gap-3 text-[14px] leading-[1.5]"
@@ -198,7 +202,7 @@ export default async function InterviewResultPage() {
                               </span>
                             </span>
                             <span className="w-[36px] shrink-0 text-right tabular-nums text-ink">
-                              {contribution.delta > 0 ? `+${contribution.delta}` : "0"}
+                              +{contribution.delta}
                             </span>
                           </li>
                         ))}

@@ -45,6 +45,20 @@ describe("interviewProgress", () => {
     expect(p.fraction).toBeGreaterThan(0.9);
   });
 
+  it("never slides backwards when later evidence narrows the lead", () => {
+    // A decisive lead (high confidence) followed by a tie (low confidence) one
+    // answer later: the bar must not shrink, even though confidence dropped.
+    const earlier = interviewProgress(profileOf({ judah: 40, levi: 1 }), MIN_TURNS + 1).fraction;
+    const later = interviewProgress(profileOf({ judah: 10, levi: 10 }), MIN_TURNS + 2).fraction;
+    expect(later).toBeGreaterThanOrEqual(earlier);
+  });
+
+  it("advances the bar by turn count, not confidence, past the floor", () => {
+    const decisive = interviewProgress(profileOf({ judah: 40, levi: 1 }), MIN_TURNS + 2).fraction;
+    const murky = interviewProgress(profileOf({ judah: 2, levi: 2 }), MIN_TURNS + 2).fraction;
+    expect(decisive).toBe(murky);
+  });
+
   it("stays within 0..1 at every turn and exposes no fixed-length total", () => {
     for (let t = 0; t <= MAX_TURNS; t++) {
       const p = interviewProgress(profileOf({ judah: 3, levi: 2 }), t);

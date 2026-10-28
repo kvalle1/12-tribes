@@ -15,10 +15,11 @@ import type { StrengthProfile } from "./types";
  *  - **Before the floor** — calibrating. Progress tracks answers toward the
  *    floor but is capped below the midpoint, so a lopsided early lead can never
  *    make it look nearly done.
- *  - **At/after the floor** — the run can end any Turn. Progress rises with the
- *    greater of the result's confidence and how close the Turn count is to the
- *    cap, so it approaches full both when the result is settling *and* when the
- *    cap is forcing an end (the inseparable-top-tribes case).
+ *  - **At/after the floor** — the run can end any Turn. The bar advances with
+ *    the Turn count toward the cap and nothing else, so it is monotonic and
+ *    never slides backwards when fresh evidence narrows the lead. The *phase
+ *    label* carries the confidence signal — *closing* once the margin is
+ *    decisive and the Primary separable, *narrowing* otherwise.
  *
  * `server-only` (ADR-0009): it reads the scoring engine (`summarize`), so the
  * server component renders the finished indicator and the raw profile stays off
@@ -45,9 +46,11 @@ export function interviewProgress(
   profile: StrengthProfile,
   answered: number,
 ): InterviewProgress {
+  // MAX_TURNS > MIN_TURNS >= 1 by construction (ADR-0006), so neither divisor
+  // below is zero.
   if (answered < MIN_TURNS) {
     // Capped at the midpoint so the floor always reads as "still getting there".
-    const fraction = MIN_TURNS > 0 ? (answered / MIN_TURNS) * 0.5 : 0;
+    const fraction = (answered / MIN_TURNS) * 0.5;
     return {
       answered,
       phase: "calibrating",
@@ -56,22 +59,23 @@ export function interviewProgress(
     };
   }
 
-  const result = summarize(profile);
-  // "Closing" mirrors the Stop Condition's notion of a reportable result: a
-  // decisive margin *and* a separable Primary. Inseparable top tribes keep a
-  // high confidence but are not closing — they read as still narrowing.
-  const closing = result.confidence >= 1 && !result.coPrimary;
+  // The bar advances with the Turn count alone — monotonic, so it never slides
+  // backwards when later evidence narrows the lead.
+  const capProgress = (answered - MIN_TURNS) / (MAX_TURNS - MIN_TURNS);
 
-  const capSpan = MAX_TURNS - MIN_TURNS;
-  const capProgress = capSpan > 0 ? (answered - MIN_TURNS) / capSpan : 1;
-  const closeness = Math.min(1, Math.max(result.confidence, capProgress));
+  const result = summarize(profile);
+  // "Closing" mirrors the Stop Condition's notion of a decisive, separable
+  // margin. It is descriptive, not a promise to stop — leader-stability is also
+  // required to stop, so the run may still ask more; the wording stays soft.
+  // Inseparable top tribes keep a high confidence but read as still narrowing.
+  const inFocus = result.confidence >= 1 && !result.coPrimary;
 
   return {
     answered,
-    phase: closing ? "closing" : "narrowing",
-    fraction: clamp01(0.5 + 0.5 * closeness),
-    label: closing
-      ? "Closing in on your result"
+    phase: inFocus ? "closing" : "narrowing",
+    fraction: clamp01(0.5 + 0.5 * capProgress),
+    label: inFocus
+      ? "Your strengths are coming into focus"
       : "Narrowing in on your strengths",
   };
 }

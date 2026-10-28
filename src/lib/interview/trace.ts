@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getMarkerById } from "./markers";
+import { markerCatalog } from "./markers";
 import type { MarkerType, PostureSignal, ScoreTraceEntry } from "./types";
 
 /**
@@ -53,16 +53,18 @@ export function buildScoreTrace(
   trace: readonly ScoreTraceEntry[],
   slugs?: readonly string[],
 ): TribeTrace[] {
+  // One pass over the catalog up front, so resolving each entry's signal is a
+  // Map lookup rather than a scan of all Markers per entry.
+  const signalById = new Map(markerCatalog.map((marker) => [marker.id, marker.signal]));
   const byTribe = new Map<string, TraceContribution[]>();
 
   for (const entry of trace) {
-    const marker = getMarkerById(entry.markerId);
     const contribution: TraceContribution = {
       questionNumber: entry.turnIndex + 1,
       markerId: entry.markerId,
       // Authored signal only — a validation miss should never leak an id as
       // "signal", so fall back to neutral copy rather than exposing internals.
-      markerSignal: marker?.signal ?? "Resonated with a signal in the Marker Catalog.",
+      markerSignal: signalById.get(entry.markerId) ?? "Resonated with a signal in the Marker Catalog.",
       type: entry.type,
       delta: entry.delta,
       postureSignal: entry.postureSignal,
