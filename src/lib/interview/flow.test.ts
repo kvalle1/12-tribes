@@ -89,6 +89,26 @@ describe("applyTurn", () => {
     expect(state.trace.map((t) => t.turnIndex)).toEqual([0, 0, 0]);
   });
 
+  it("routes a matured fall-line to the tribe's real oil Marker (ADR-0004), keeping full strength", () => {
+    const maturedFall: ScoredAnswer = {
+      deltas: [
+        {
+          markerId: "judah-fall-power",
+          tribeSlug: "judah",
+          type: "fallLine",
+          delta: 3,
+          postureSignal: "integrated",
+        },
+      ],
+      nextQuestion: "Next?",
+    };
+    const state = applyTurn(initialState(), "I used to crave the spotlight; now I hand it off.", maturedFall);
+    expect(state.profile.judah).toBe(3); // strength preserved in full
+    expect(state.trace[0].type).toBe("oil"); // re-attributed from fallLine
+    expect(state.trace[0].markerId).toBe("judah-oil-responsibility");
+    expect(state.trace[0].postureSignal).toBe("integrated");
+  });
+
   it("asks the fixed Calibration questions first, ignoring the agent's proposal", () => {
     let state = initialState();
     for (let i = 1; i < CALIBRATION_TURNS; i++) {

@@ -10,6 +10,7 @@ import {
   getMarkerById,
   markerCatalog,
   markersForTribe,
+  oilMarkerIdForTribe,
   validateMarkerCatalog,
 } from "@/lib/interview/markers";
 
@@ -57,6 +58,16 @@ describe("even coverage across all 12 tribes", () => {
   it("leaves no tribe uncovered", () => {
     const covered = new Set(markerCatalog.map((m) => m.tribeSlug));
     expect(covered.size).toBe(tribes.length);
+  });
+
+  it("resolves exactly one oil marker for every tribe (for fall-line routing)", () => {
+    for (const slug of tribeSlugs) {
+      const oilId = oilMarkerIdForTribe(slug);
+      expect(oilId).toBeTruthy();
+      expect(getMarkerById(oilId!)?.type).toBe("oil");
+      expect(getMarkerById(oilId!)?.tribeSlug).toBe(slug);
+    }
+    expect(oilMarkerIdForTribe("no-such-tribe")).toBeUndefined();
   });
 });
 
