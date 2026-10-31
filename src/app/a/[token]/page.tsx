@@ -28,9 +28,11 @@ export default async function ObserverPage({
   // The read is about the Subject, so the Subject can't answer it about
   // themselves — that would be self-scoring under the "others" view and could
   // self-unlock the ≥3 gate (issue #193). Show a gentle note instead of the
-  // form; the server action enforces the same block.
-  const session = await auth();
-  if (session?.user?.id === subject.subjectId) {
+  // form; the server action enforces the same block. This page is public, so a
+  // session-layer failure must fall back to "not signed in" (show the form)
+  // rather than 500 an anonymous Observer.
+  const viewerId = await currentUserId();
+  if (viewerId === subject.subjectId) {
     return <OwnLinkNotice subjectName={subject.subjectName} />;
   }
 
@@ -110,6 +112,20 @@ function OwnLinkNotice({ subjectName }: { subjectName: string }) {
       </div>
     </main>
   );
+}
+
+/**
+ * The signed-in viewer's id, or `null` when not signed in. On a public page a
+ * session-store hiccup or misconfiguration must not take down the Observer form,
+ * so any failure is treated as "not signed in" (issue #193 review).
+ */
+async function currentUserId(): Promise<string | null> {
+  try {
+    const session = await auth();
+    return session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Friendly, in-theme handling of an unknown or stale observer link. */

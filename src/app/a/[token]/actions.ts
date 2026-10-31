@@ -49,7 +49,9 @@ export async function submitObserverResponse(
   // confirmation rather than looping it back through the form.
   if (rejection === "duplicate") redirect(`/a/${token}/thanks`);
 
-  const recorded = await recordObserverResponse(token, words);
+  // Reuse the Subject already resolved above so the write doesn't look it up a
+  // second time for the same token.
+  const recorded = await recordObserverResponse(token, words, subject);
   if (!recorded) redirect(`/a/${token}`);
 
   // Mark this browser as having responded for this link. Scoped to the link's

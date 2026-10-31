@@ -64,8 +64,12 @@ export async function getSubjectByToken(
 export async function recordObserverResponse(
   token: string,
   selectedWords: readonly string[],
+  resolvedSubject?: ObserverSubject | null,
 ): Promise<boolean> {
-  const subject = await getSubjectByToken(token);
+  // The caller may pass a Subject it already resolved from this same token
+  // (the observer action resolves it to run the anti-self-unlock guard, #193),
+  // sparing a second identical lookup; otherwise we resolve it here.
+  const subject = resolvedSubject ?? (await getSubjectByToken(token));
   if (!subject) return false;
 
   const words = [...new Set(selectedWords)].filter((w) => KNOWN_WORDS.has(w));
