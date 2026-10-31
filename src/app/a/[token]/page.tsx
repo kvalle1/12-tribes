@@ -1,8 +1,13 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { shuffledWordList } from "@/lib/assessment/selection";
 import { WordSelector } from "@/components/word-selector";
 import { getSubjectByToken } from "@/lib/observer/repository";
+import {
+  observerResponseCookieName,
+  observerSubmissionRejection,
+} from "@/lib/observer/submission-guard";
 import { submitObserverResponse } from "./actions";
 
 /**
@@ -31,9 +36,25 @@ export default async function ObserverPage({
   // form; the server action enforces the same block. This page is public, so a
   // session-layer failure must fall back to "not signed in" (show the form)
   // rather than 500 an anonymous Observer.
+  //
+  // A browser that already recorded a read for this link (issue #205) is told so
+  // up front rather than being shown the form only to be turned away on submit.
+  // The same pure guard the server action uses decides both cases, so the self
+  // check keeps its precedence.
   const viewerId = await currentUserId();
-  if (viewerId === subject.subjectId) {
+  const cookieStore = await cookies();
+  const rejection = observerSubmissionRejection({
+    viewerUserId: viewerId,
+    subjectId: subject.subjectId,
+    alreadyRespondedFromBrowser: cookieStore.has(
+      observerResponseCookieName(token),
+    ),
+  });
+  if (rejection === "self") {
     return <OwnLinkNotice subjectName={subject.subjectName} />;
+  }
+  if (rejection === "duplicate") {
+    return <AlreadyRespondedNotice subjectName={subject.subjectName} />;
   }
 
   const words = shuffledWordList();
@@ -107,6 +128,48 @@ function OwnLinkNotice({ subjectName }: { subjectName: string }) {
             className="rounded-[2px] bg-ink px-[30px] py-[13px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
           >
             Back to your result
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+/**
+ * Shown when this browser already shared a read for the link (issue #205). The
+ * per-link cookie set after a successful submit is the only signal; nothing
+ * about the Observer is stored or shown.
+ */
+function AlreadyRespondedNotice({ subjectName }: { subjectName: string }) {
+  return (
+    <main className="min-h-screen bg-bone text-ink">
+      <div className="mx-auto max-w-[560px] px-8 py-[120px]">
+        <Link
+          href="/"
+          className="text-[12px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-ink"
+        >
+          ← Tribe·Index
+        </Link>
+
+        <p className="mt-10 text-[12px] uppercase tracking-[0.2em] text-faint">
+          Reflection received
+        </p>
+        <h1 className="mt-3 font-serif text-[40px] font-semibold leading-[1.05]">
+          You&rsquo;ve already shared your read
+        </h1>
+        <p className="mt-3 max-w-[460px] text-[16px] text-muted">
+          Your read of {subjectName} is already on file — anonymously, as before.
+          Each person shares one read per link, so there&rsquo;s nothing more to
+          do here. Once enough people have weighed in, {subjectName} will see how
+          others see them alongside their own answers.
+        </p>
+
+        <div className="mt-10">
+          <Link
+            href="/"
+            className="rounded-[2px] bg-ink px-[30px] py-[13px] text-[13px] tracking-[0.08em] text-bone transition-colors hover:bg-black"
+          >
+            Explore the twelve tribes
           </Link>
         </div>
       </div>
