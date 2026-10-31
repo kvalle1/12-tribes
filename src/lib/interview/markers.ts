@@ -767,3 +767,12 @@ export function markersForTribe(slug: string): Marker[] {
 export function getMarkerById(id: string): Marker | undefined {
   return markerCatalog.find((m) => m.id === id);
 }
+
+/**
+ * The id of a tribe's `oil` Marker, or undefined if it has none. Used by the
+ * scoring engine to re-attribute a matured fall-line to the tribe's oil Marker
+ * (ADR-0004). Every tribe is authored with exactly one oil Marker.
+ */
+export function oilMarkerFor(slug: string): string | undefined {
+  return markerCatalog.find((m) => m.tribeSlug === slug && m.type === "oil")?.id;
+}

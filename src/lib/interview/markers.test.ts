@@ -10,6 +10,7 @@ import {
   getMarkerById,
   markerCatalog,
   markersForTribe,
+  oilMarkerFor,
   validateMarkerCatalog,
 } from "@/lib/interview/markers";
 
@@ -123,5 +124,21 @@ describe("validateMarkerCatalog", () => {
   it("respects an explicit coverage tolerance", () => {
     const broken = markerCatalog.slice(1); // spread of 1
     expect(() => validateMarkerCatalog(broken, undefined, 1)).not.toThrow();
+  });
+});
+
+describe("oilMarkerFor", () => {
+  it("resolves every tribe to its single oil Marker (ADR-0004 routing target)", () => {
+    for (const slug of tribeSlugs) {
+      const id = oilMarkerFor(slug);
+      expect(id).toBeDefined();
+      const marker = getMarkerById(id!);
+      expect(marker?.tribeSlug).toBe(slug);
+      expect(marker?.type).toBe("oil");
+    }
+  });
+
+  it("returns undefined for a tribe with no oil Marker", () => {
+    expect(oilMarkerFor("not-a-tribe")).toBeUndefined();
   });
 });
