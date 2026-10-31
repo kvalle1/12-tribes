@@ -81,10 +81,14 @@ export function applyDeltas(
     if (delta.postureSignal === "integrated") tally.integrated += 1;
     else if (delta.postureSignal === "active-shadow") tally.activeShadow += 1;
 
-    // A matured fall-line routes the evidence to the tribe's oil Marker.
+    // A matured fall-line routes the evidence to the tribe's oil Marker — but
+    // only when the oil Marker id actually resolves, so the trace's `type` and
+    // `markerId` never disagree. With no resolver, the original fall-line
+    // citation is kept intact (the Posture shift above still stands).
     const matured = delta.type === "fallLine" && delta.postureSignal === "integrated";
-    const type = matured ? "oil" : delta.type;
-    const markerId = matured ? (oilMarkerFor?.(delta.tribeSlug) ?? delta.markerId) : delta.markerId;
+    const oilId = matured ? oilMarkerFor?.(delta.tribeSlug) : undefined;
+    const type = oilId ? "oil" : delta.type;
+    const markerId = oilId ?? delta.markerId;
 
     trace.push({
       turnIndex,
@@ -102,15 +106,24 @@ export function applyDeltas(
 /**
  * How decisive a Posture lean must be to read as `integrated` or
  * `active-shadow` rather than `mixed`: the signed share of the arc, from -1
- * (all active-shadow) to +1 (all integrated), must clear this threshold.
+ * (all active-shadow) to +1 (all integrated), must clear this threshold. The
+ * boundary is exclusive, so an exact ±1/3 reads as `mixed`.
  */
 export const POSTURE_MARGIN = 1 / 3;
 
 /**
+ * Minimum posture-bearing signals before a tribe's arc is called at all. One
+ * lone signal is too thin to claim someone has matured into the integrated form
+ * (or is stuck in the active-shadow), so below this it reads as `unknown`
+ * ("not enough signal") rather than overclaiming on a single data point.
+ */
+export const POSTURE_MIN_EVIDENCE = 2;
+
+/**
  * Read a tribe's `PostureTally` into a position on its fall→oil arc (ADR-0004).
  * `score` is `(integrated − activeShadow) / total` in [-1, 1]; `reading` buckets
- * it, with `unknown` when no posture-bearing evidence has accumulated. Pure and
- * total — an absent tally reads as `unknown`.
+ * it once enough evidence has accumulated (`POSTURE_MIN_EVIDENCE`), and is
+ * `unknown` below that. Pure and total — an absent tally reads as `unknown`.
  */
 export function posturePosition(
   tally: PostureTally | undefined,
@@ -118,7 +131,7 @@ export function posturePosition(
   const integrated = tally?.integrated ?? 0;
   const activeShadow = tally?.activeShadow ?? 0;
   const total = integrated + activeShadow;
-  if (total === 0) return { reading: "unknown", score: 0 };
+  if (total < POSTURE_MIN_EVIDENCE) return { reading: "unknown", score: total === 0 ? 0 : (integrated - activeShadow) / total };
 
   const score = (integrated - activeShadow) / total;
   const reading: PostureReading =

@@ -160,16 +160,18 @@ describe("applyDeltas — Posture axis (ADR-0004)", () => {
     expect(posture.simeon).toEqual({ integrated: 0, activeShadow: 1 });
   });
 
-  it("keeps the original markerId when no oil-Marker resolver is supplied", () => {
-    const { trace } = applyDeltas(
+  it("keeps the original fall-line citation intact when no oil-Marker resolver is supplied", () => {
+    const { trace, posture } = applyDeltas(
       { judah: 0 },
       [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
       0,
     );
-    // Still re-typed as oil (routing of the evidence type), but with no catalog
-    // to resolve the oil Marker id the original citation is retained.
-    expect(trace[0].type).toBe("oil");
+    // With no catalog to resolve the oil Marker id, the trace's type and
+    // markerId must stay in agreement, so the fall-line citation is kept — but
+    // the Posture shift toward integrated still stands.
+    expect(trace[0].type).toBe("fallLine");
     expect(trace[0].markerId).toBe("judah-fall-power");
+    expect(posture.judah).toEqual({ integrated: 1, activeShadow: 0 });
   });
 });
 
@@ -182,6 +184,15 @@ describe("posturePosition", () => {
   it("reads a tally with no evidence as unknown", () => {
     expect(posturePosition(read(0, 0)).reading).toBe("unknown");
     expect(posturePosition(undefined).reading).toBe("unknown");
+  });
+
+  it("reads a single lone signal as unknown — too thin to call the arc", () => {
+    expect(posturePosition(read(1, 0)).reading).toBe("unknown");
+    expect(posturePosition(read(0, 1)).reading).toBe("unknown");
+  });
+
+  it("calls the arc once the minimum evidence (2 signals) is met", () => {
+    expect(posturePosition(read(2, 0)).reading).toBe("integrated");
   });
 
   it("reads a clearly integrated tally as integrated", () => {
