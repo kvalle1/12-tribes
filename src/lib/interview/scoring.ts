@@ -89,13 +89,24 @@ export function applyDeltas(
 }
 
 /**
+ * A tribe only reads as `integrated` or `active-shadow` when one end leads by at
+ * least this fraction of its posture-bearing evidence. Below it the arc is
+ * `neutral` ("emerging") — a near-tie between the two ends is contradictory
+ * evidence, not a confident lean, and must not trigger the result page's
+ * one-sided arc framing (ADR-0007: the reading stays honest, never over-claimed).
+ */
+export const POSTURE_DEAD_BAND = 0.2;
+
+/**
  * Aggregate the score trace into a per-tribe {@link PostureReading} — where the
  * participant sits on each tribe's fall→oil arc (ADR-0004). Each posture-bearing
  * entry pulls its tribe toward one end weighted by the entry's `delta` (its
  * evidential strength), so one heavy signal outweighs several light ones;
- * `neutral` entries do not move Posture. Pure and derived entirely from the
- * trace, so no extra per-Turn state is persisted — Posture is read the way
- * `profileHistory` replays the ranking.
+ * `neutral` entries do not move Posture. The arc only commits to an end when the
+ * lead clears {@link POSTURE_DEAD_BAND} of the total pull, so mixed or balanced
+ * evidence reads neutral rather than flapping to whichever side is barely ahead.
+ * Pure and derived entirely from the trace, so no extra per-Turn state is
+ * persisted — Posture is read the way `profileHistory` replays the ranking.
  *
  * Only tribes with at least one trace entry get a reading; a tribe with no
  * evidence has no arc to report.
@@ -113,11 +124,13 @@ export function accumulatePosture(
   const readings: Record<string, PostureReading> = {};
   for (const [slug, { integrated, activeShadow }] of Object.entries(tallies)) {
     const net = integrated - activeShadow;
+    const total = integrated + activeShadow;
+    const clears = total > 0 && Math.abs(net) / total >= POSTURE_DEAD_BAND;
     readings[slug] = {
       integrated,
       activeShadow,
       net,
-      arc: net > 0 ? "integrated" : net < 0 ? "active-shadow" : "neutral",
+      arc: !clears ? "neutral" : net > 0 ? "integrated" : "active-shadow",
     };
   }
   return readings;

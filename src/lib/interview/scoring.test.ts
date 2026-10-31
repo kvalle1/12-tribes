@@ -183,10 +183,21 @@ describe("accumulatePosture", () => {
     // One heavy integrated signal outweighs two light active-shadow ones.
     const posture = accumulatePosture([
       t("judah", 3, "integrated"),
-      t("judah", 1, "active-shadow"),
-      t("judah", 1, "active-shadow"),
+      t("judah", 0.5, "active-shadow"),
+      t("judah", 0.5, "active-shadow"),
     ]);
     expect(posture.judah.arc).toBe("integrated");
+  });
+
+  it("reads neutral when the two ends are a near-tie (dead-band), not a confident lean", () => {
+    // Contradictory evidence barely favouring one end must not commit to an arc
+    // and trigger the one-sided result framing (ADR-0007).
+    const posture = accumulatePosture([
+      t("gad", 1.0, "integrated"),
+      t("gad", 0.95, "active-shadow"),
+    ]);
+    expect(posture.gad.net).toBeCloseTo(0.05);
+    expect(posture.gad.arc).toBe("neutral");
   });
 
   it("ignores neutral signals so a tribe scored only neutrally reads neutral", () => {
