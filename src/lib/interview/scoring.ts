@@ -2,9 +2,18 @@ import "server-only";
 
 import type {
   MarkerDelta,
+  PostureReading,
   ScoreTraceEntry,
   StrengthProfile,
 } from "./types";
+
+/**
+ * Resolves a tribe's oil Marker id, used to route a matured fall-line (ADR-0004).
+ * Injected rather than imported so the scoring engine keeps holding no catalog
+ * and stays unit-testable without one; `flow.ts` supplies the real resolver from
+ * the Marker Catalog.
+ */
+export type OilMarkerResolver = (tribeSlug: string) => string | undefined;
 
 /**
  * The Scoring engine (ADR-0002/0003/0004) — pure, deterministic functions that
@@ -34,11 +43,21 @@ import type {
  *  - **Known tribes only.** A delta whose `tribeSlug` is not already a key of
  *    the profile is a validation miss; it is dropped rather than inventing a
  *    new tribe.
+ *
+ * **Matured fall-line → oil routing (ADR-0004).** A fall-line delta the agent
+ * marked `integrated` is someone describing having *grown past* that tendency.
+ * That resonance is evidence of the tribe at its healthy, integrated end, so
+ * when an `oilMarkerFor` resolver is supplied the trace entry is re-attributed
+ * to the tribe's oil Marker (its `type` becomes `oil`) and keeps the `integrated`
+ * posture signal. Strength is untouched — the full contribution still lands on
+ * the tribe (never reduced for maturity); only the Marker it is credited to, and
+ * thus its Posture pull, changes.
  */
 export function applyDeltas(
   profile: StrengthProfile,
   deltas: readonly MarkerDelta[],
   turnIndex: number,
+  oilMarkerFor?: OilMarkerResolver,
 ): { profile: StrengthProfile; trace: ScoreTraceEntry[] } {
   const next: StrengthProfile = { ...profile };
   const trace: ScoreTraceEntry[] = [];
@@ -50,17 +69,71 @@ export function applyDeltas(
     const applied = Math.max(0, delta.delta);
     next[delta.tribeSlug] += applied;
 
+    // Route a matured fall-line to the tribe's oil Marker, if one is known.
+    const routedOilId =
+      delta.type === "fallLine" && delta.postureSignal === "integrated"
+        ? oilMarkerFor?.(delta.tribeSlug)
+        : undefined;
+
     trace.push({
       turnIndex,
-      markerId: delta.markerId,
+      markerId: routedOilId ?? delta.markerId,
       tribeSlug: delta.tribeSlug,
-      type: delta.type,
+      type: routedOilId ? "oil" : delta.type,
       delta: applied,
       postureSignal: delta.postureSignal,
     });
   }
 
   return { profile: next, trace };
+}
+
+/**
+ * A tribe only reads as `integrated` or `active-shadow` when one end leads by at
+ * least this fraction of its posture-bearing evidence. Below it the arc is
+ * `neutral` ("emerging") — a near-tie between the two ends is contradictory
+ * evidence, not a confident lean, and must not trigger the result page's
+ * one-sided arc framing (ADR-0007: the reading stays honest, never over-claimed).
+ */
+export const POSTURE_DEAD_BAND = 0.2;
+
+/**
+ * Aggregate the score trace into a per-tribe {@link PostureReading} — where the
+ * participant sits on each tribe's fall→oil arc (ADR-0004). Each posture-bearing
+ * entry pulls its tribe toward one end weighted by the entry's `delta` (its
+ * evidential strength), so one heavy signal outweighs several light ones;
+ * `neutral` entries do not move Posture. The arc only commits to an end when the
+ * lead clears {@link POSTURE_DEAD_BAND} of the total pull, so mixed or balanced
+ * evidence reads neutral rather than flapping to whichever side is barely ahead.
+ * Pure and derived entirely from the trace, so no extra per-Turn state is
+ * persisted — Posture is read the way `profileHistory` replays the ranking.
+ *
+ * Only tribes with at least one trace entry get a reading; a tribe with no
+ * evidence has no arc to report.
+ */
+export function accumulatePosture(
+  trace: readonly ScoreTraceEntry[],
+): Record<string, PostureReading> {
+  const tallies: Record<string, { integrated: number; activeShadow: number }> = {};
+  for (const entry of trace) {
+    const tally = (tallies[entry.tribeSlug] ??= { integrated: 0, activeShadow: 0 });
+    if (entry.postureSignal === "integrated") tally.integrated += entry.delta;
+    else if (entry.postureSignal === "active-shadow") tally.activeShadow += entry.delta;
+  }
+
+  const readings: Record<string, PostureReading> = {};
+  for (const [slug, { integrated, activeShadow }] of Object.entries(tallies)) {
+    const net = integrated - activeShadow;
+    const total = integrated + activeShadow;
+    const clears = total > 0 && Math.abs(net) / total >= POSTURE_DEAD_BAND;
+    readings[slug] = {
+      integrated,
+      activeShadow,
+      net,
+      arc: !clears ? "neutral" : net > 0 ? "integrated" : "active-shadow",
+    };
+  }
+  return readings;
 }
 
 /**
