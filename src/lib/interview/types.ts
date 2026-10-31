@@ -21,9 +21,9 @@ export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
 
 /**
  * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
- * Slice 3 carries the signal the agent returns through to the trace but does not
- * yet aggregate a Posture axis — that is slice 6. `neutral` is the default when
- * an answer is not posture-bearing.
+ * The agent returns this per delta; the scoring engine both carries it through to
+ * the trace and aggregates it into a per-tribe `PostureTally` (slice 6).
+ * `neutral` is the default when an answer is not posture-bearing.
  */
 export type PostureSignal = "active-shadow" | "neutral" | "integrated";
 
@@ -35,6 +35,28 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
 
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;
+
+/**
+ * A running count of a tribe's posture-bearing evidence (ADR-0004, slice 6):
+ * how many scored answers placed the participant toward *integrated* vs
+ * *active-shadow* on that tribe's fall→oil arc. `neutral` signals bear on
+ * strength but not Posture, so they are counted in neither. This is the axis
+ * orthogonal to strength — it says *how* a tribe is being lived, not *whether*.
+ */
+export interface PostureTally {
+  integrated: number;
+  activeShadow: number;
+}
+
+/** Per-tribe Posture tallies, keyed by tribe `slug` (mirrors `StrengthProfile`). */
+export type PostureTallies = Record<string, PostureTally>;
+
+/**
+ * Where a tribe currently sits on its fall→oil arc, read from its
+ * `PostureTally`. `unknown` is the honest answer when no posture-bearing
+ * evidence has accumulated for the tribe yet.
+ */
+export type PostureReading = "active-shadow" | "mixed" | "integrated" | "unknown";
 
 /**
  * One validated scoring contribution the agent assigned to an answer, citing a
@@ -114,6 +136,8 @@ export interface InterviewState {
   turns: InterviewTurn[];
   /** Running strength profile, accumulated from Marker deltas (slice 3). */
   profile: StrengthProfile;
+  /** Running per-tribe Posture tallies, accumulated alongside strength (slice 6). */
+  posture: PostureTallies;
   /** Every applied delta, oldest first, for the score trace. */
   trace: ScoreTraceEntry[];
   /** The question awaiting an answer; null once the Interview is complete. */

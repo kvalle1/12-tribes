@@ -11,6 +11,7 @@ import type {
   Dilemma,
   InterviewResult,
   InterviewTurn,
+  PostureTallies,
   ScoreTraceEntry,
   StrengthProfile,
 } from "@/lib/interview/types";
@@ -152,6 +153,8 @@ export const interviewSessions = pgTable("interview_session", {
     .default("in_progress"),
   // Running strength profile, accumulated from Marker deltas (ADR-0002).
   profile: jsonb("profile").$type<StrengthProfile>().notNull(),
+  // Running per-tribe Posture tallies, accumulated alongside strength (ADR-0004).
+  posture: jsonb("posture").$type<PostureTallies>().notNull().default({}),
   // Completed Turns, oldest first.
   turns: jsonb("turns").$type<InterviewTurn[]>().notNull().default([]),
   turnCount: integer("turnCount").notNull().default(0),

@@ -161,6 +161,44 @@ describe("applyTurn", () => {
     applyTurn(before, "an answer", decisive);
     expect(before.turns).toEqual([]);
     expect(before.profile.judah).toBe(0);
+    expect(before.posture.judah).toEqual({ integrated: 0, activeShadow: 0 });
+  });
+
+  it("seeds Posture tallies for all 12 tribes in the initial state", () => {
+    const state = initialState();
+    expect(Object.keys(state.posture).sort()).toEqual(tribes.map((t) => t.slug).sort());
+    expect(state.posture[tribes[0].slug]).toEqual({ integrated: 0, activeShadow: 0 });
+  });
+
+  it("accumulates Posture per tribe across Turns alongside strength (ADR-0004)", () => {
+    const scored: ScoredAnswer = {
+      deltas: [
+        { markerId: "judah-oil-responsibility", tribeSlug: "judah", type: "oil", delta: 2, postureSignal: "integrated" },
+        { markerId: "levi-shadow-legalism", tribeSlug: "levi", type: "shadow", delta: 2, postureSignal: "active-shadow" },
+      ],
+      nextQuestion: "Next?",
+    };
+    let state = initialState();
+    state = applyTurn(state, "first", scored);
+    state = applyTurn(state, "second", scored);
+    expect(state.posture.judah).toEqual({ integrated: 2, activeShadow: 0 });
+    expect(state.posture.levi).toEqual({ integrated: 0, activeShadow: 2 });
+    expect(state.profile.judah).toBe(4);
+  });
+
+  it("routes a matured fall-line through the real catalog to the tribe's oil Marker", () => {
+    const scored: ScoredAnswer = {
+      deltas: [
+        { markerId: "simeon-fall-cruelty", tribeSlug: "simeon", type: "fallLine", delta: 3, postureSignal: "integrated" },
+      ],
+      nextQuestion: "Next?",
+    };
+    const state = applyTurn(initialState(), "I used to burn people; I've learned mercy.", scored);
+    const entry = state.trace.at(-1);
+    expect(entry?.type).toBe("oil");
+    expect(entry?.markerId).toBe("simeon-oil-mercy");
+    expect(state.profile.simeon).toBe(3); // additive, never lowered
+    expect(state.posture.simeon).toEqual({ integrated: 1, activeShadow: 0 });
   });
 
   it("keeps asking until the minimum floor, then stops with a Primary and Contenders", () => {

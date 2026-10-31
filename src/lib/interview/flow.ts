@@ -1,6 +1,7 @@
 import { tribes } from "@/lib/tribes";
 import { evaluate } from "./confidence";
 import { CALIBRATION_QUESTIONS, DILEMMA_PROMPT, planNextTurn } from "./funnel";
+import { oilMarkerFor } from "./markers";
 import { applyDeltas } from "./scoring";
 import type {
   Dilemma,
@@ -9,6 +10,7 @@ import type {
   InterviewTurn,
   MarkerDelta,
   NextTurn,
+  PostureTallies,
   StrengthProfile,
 } from "./types";
 
@@ -51,12 +53,22 @@ export function emptyProfile(): StrengthProfile {
   return profile;
 }
 
+/** Fresh, zeroed Posture tallies covering all 12 tribes (mirrors `emptyProfile`). */
+export function emptyPosture(): PostureTallies {
+  const posture: PostureTallies = {};
+  for (const tribe of tribes) {
+    posture[tribe.slug] = { integrated: 0, activeShadow: 0 };
+  }
+  return posture;
+}
+
 /** The initial server-authoritative state for a newly created Session. */
 export function initialState(): InterviewState {
   return {
     status: "in_progress",
     turns: [],
     profile: emptyProfile(),
+    posture: emptyPosture(),
     trace: [],
     pendingQuestion: OPENING_QUESTION,
     pendingDilemma: null,
@@ -120,8 +132,12 @@ export function applyTurn(
     ? { question: state.pendingQuestion, answer, dilemma: state.pendingDilemma, choice }
     : { question: state.pendingQuestion, answer };
   const turns = [...state.turns, turn];
-  const applied = applyDeltas(state.profile, scored.deltas, turnIndex);
+  const applied = applyDeltas(state.profile, scored.deltas, turnIndex, {
+    posture: state.posture,
+    oilMarkerFor,
+  });
   const profile = applied.profile;
+  const posture = applied.posture;
   const trace = [...state.trace, ...applied.trace];
 
   const verdict = evaluate(profile, trace, turns.length);
@@ -130,6 +146,7 @@ export function applyTurn(
       status: "complete",
       turns,
       profile,
+      posture,
       trace,
       pendingQuestion: null,
       pendingDilemma: null,
@@ -154,6 +171,7 @@ export function applyTurn(
     status: "in_progress",
     turns,
     profile,
+    posture,
     trace,
     pendingQuestion,
     pendingDilemma,

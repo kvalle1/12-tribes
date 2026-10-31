@@ -29,6 +29,7 @@ export async function createInterviewSession(
       userId: userId ?? null,
       status: state.status,
       profile: state.profile,
+      posture: state.posture,
       turns: state.turns,
       turnCount: 0,
       trace: state.trace,
@@ -63,6 +64,9 @@ export function toState(row: InterviewSessionRow): InterviewState {
     status: row.status,
     turns: row.turns,
     profile: row.profile,
+    // Sessions created before slice 6 have no Posture tallies; an empty map
+    // reads as "unknown" for every tribe and grows lazily as Turns are scored.
+    posture: row.posture ?? {},
     trace: row.trace,
     pendingQuestion: row.pendingQuestion ?? legacyPending,
     pendingDilemma: row.status === "in_progress" ? (row.pendingDilemma ?? null) : null,
@@ -127,6 +131,7 @@ export async function recordInterviewAnswer(
       turns: next.turns,
       turnCount: next.turns.length,
       profile: next.profile,
+      posture: next.posture,
       trace: next.trace,
       pendingQuestion: next.pendingQuestion,
       pendingDilemma: next.pendingDilemma,
