@@ -170,6 +170,39 @@ describe("routeMaturedFallLines (ADR-0004)", () => {
     expect(routed.markerId).toBe("judah-oil-responsibility");
     expect(routed.type).toBe("oil");
   });
+
+  it("merges a routed fall-line that collides with a directly-cited oil Marker (no duplicate id, strength summed)", () => {
+    const oilFor = () => "judah-oil";
+    const routed = routeMaturedFallLines(
+      [
+        d("judah-fall-power", "judah", "fallLine", 3, "integrated"),
+        d("judah-oil", "judah", "oil", 2, "neutral"),
+      ],
+      oilFor,
+    );
+    // One entry for the oil Marker, strengths summed (ADR-0004: never lowered),
+    // and the integrated signal kept over the neutral one.
+    expect(routed).toHaveLength(1);
+    expect(routed[0]).toEqual({
+      markerId: "judah-oil",
+      tribeSlug: "judah",
+      type: "oil",
+      delta: 5,
+      postureSignal: "integrated",
+    });
+  });
+
+  it("leaves distinct Marker ids as separate entries", () => {
+    const oilFor = (slug: string) => `${slug}-oil`;
+    const routed = routeMaturedFallLines(
+      [
+        d("judah-fall-power", "judah", "fallLine", 3, "integrated"),
+        d("levi-strength", "levi", "strength", 1, "neutral"),
+      ],
+      oilFor,
+    );
+    expect(routed).toHaveLength(2);
+  });
 });
 
 describe("accumulatePosture (ADR-0004)", () => {

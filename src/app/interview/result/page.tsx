@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
+import { posturesFromTrace } from "@/lib/interview/scoring";
 import { currentSession } from "@/lib/interview/session";
 import type { PostureLabel, PostureReading } from "@/lib/interview/types";
 import { accentHex, getTribeBySlug, statusLabels, type Tribe } from "@/lib/tribes";
@@ -81,8 +82,10 @@ export default async function InterviewResultPage() {
     ? session.result
     : summarize(session.profile, session.trace);
   const pct = result.percentages;
-  // Posture is optional on results persisted before slice 6.
-  const posture = result.posture ?? {};
+  // Posture is absent on results persisted before slice 6, but their score trace
+  // still carries the posture signals — recompute from it so older completed
+  // sessions keep their arc readings (ADR-0004).
+  const posture = result.posture ?? posturesFromTrace(session.trace);
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
   const framedPrimaries = result.primary
     .map((slug) => getTribeBySlug(slug))

@@ -86,14 +86,37 @@ export function normalize(profile: StrengthProfile): Record<string, number> {
 }
 
 /**
+ * Posture signals ordered by precedence when two contributions to one Marker are
+ * merged: a posture-bearing reading outranks `neutral`, and `integrated` (the
+ * matured-fall-line intent) outranks `active-shadow`.
+ */
+const POSTURE_PRECEDENCE: Record<MarkerDelta["postureSignal"], number> = {
+  integrated: 2,
+  "active-shadow": 1,
+  neutral: 0,
+};
+
+/**
  * Route a matured fall-line to the tribe's oil Marker (ADR-0004). A fall-line
  * Marker fires on *resonance with the theme*, so a participant who has matured
  * past the tendency still resonates with it — the agent tags that answer
  * `postureSignal: "integrated"`. Such a contribution is re-attributed to the
  * tribe's `oil` Marker, which cross-confirms the attribution via a different
  * Marker type, while the tribe, the delta magnitude, and the posture signal are
- * all preserved: **strength is never lowered** and Posture is free to move
- * toward integrated. Every other delta passes through untouched.
+ * all preserved. Every other delta passes through untouched.
+ *
+ * Only fall-lines are routed: ADR-0004 scopes the oil cross-confirmation to the
+ * fall-line specifically. A matured `shadow` still contributes its posture via
+ * `accumulatePosture`; it is simply not re-attributed.
+ *
+ * **Strength is never lowered (ADR-0004).** The re-attributed delta keeps its
+ * full magnitude even though the oil Marker's own weight is lower than the
+ * fall-line's — ADR-0004's "never lowers strength" governs here over ADR-0003's
+ * per-Marker weight cap, which has already bounded the incoming fall-line delta.
+ * For the same reason, if a Turn cites both an integrated fall-line and the
+ * tribe's oil Marker directly, the two now-colliding oil contributions are
+ * *summed* (never re-capped) into one entry, so the Turn carries a single,
+ * deduplicated oil delta rather than two with the same id.
  *
  * The oil-Marker resolver is injectable (defaulting to the real catalog) so the
  * routing rule can be unit-tested without the catalog, and so a tribe missing an
@@ -104,7 +127,7 @@ export function routeMaturedFallLines(
   oilMarkerIdFor: (slug: string) => string | undefined = (slug) =>
     oilMarkerForTribe(slug)?.id,
 ): MarkerDelta[] {
-  return deltas.map((delta) => {
+  const routed = deltas.map((delta): MarkerDelta => {
     if (delta.type !== "fallLine" || delta.postureSignal !== "integrated") {
       return delta;
     }
@@ -112,6 +135,23 @@ export function routeMaturedFallLines(
     if (!oilMarkerId) return delta;
     return { ...delta, markerId: oilMarkerId, type: "oil" };
   });
+
+  // Collapse any entries that now share a Marker id (a routed fall-line landing
+  // on the same oil Marker the Turn also cited directly). Sum strength to honour
+  // ADR-0004, and keep the strongest posture signal.
+  const byMarker = new Map<string, MarkerDelta>();
+  for (const delta of routed) {
+    const existing = byMarker.get(delta.markerId);
+    if (!existing) {
+      byMarker.set(delta.markerId, { ...delta });
+      continue;
+    }
+    existing.delta += delta.delta;
+    if (POSTURE_PRECEDENCE[delta.postureSignal] > POSTURE_PRECEDENCE[existing.postureSignal]) {
+      existing.postureSignal = delta.postureSignal;
+    }
+  }
+  return [...byMarker.values()];
 }
 
 /**
