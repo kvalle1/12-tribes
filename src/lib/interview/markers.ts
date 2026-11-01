@@ -767,3 +767,14 @@ export function markersForTribe(slug: string): Marker[] {
 export function getMarkerById(id: string): Marker | undefined {
   return markerCatalog.find((m) => m.id === id);
 }
+
+/**
+ * The tribe's `oil` Marker — the integrated end of its fall→oil arc. A matured
+ * fall-line routes its evidence here (ADR-0004: cross-confirming the attribution
+ * via a different Marker type). Every tribe carries exactly one oil Marker in
+ * the authored catalog, so this resolves for all 12; `undefined` only if a
+ * tribe's oil Marker were ever removed.
+ */
+export function oilMarkerForTribe(slug: string): Marker | undefined {
+  return markerCatalog.find((m) => m.tribeSlug === slug && m.type === "oil");
+}

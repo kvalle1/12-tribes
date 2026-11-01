@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { applyDeltas, normalize } from "./scoring";
-import type { MarkerDelta } from "./types";
+import {
+  accumulatePosture,
+  applyDeltas,
+  normalize,
+  postureReading,
+  posturesFromTrace,
+  routeMaturedFallLines,
+} from "./scoring";
+import type { MarkerDelta, ScoreTraceEntry } from "./types";
 
 const d = (
   markerId: string,
@@ -103,5 +110,167 @@ describe("normalize", () => {
     const pct = normalize({ a: 4, b: 0 });
     expect(pct.a).toBeCloseTo(100);
     expect(pct.b).toBe(0);
+  });
+});
+
+const trace = (
+  tribeSlug: string,
+  type: ScoreTraceEntry["type"],
+  delta: number,
+  postureSignal: ScoreTraceEntry["postureSignal"],
+  turnIndex = 0,
+  markerId = `${tribeSlug}-m`,
+): ScoreTraceEntry => ({ turnIndex, markerId, tribeSlug, type, delta, postureSignal });
+
+describe("routeMaturedFallLines (ADR-0004)", () => {
+  // A deterministic resolver keeps the routing rule testable without the catalog.
+  const oilFor = (slug: string) => `${slug}-oil`;
+
+  it("re-attributes an integrated fall-line to the tribe's oil Marker", () => {
+    const [routed] = routeMaturedFallLines(
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      oilFor,
+    );
+    expect(routed.markerId).toBe("judah-oil");
+    expect(routed.type).toBe("oil");
+  });
+
+  it("preserves the tribe, the delta magnitude, and the integrated signal when routing", () => {
+    const [routed] = routeMaturedFallLines(
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      oilFor,
+    );
+    expect(routed.tribeSlug).toBe("judah");
+    expect(routed.delta).toBe(3); // never lowered
+    expect(routed.postureSignal).toBe("integrated");
+  });
+
+  it("leaves a fall-line that is not integrated untouched", () => {
+    const deltas = [
+      d("m1", "judah", "fallLine", 3, "active-shadow"),
+      d("m2", "levi", "fallLine", 3, "neutral"),
+    ];
+    expect(routeMaturedFallLines(deltas, oilFor)).toEqual(deltas);
+  });
+
+  it("leaves non-fall-line deltas untouched even when integrated", () => {
+    const deltas = [d("m1", "judah", "shadow", 2, "integrated")];
+    expect(routeMaturedFallLines(deltas, oilFor)).toEqual(deltas);
+  });
+
+  it("degrades gracefully when no oil Marker resolves — delta passes through", () => {
+    const deltas = [d("m1", "judah", "fallLine", 3, "integrated")];
+    expect(routeMaturedFallLines(deltas, () => undefined)).toEqual(deltas);
+  });
+
+  it("uses the real catalog by default: judah's integrated fall-line routes to its oil Marker", () => {
+    const [routed] = routeMaturedFallLines([
+      d("judah-fall-power", "judah", "fallLine", 3, "integrated"),
+    ]);
+    expect(routed.markerId).toBe("judah-oil-responsibility");
+    expect(routed.type).toBe("oil");
+  });
+
+  it("merges a routed fall-line that collides with a directly-cited oil Marker (no duplicate id, strength summed)", () => {
+    const oilFor = () => "judah-oil";
+    const routed = routeMaturedFallLines(
+      [
+        d("judah-fall-power", "judah", "fallLine", 3, "integrated"),
+        d("judah-oil", "judah", "oil", 2, "neutral"),
+      ],
+      oilFor,
+    );
+    // One entry for the oil Marker, strengths summed (ADR-0004: never lowered),
+    // and the integrated signal kept over the neutral one.
+    expect(routed).toHaveLength(1);
+    expect(routed[0]).toEqual({
+      markerId: "judah-oil",
+      tribeSlug: "judah",
+      type: "oil",
+      delta: 5,
+      postureSignal: "integrated",
+    });
+  });
+
+  it("leaves distinct Marker ids as separate entries", () => {
+    const oilFor = (slug: string) => `${slug}-oil`;
+    const routed = routeMaturedFallLines(
+      [
+        d("judah-fall-power", "judah", "fallLine", 3, "integrated"),
+        d("levi-strength", "levi", "strength", 1, "neutral"),
+      ],
+      oilFor,
+    );
+    expect(routed).toHaveLength(2);
+  });
+});
+
+describe("accumulatePosture (ADR-0004)", () => {
+  it("adds an integrated entry's weight to the integrated side", () => {
+    const posture = accumulatePosture([trace("judah", "oil", 3, "integrated")]);
+    expect(posture.judah).toEqual({ integrated: 3, activeShadow: 0 });
+  });
+
+  it("adds an active-shadow entry's weight to the active-shadow side", () => {
+    const posture = accumulatePosture([trace("dan", "shadow", 2, "active-shadow")]);
+    expect(posture.dan).toEqual({ integrated: 0, activeShadow: 2 });
+  });
+
+  it("ignores neutral entries entirely (a strength-only tribe gets no tally)", () => {
+    const posture = accumulatePosture([trace("levi", "strength", 1, "neutral")]);
+    expect(posture.levi).toBeUndefined();
+  });
+
+  it("accumulates both ends across turns for the same tribe", () => {
+    const posture = accumulatePosture([
+      trace("judah", "shadow", 2, "active-shadow", 0),
+      trace("judah", "oil", 3, "integrated", 1),
+      trace("judah", "oil", 1, "integrated", 2),
+    ]);
+    expect(posture.judah).toEqual({ integrated: 4, activeShadow: 2 });
+  });
+});
+
+describe("postureReading (ADR-0004)", () => {
+  it("reads integrated-dominant evidence as integrated, position > 0", () => {
+    const reading = postureReading({ integrated: 4, activeShadow: 1 });
+    expect(reading.label).toBe("integrated");
+    expect(reading.position).toBeGreaterThan(0);
+  });
+
+  it("reads active-shadow-dominant evidence as active-shadow, position < 0", () => {
+    const reading = postureReading({ integrated: 1, activeShadow: 4 });
+    expect(reading.label).toBe("active-shadow");
+    expect(reading.position).toBeLessThan(0);
+  });
+
+  it("reads a near-even split as mixed", () => {
+    const reading = postureReading({ integrated: 3, activeShadow: 3 });
+    expect(reading.label).toBe("mixed");
+    expect(reading.position).toBeCloseTo(0);
+  });
+
+  it("reads no evidence as unknown with a null position", () => {
+    expect(postureReading(undefined)).toEqual({ position: null, label: "unknown" });
+    expect(postureReading({ integrated: 0, activeShadow: 0 })).toEqual({
+      position: null,
+      label: "unknown",
+    });
+  });
+});
+
+describe("matured fall-line, end to end (route → apply → posture)", () => {
+  it("keeps full strength on the tribe and moves its Posture toward integrated", () => {
+    const routed = routeMaturedFallLines(
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      (slug) => `${slug}-oil`,
+    );
+    const { profile, trace: applied } = applyDeltas({ judah: 2 }, routed, 0);
+
+    // Strength is never lowered by maturity — the full fall-line delta still lands.
+    expect(profile.judah).toBe(5);
+
+    const readings = posturesFromTrace(applied);
+    expect(readings.judah.label).toBe("integrated");
   });
 });

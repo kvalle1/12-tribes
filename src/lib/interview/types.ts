@@ -37,6 +37,39 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
 export type StrengthProfile = Record<string, number>;
 
 /**
+ * A per-tribe Posture tally (slice 6, ADR-0004): how much posture-bearing
+ * evidence pulled this tribe toward the *integrated* end of its fall→oil arc
+ * versus the *active-shadow* end. Each side accumulates the strength weight of
+ * the contributing answers, so a strong signal moves Posture more than a weak
+ * one; `neutral` answers contribute to neither. Posture is orthogonal to
+ * strength — it never raises or lowers the tribe's strength score.
+ */
+export interface PostureTally {
+  integrated: number;
+  activeShadow: number;
+}
+
+/** Per-tribe Posture tallies, keyed by tribe `slug`. */
+export type PostureProfile = Record<string, PostureTally>;
+
+/**
+ * Where a tribe sits on its fall→oil arc for display (ADR-0004). `unknown` when
+ * no posture-bearing evidence has accumulated yet; otherwise `active-shadow`
+ * (cautionary end), `integrated` (redemption end), or `mixed` in between.
+ */
+export type PostureLabel = "active-shadow" | "mixed" | "integrated" | "unknown";
+
+/**
+ * A tribe's Posture reading. `position` runs from -1 (fully active-shadow) to
+ * +1 (fully integrated), or is null when there is no posture evidence; `label`
+ * is the banded reading of that position used for copy and display.
+ */
+export interface PostureReading {
+  position: number | null;
+  label: PostureLabel;
+}
+
+/**
  * One validated scoring contribution the agent assigned to an answer, citing a
  * single catalogued Marker (ADR-0003: no ad-hoc rationale). `tribeSlug` and
  * `type` are authoritative — reconciled against the Marker Catalog from
@@ -105,6 +138,12 @@ export interface InterviewResult {
   coPrimary: boolean;
   confidence: number;
   percentages: Record<string, number>;
+  /**
+   * Each scored tribe's arc position (slice 6, ADR-0004), so the result can
+   * place the participant on every tribe's fall→oil arc, not just name the
+   * tribe. Keyed by tribe `slug`; a tribe with no posture evidence is omitted.
+   */
+  posture: Record<string, PostureReading>;
 }
 
 /** Server-authoritative Session state the pure flow logic operates on. */
