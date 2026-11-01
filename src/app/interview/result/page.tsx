@@ -2,20 +2,72 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
 import { currentSession } from "@/lib/interview/session";
-import { accentHex, getTribeBySlug } from "@/lib/tribes";
+import type { PostureLabel, PostureReading } from "@/lib/interview/types";
+import { accentHex, getTribeBySlug, statusLabels, type Tribe } from "@/lib/tribes";
 import { startInterview } from "../actions";
 
 /**
- * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
- * when the top tribes never separated (ADR-0006) — plus the dynamic Contender
- * band, each with its display percentage (ADR-0002), and the full twelve below.
- * Posture and the score trace arrive in later slices.
+ * Interview result (slice 4, issue #17; Posture added slice 6, issue #20): the
+ * Primary — or honest Co-Primaries when the top tribes never separated
+ * (ADR-0006) — plus the dynamic Contender band, each with its display percentage
+ * (ADR-0002) and its Posture / arc position (ADR-0004), and the full twelve
+ * below. A disqualified- or warning-tribe Primary is framed with non-condemning,
+ * arc-aware copy (ADR-0007).
  *
  * Reached only once the Session is complete — an in-progress or missing Session
  * routes back to the hub, so a refresh here still resolves to the right place.
  * This is a server component: it reads the authoritative Session and the
  * `server-only` scoring engine, so no scoring state reaches the client.
  */
+
+/** Short arc-position label for a tribe's Posture reading (ADR-0004). */
+const POSTURE_DISPLAY: Record<PostureLabel, string> = {
+  integrated: "Integrated",
+  "active-shadow": "Active shadow",
+  mixed: "Mixed arc",
+  unknown: "",
+};
+
+/**
+ * Non-condemning, arc-aware framing for a non-`active` Primary (ADR-0007): the
+ * `status` names a pattern, Posture decides whether it reads as a caution
+ * (active-shadow) or as the arc already completing (integrated). Neither reads
+ * as a verdict on the person — the way through is always the tribe's oil.
+ */
+function arcFraming(
+  tribe: Tribe,
+  reading: PostureReading | undefined,
+): { kicker: string; body: string } {
+  const status = statusLabels[tribe.status].toLowerCase();
+  const kicker = statusLabels[tribe.status];
+
+  if (reading?.label === "integrated") {
+    return {
+      kicker: `${kicker} — read as redemption`,
+      body:
+        `${tribe.name}'s story in Scripture carries a ${status}, but the Interview heard ` +
+        `you living this wiring toward its oil, not its fall. Read your result as the arc ` +
+        `completing: ${tribe.oil}`,
+    };
+  }
+  if (reading?.label === "active-shadow") {
+    return {
+      kicker: `${kicker} — read with care`,
+      body:
+        `${tribe.name}'s wiring is real in you, and the Interview heard it nearer its fall ` +
+        `line than its oil. That is a caution, not a condemnation — the ${status} names a ` +
+        `pattern to move out of, never a sentence on who you are. The way through is its ` +
+        `oil: ${tribe.oil}`,
+    };
+  }
+  return {
+    kicker,
+    body:
+      `${tribe.name} carries a ${status} in Scripture — a pattern named as a warning, never ` +
+      `a condemnation of the wiring itself. Its oil is the arc it is meant to complete: ${tribe.oil}`,
+  };
+}
+
 export default async function InterviewResultPage() {
   const session = await currentSession();
 
@@ -24,12 +76,18 @@ export default async function InterviewResultPage() {
   }
 
   // Sessions completed before slice 4 hold a legacy stub result; derive the
-  // reading from their profile instead.
+  // reading from their profile and trace instead (the trace carries Posture).
   const result = Array.isArray(session.result?.primary)
     ? session.result
-    : summarize(session.profile);
+    : summarize(session.profile, session.trace);
   const pct = result.percentages;
+  // Posture is optional on results persisted before slice 6.
+  const posture = result.posture ?? {};
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
+  const framedPrimaries = result.primary
+    .map((slug) => getTribeBySlug(slug))
+    .filter((tribe): tribe is Tribe => tribe !== undefined && tribe.status !== "active")
+    .map((tribe) => ({ tribe, ...arcFraming(tribe, posture[tribe.slug]) }));
   const otherContenders = result.contenders.filter((slug) => !result.primary.includes(slug));
   const ranked = Object.entries(pct)
     .map(([slug, value]) => ({ slug, value }))
@@ -67,6 +125,22 @@ export default async function InterviewResultPage() {
           </p>
         </div>
 
+        {framedPrimaries.length > 0 && (
+          <section className="mt-10 flex flex-col gap-4">
+            {framedPrimaries.map(({ tribe, kicker, body }) => (
+              <div
+                key={tribe.slug}
+                className="rounded-[2px] border border-hair bg-white/50 p-6"
+              >
+                <div className="text-[11px] uppercase tracking-[0.16em] text-faint">
+                  {kicker}
+                </div>
+                <p className="mt-2 text-[15px] leading-[1.6] text-ink/90">{body}</p>
+              </div>
+            ))}
+          </section>
+        )}
+
         {result.contenders.length > 0 && (
           <section className="mt-12">
             <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -76,6 +150,7 @@ export default async function InterviewResultPage() {
               {result.contenders.map((slug) => {
                 const tribe = getTribeBySlug(slug);
                 const isPrimary = result.primary.includes(slug);
+                const postureLabel = POSTURE_DISPLAY[posture[slug]?.label ?? "unknown"];
                 return (
                   <li
                     key={slug}
@@ -90,8 +165,15 @@ export default async function InterviewResultPage() {
                         {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
                       </span>
                     </Link>
-                    <span className="text-[15px] tabular-nums text-muted">
-                      {Math.round(pct[slug] ?? 0)}%
+                    <span className="flex items-baseline gap-3">
+                      {postureLabel && (
+                        <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
+                          {postureLabel}
+                        </span>
+                      )}
+                      <span className="text-[15px] tabular-nums text-muted">
+                        {Math.round(pct[slug] ?? 0)}%
+                      </span>
                     </span>
                   </li>
                 );
