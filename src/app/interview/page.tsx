@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { nextTurn } from "@/lib/interview/flow";
+import { interviewProgress } from "@/lib/interview/progress";
 import { toState } from "@/lib/interview/repository";
 import { currentSession } from "@/lib/interview/session";
 import { startInterview, submitAnswer } from "./actions";
@@ -24,6 +25,13 @@ export default async function InterviewPage() {
   }
 
   const turn = session ? nextTurn(toState(session)) : null;
+  // A rough sense of position for an open-ended Interview — never "N of a
+  // fixed total" (issue #21 / ADR-0006). Derived on the server from the
+  // authoritative profile so the raw scoring state stays off the client.
+  const progress =
+    session && turn && turn.kind !== "result"
+      ? interviewProgress(session.profile, session.turnCount)
+      : null;
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -56,10 +64,28 @@ export default async function InterviewPage() {
           </>
         ) : (
           <>
-            <div className="mt-8 text-[11px] uppercase tracking-[0.16em] text-faint">
-              Question {turn.questionNumber}
+            <div className="mt-8">
+              <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.16em] text-faint">
+                <span>Question {turn.questionNumber}</span>
+                {progress && <span>{progress.label}</span>}
+              </div>
+              {progress && (
+                <div
+                  className="mt-3 h-[4px] w-full overflow-hidden rounded-full bg-hair/60"
+                  role="progressbar"
+                  aria-label="Interview progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(progress.fraction * 100)}
+                >
+                  <div
+                    className="h-full rounded-full bg-gold transition-all duration-500"
+                    style={{ width: `${Math.round(progress.fraction * 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
-            <p className="mt-4 font-serif text-[22px] leading-[1.4]">
+            <p className="mt-6 font-serif text-[22px] leading-[1.4]">
               {turn.prompt}
             </p>
 
