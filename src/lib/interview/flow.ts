@@ -1,6 +1,7 @@
 import { tribes } from "@/lib/tribes";
 import { evaluate } from "./confidence";
 import { CALIBRATION_QUESTIONS, DILEMMA_PROMPT, planNextTurn } from "./funnel";
+import { oilMarkerIdForTribe } from "./markers";
 import { applyDeltas } from "./scoring";
 import type {
   Dilemma,
@@ -120,7 +121,9 @@ export function applyTurn(
     ? { question: state.pendingQuestion, answer, dilemma: state.pendingDilemma, choice }
     : { question: state.pendingQuestion, answer };
   const turns = [...state.turns, turn];
-  const applied = applyDeltas(state.profile, scored.deltas, turnIndex);
+  // Route matured fall-lines to each tribe's oil Marker (ADR-0004) using the
+  // Marker Catalog, keeping the pure scoring engine catalog-free.
+  const applied = applyDeltas(state.profile, scored.deltas, turnIndex, oilMarkerIdForTribe);
   const profile = applied.profile;
   const trace = [...state.trace, ...applied.trace];
 

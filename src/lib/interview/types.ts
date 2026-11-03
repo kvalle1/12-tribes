@@ -21,9 +21,9 @@ export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
 
 /**
  * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
- * Slice 3 carries the signal the agent returns through to the trace but does not
- * yet aggregate a Posture axis — that is slice 6. `neutral` is the default when
- * an answer is not posture-bearing.
+ * The agent returns one per scored delta; slice 6 (issue #20) aggregates them
+ * per tribe into a {@link PostureReading}. `neutral` is the default when an
+ * answer is not posture-bearing.
  */
 export type PostureSignal = "active-shadow" | "neutral" | "integrated";
 
@@ -32,6 +32,22 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
   "neutral",
   "integrated",
 ] as const;
+
+/**
+ * A tribe's aggregated Posture: where the participant sits on that tribe's
+ * fall→oil arc (ADR-0004), from active-shadow to integrated. `integrated` and
+ * `activeShadow` are the evidence-weighted pulls toward each end (summed from
+ * the posture-bearing deltas' strengths); `net` is their difference and `arc`
+ * the derived position. Posture is read *alongside* strength and never changes
+ * it — a tribe can score high while sitting at either end of its arc.
+ */
+export interface PostureReading {
+  integrated: number;
+  activeShadow: number;
+  /** `integrated - activeShadow`: positive leans toward oil, negative toward shadow. */
+  net: number;
+  arc: PostureSignal;
+}
 
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;
