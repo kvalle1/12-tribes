@@ -163,6 +163,26 @@ describe("applyTurn", () => {
     expect(before.profile.judah).toBe(0);
   });
 
+  it("routes a matured fall-line to the tribe's oil Marker as it folds the Turn in (ADR-0004)", () => {
+    const maturedFall: ScoredAnswer = {
+      deltas: [
+        { markerId: "judah-fall-power", tribeSlug: "judah", type: "fallLine", delta: 3, postureSignal: "integrated" },
+      ],
+      nextQuestion: "Next?",
+    };
+    const state = applyTurn(initialState(), "I used to grab power; I've grown past it.", maturedFall);
+    // Strength still rises (maturity is evidence of the tribe, ADR-0004)…
+    expect(state.profile.judah).toBe(3);
+    // …but the trace records it as the oil Marker with an integrated posture.
+    expect(state.trace).toHaveLength(1);
+    expect(state.trace[0]).toMatchObject({
+      markerId: "judah-oil-responsibility",
+      type: "oil",
+      postureSignal: "integrated",
+      delta: 3,
+    });
+  });
+
   it("keeps asking until the minimum floor, then stops with a Primary and Contenders", () => {
     const early = run(MIN_TURNS - 1, decisive);
     expect(early.status).toBe("in_progress");

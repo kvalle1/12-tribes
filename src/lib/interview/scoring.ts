@@ -1,5 +1,6 @@
 import "server-only";
 
+import { markersForTribe } from "./markers";
 import type {
   MarkerDelta,
   ScoreTraceEntry,
@@ -17,6 +18,36 @@ import type {
  * `server-only` keeps the scoring logic off the client (ADR-0009): a Strength
  * Profile is an authoritative result, never something the client computes.
  */
+
+/**
+ * Re-route matured fall-lines to the tribe's oil Marker (ADR-0004).
+ *
+ * A fall-line Marker fires on *resonance with the theme, not current
+ * dysfunction*: when the agent reads an answer as describing a tendency the
+ * participant has matured past, it tags the delta `integrated`. That maturity is
+ * still evidence *of* the tribe, so this re-attributes the contribution to the
+ * tribe's `oil` Marker — cross-confirming the attribution via a different Marker
+ * type and moving the tribe's Posture toward *integrated* — **without lowering
+ * strength**: the earned delta is carried through unchanged, even where it
+ * exceeds the oil Marker's nominal weight (the strength was already validated
+ * against the fall-line Marker upstream).
+ *
+ * Only `integrated` fall-lines route. An `active-shadow` or `neutral` fall-line
+ * is a live tendency, left on its own Marker. Pure and non-mutating; a delta
+ * whose tribe has no catalogued oil Marker is left untouched rather than lost.
+ */
+export function routeMaturedFallLines(
+  deltas: readonly MarkerDelta[],
+): MarkerDelta[] {
+  return deltas.map((delta) => {
+    if (delta.type !== "fallLine" || delta.postureSignal !== "integrated") {
+      return delta;
+    }
+    const oil = markersForTribe(delta.tribeSlug).find((m) => m.type === "oil");
+    if (!oil) return delta;
+    return { ...delta, markerId: oil.id, type: "oil" };
+  });
+}
 
 /**
  * Fold a Turn's validated deltas into the running profile, returning a new

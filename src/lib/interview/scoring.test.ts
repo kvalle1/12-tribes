@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDeltas, normalize } from "./scoring";
+import { applyDeltas, normalize, routeMaturedFallLines } from "./scoring";
 import type { MarkerDelta } from "./types";
 
 const d = (
@@ -77,6 +77,49 @@ describe("applyDeltas", () => {
     const { profile } = applyDeltas({ judah: 0 }, [d("m1", "unknown", "strength", 2)], 0);
     expect(profile).toEqual({ judah: 0 });
     expect(Object.keys(profile)).toEqual(["judah"]);
+  });
+});
+
+describe("routeMaturedFallLines", () => {
+  it("routes a matured (integrated) fall-line to the tribe's oil Marker (ADR-0004)", () => {
+    // judah-fall-power (fallLine) matured → judah-oil-responsibility (oil).
+    const [routed] = routeMaturedFallLines([
+      d("judah-fall-power", "judah", "fallLine", 3, "integrated"),
+    ]);
+    expect(routed.markerId).toBe("judah-oil-responsibility");
+    expect(routed.type).toBe("oil");
+    expect(routed.tribeSlug).toBe("judah");
+    expect(routed.postureSignal).toBe("integrated");
+  });
+
+  it("preserves the strength contribution when routing — maturity never lowers strength", () => {
+    // The fall-line weight (3) exceeds the oil Marker's nominal weight (2); the
+    // routed delta keeps the earned strength rather than being re-capped down.
+    const [routed] = routeMaturedFallLines([
+      d("judah-fall-power", "judah", "fallLine", 3, "integrated"),
+    ]);
+    expect(routed.delta).toBe(3);
+  });
+
+  it("leaves an active-shadow fall-line untouched — only maturity routes to oil", () => {
+    const input = [d("judah-fall-power", "judah", "fallLine", 3, "active-shadow")];
+    expect(routeMaturedFallLines(input)).toEqual(input);
+  });
+
+  it("leaves a neutral fall-line untouched", () => {
+    const input = [d("judah-fall-power", "judah", "fallLine", 3, "neutral")];
+    expect(routeMaturedFallLines(input)).toEqual(input);
+  });
+
+  it("does not touch non-fall-line deltas, even when integrated", () => {
+    const input = [d("judah-shadow-insignificance", "judah", "shadow", 2, "integrated")];
+    expect(routeMaturedFallLines(input)).toEqual(input);
+  });
+
+  it("does not mutate the input deltas", () => {
+    const input = [d("judah-fall-power", "judah", "fallLine", 3, "integrated")];
+    routeMaturedFallLines(input);
+    expect(input[0]).toEqual(d("judah-fall-power", "judah", "fallLine", 3, "integrated"));
   });
 });
 
