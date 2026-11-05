@@ -21,9 +21,9 @@ export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
 
 /**
  * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
- * Slice 3 carries the signal the agent returns through to the trace but does not
- * yet aggregate a Posture axis — that is slice 6. `neutral` is the default when
- * an answer is not posture-bearing.
+ * The agent returns this per scored Marker; the trace carries it through, and
+ * slice 6 (issue #20) aggregates it into the per-tribe Posture axis below.
+ * `neutral` is the default when an answer is not posture-bearing.
  */
 export type PostureSignal = "active-shadow" | "neutral" | "integrated";
 
@@ -32,6 +32,35 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
   "neutral",
   "integrated",
 ] as const;
+
+/**
+ * The accumulated posture evidence for one tribe (ADR-0004, slice 6). Posture is
+ * orthogonal to strength: these are the summed weights of posture-bearing
+ * evidence pulling toward each end of the fall→oil arc. `neutral` signals pull
+ * toward neither end and are not tallied here.
+ */
+export interface PostureTally {
+  /** Summed weight of `integrated` (matured, toward-oil) evidence. */
+  integrated: number;
+  /** Summed weight of `active-shadow` (toward-fall) evidence. */
+  activeShadow: number;
+}
+
+/** Per-tribe posture tallies, keyed by tribe `slug`. */
+export type PostureProfile = Record<string, PostureTally>;
+
+/**
+ * A tribe's read position on its fall→oil arc, derived from its {@link
+ * PostureTally} (ADR-0004). `active-shadow` and `integrated` are the two ends;
+ * `mixed` is evidence pulling both ways (still developing); `unknown` is no
+ * posture-bearing evidence yet. This drives report framing — never scoring
+ * (ADR-0007): status + posture together pick cautionary vs. redemption copy.
+ */
+export type PostureReading =
+  | "active-shadow"
+  | "mixed"
+  | "integrated"
+  | "unknown";
 
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;
@@ -97,7 +126,9 @@ export interface InterviewTurn {
  * tribe normally, or honest Co-Primaries when the top tribes are inseparable at
  * the Turn cap. `contenders` is the Primary plus every tribe within a margin of
  * it, ordered strongest first. `percentages` are the display shares for all 12
- * tribes (ADR-0002) and `confidence` is 0–1.
+ * tribes (ADR-0002) and `confidence` is 0–1. `posture` is each tribe's read
+ * position on its fall→oil arc (ADR-0004, slice 6) — part of the stable output
+ * contract a future combined report consumes.
  */
 export interface InterviewResult {
   primary: string[];
@@ -105,6 +136,7 @@ export interface InterviewResult {
   coPrimary: boolean;
   confidence: number;
   percentages: Record<string, number>;
+  posture: Record<string, PostureReading>;
 }
 
 /** Server-authoritative Session state the pure flow logic operates on. */

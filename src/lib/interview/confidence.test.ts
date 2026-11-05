@@ -62,6 +62,36 @@ describe("summarize", () => {
     expect(summary.primary).toEqual([]);
     expect(summary.contenders).toEqual([]);
   });
+
+  it("reads every tribe as unknown posture when no posture-bearing trace is given", () => {
+    const summary = summarize(profileOf({ judah: 10 }));
+    expect(summary.posture.judah).toBe("unknown");
+    expect(summary.posture.levi).toBe("unknown");
+  });
+
+  it("threads the score trace into per-tribe posture readings (ADR-0004)", () => {
+    const trace: ScoreTraceEntry[] = [
+      {
+        turnIndex: 0,
+        markerId: "judah-oil",
+        tribeSlug: "judah",
+        type: "oil",
+        delta: 3,
+        postureSignal: "integrated",
+      },
+      {
+        turnIndex: 1,
+        markerId: "levi-fall",
+        tribeSlug: "levi",
+        type: "fallLine",
+        delta: 3,
+        postureSignal: "active-shadow",
+      },
+    ];
+    const summary = summarize(profileOf({ judah: 10, levi: 8 }), trace);
+    expect(summary.posture.judah).toBe("integrated");
+    expect(summary.posture.levi).toBe("active-shadow");
+  });
 });
 
 describe("marginIsDecisive (relative to evidence)", () => {
