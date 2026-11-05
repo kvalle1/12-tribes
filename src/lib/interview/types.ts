@@ -20,10 +20,10 @@
 export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
 
 /**
- * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
- * Slice 3 carries the signal the agent returns through to the trace but does not
- * yet aggregate a Posture axis — that is slice 6. `neutral` is the default when
- * an answer is not posture-bearing.
+ * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004):
+ * `active-shadow` at the fall end, `integrated` at the oil end, `neutral` when
+ * an answer is not posture-bearing. Slice 3 carried this through to the trace;
+ * slice 6 (issue #20) aggregates it per tribe into a Posture axis.
  */
 export type PostureSignal = "active-shadow" | "neutral" | "integrated";
 
@@ -32,6 +32,31 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
   "neutral",
   "integrated",
 ] as const;
+
+/**
+ * A running per-tribe Posture tally (slice 6, ADR-0004), accumulated alongside
+ * the Strength Profile. `activeShadow` and `integrated` are the summed weights
+ * of the posture-bearing evidence at each end of the tribe's fall→oil arc;
+ * neutral evidence contributes to neither. The two live side by side rather than
+ * netting to one number so the arc reading and the *amount* of posture evidence
+ * both survive — a tribe with no posture-bearing answers stays absent.
+ */
+export interface PostureTally {
+  activeShadow: number;
+  integrated: number;
+}
+
+/** Per-tribe Posture tallies, keyed by tribe `slug`. Only tribes with
+ * posture-bearing evidence appear. */
+export type PostureProfile = Record<string, PostureTally>;
+
+/**
+ * Where a tribe sits on its fall→oil arc, derived from a `PostureTally`:
+ * `active-shadow` (fall end leads), `integrated` (oil end leads), `mixed` (both
+ * present and even), or `unknown` (no posture-bearing evidence). This is the
+ * reading the result frames the tribe with (cautionary vs redemption).
+ */
+export type ArcPosition = "active-shadow" | "mixed" | "integrated" | "unknown";
 
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;

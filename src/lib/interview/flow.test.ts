@@ -183,6 +183,26 @@ describe("applyTurn", () => {
     expect(done.result?.primary).toEqual(["judah", "levi"]);
   });
 
+  it("routes a matured (integrated) fall-line to the tribe's real oil Marker via the catalog", () => {
+    const maturedFall: MarkerDelta = {
+      markerId: "dan-fall-idolatry",
+      tribeSlug: "dan",
+      type: "fallLine",
+      delta: 3,
+      postureSignal: "integrated",
+    };
+    const state = applyTurn(initialState(), "I used to be cynical; I've learned to trust.", {
+      deltas: [maturedFall],
+      nextQuestion: "Next?",
+    });
+    const entry = state.trace.at(-1)!;
+    expect(entry.markerId).toBe("dan-oil-trust");
+    expect(entry.type).toBe("oil");
+    expect(entry.postureSignal).toBe("integrated");
+    // Strength is untouched by the routing — the full contribution still lands.
+    expect(state.profile.dan).toBe(3);
+  });
+
   it("is a no-op once the session is already complete", () => {
     const complete = run(MIN_TURNS, decisive);
     expect(applyTurn(complete, "more", decisive)).toBe(complete);

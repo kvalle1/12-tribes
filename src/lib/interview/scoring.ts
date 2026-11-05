@@ -1,7 +1,10 @@
 import "server-only";
 
 import type {
+  ArcPosition,
   MarkerDelta,
+  PostureProfile,
+  PostureTally,
   ScoreTraceEntry,
   StrengthProfile,
 } from "./types";
@@ -34,11 +37,21 @@ import type {
  *  - **Known tribes only.** A delta whose `tribeSlug` is not already a key of
  *    the profile is a validation miss; it is dropped rather than inventing a
  *    new tribe.
+ *
+ * Matured fall-line routing (ADR-0004): a fall-line Marker scored `integrated`
+ * means the participant resonates with the theme but has *matured past* the
+ * dysfunction, so the evidence is re-attributed to the tribe's `oil` Marker in
+ * the trace — the oil (integrated) end of the arc, not the fall line. The
+ * strength contribution is untouched (same tribe, same amount): routing shifts
+ * the Posture reading, never the strength. The oil-Marker lookup is injected
+ * (`oilMarkerFor`) so this module stays pure and catalog-free; without it, or
+ * when a tribe has no oil Marker, the fall-line attribution is kept as-is.
  */
 export function applyDeltas(
   profile: StrengthProfile,
   deltas: readonly MarkerDelta[],
   turnIndex: number,
+  oilMarkerFor?: (tribeSlug: string) => string | undefined,
 ): { profile: StrengthProfile; trace: ScoreTraceEntry[] } {
   const next: StrengthProfile = { ...profile };
   const trace: ScoreTraceEntry[] = [];
@@ -50,17 +63,62 @@ export function applyDeltas(
     const applied = Math.max(0, delta.delta);
     next[delta.tribeSlug] += applied;
 
+    // Route a matured fall-line to the tribe's oil Marker (strength unchanged).
+    let markerId = delta.markerId;
+    let type = delta.type;
+    if (delta.type === "fallLine" && delta.postureSignal === "integrated") {
+      const oilId = oilMarkerFor?.(delta.tribeSlug);
+      if (oilId) {
+        markerId = oilId;
+        type = "oil";
+      }
+    }
+
     trace.push({
       turnIndex,
-      markerId: delta.markerId,
+      markerId,
       tribeSlug: delta.tribeSlug,
-      type: delta.type,
+      type,
       delta: applied,
       postureSignal: delta.postureSignal,
     });
   }
 
   return { profile: next, trace };
+}
+
+/**
+ * Fold the score trace into a per-tribe Posture tally (slice 6, ADR-0004) — the
+ * Posture axis accumulated alongside strength. Each posture-bearing entry adds
+ * its weight to the `integrated` or `active-shadow` end of its tribe's arc;
+ * `neutral` entries are not posture-bearing and are skipped, so a tribe with
+ * only neutral evidence never appears. Derived from the authoritative trace (as
+ * the Confidence evaluator derives its history), so no extra persisted state is
+ * needed and a resumed Session re-derives the same Posture.
+ */
+export function aggregatePosture(trace: readonly ScoreTraceEntry[]): PostureProfile {
+  const posture: PostureProfile = {};
+  for (const entry of trace) {
+    if (entry.postureSignal === "neutral") continue;
+    const tally = (posture[entry.tribeSlug] ??= { activeShadow: 0, integrated: 0 });
+    if (entry.postureSignal === "integrated") tally.integrated += entry.delta;
+    else tally.activeShadow += entry.delta;
+  }
+  return posture;
+}
+
+/**
+ * Read a tribe's place on its fall→oil arc from its Posture tally: `integrated`
+ * when the oil end leads, `active-shadow` when the fall end leads, `mixed` when
+ * both are present and even, and `unknown` when there is no posture-bearing
+ * evidence (an absent tally included). This is the reading the result frames a
+ * tribe with — cautionary at the shadow end, redemption at the oil end.
+ */
+export function arcPosition(tally: PostureTally | undefined): ArcPosition {
+  if (!tally || (tally.activeShadow === 0 && tally.integrated === 0)) return "unknown";
+  if (tally.integrated > tally.activeShadow) return "integrated";
+  if (tally.activeShadow > tally.integrated) return "active-shadow";
+  return "mixed";
 }
 
 /**
