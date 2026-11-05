@@ -1,6 +1,7 @@
 import { tribes } from "@/lib/tribes";
 import { evaluate } from "./confidence";
 import { CALIBRATION_QUESTIONS, DILEMMA_PROMPT, planNextTurn } from "./funnel";
+import { oilMarkerForTribe } from "./markers";
 import { applyDeltas } from "./scoring";
 import type {
   Dilemma,
@@ -120,7 +121,12 @@ export function applyTurn(
     ? { question: state.pendingQuestion, answer, dilemma: state.pendingDilemma, choice }
     : { question: state.pendingQuestion, answer };
   const turns = [...state.turns, turn];
-  const applied = applyDeltas(state.profile, scored.deltas, turnIndex);
+  const applied = applyDeltas(
+    state.profile,
+    scored.deltas,
+    turnIndex,
+    (slug) => oilMarkerForTribe(slug)?.id,
+  );
   const profile = applied.profile;
   const trace = [...state.trace, ...applied.trace];
 

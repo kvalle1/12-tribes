@@ -1,9 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
+import { arcFraming } from "@/lib/interview/framing";
+import { aggregatePosture, arcPosition } from "@/lib/interview/scoring";
 import { currentSession } from "@/lib/interview/session";
-import { accentHex, getTribeBySlug } from "@/lib/tribes";
+import type { ArcPosition, PostureTally } from "@/lib/interview/types";
+import { accentHex, getTribeBySlug, statusLabels } from "@/lib/tribes";
 import { startInterview } from "../actions";
+
+/** Short human label for where a tribe sits on its fall→oil arc. */
+const ARC_LABEL: Record<Exclude<ArcPosition, "unknown">, string> = {
+  integrated: "Integrated — living it from the oil",
+  "active-shadow": "Active-shadow — the fall line is live",
+  mixed: "Mixed — both ends of the arc in play",
+};
+
+/** Fraction toward the oil (integrated) end, 0–1, for the arc marker. */
+function integratedShare(tally: PostureTally): number {
+  const total = tally.activeShadow + tally.integrated;
+  return total === 0 ? 0.5 : tally.integrated / total;
+}
 
 /**
  * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
@@ -31,6 +47,22 @@ export default async function InterviewResultPage() {
   const pct = result.percentages;
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
   const otherContenders = result.contenders.filter((slug) => !result.primary.includes(slug));
+
+  // Posture axis (slice 6): where each tribe sits on its fall→oil arc, derived
+  // from the authoritative score trace so a resumed Session reads the same.
+  const posture = aggregatePosture(session.trace ?? []);
+
+  // Non-condemning, arc-aware framing for any Primary on a non-active tribe
+  // (disqualified / warning / disqualified-arc). Status is read only here, for
+  // framing — scoring itself stays status-blind (ADR-0007).
+  const primaryFramings = result.primary
+    .map((slug) => {
+      const tribe = getTribeBySlug(slug);
+      if (!tribe || tribe.status === "active") return null;
+      const text = arcFraming(tribe.status, arcPosition(posture[slug]));
+      return text ? { slug, name: tribe.name, label: statusLabels[tribe.status], text } : null;
+    })
+    .filter((f): f is { slug: string; name: string; label: string; text: string } => f !== null);
   const ranked = Object.entries(pct)
     .map(([slug, value]) => ({ slug, value }))
     .sort((a, b) => b.value - a.value);
@@ -67,6 +99,19 @@ export default async function InterviewResultPage() {
           </p>
         </div>
 
+        {primaryFramings.map((f) => (
+          <aside
+            key={f.slug}
+            className="mt-6 rounded-[2px] border border-hair bg-stone/40 p-6"
+          >
+            <div className="text-[11px] uppercase tracking-[0.16em] text-faint">
+              {f.label}
+              {primaryFramings.length > 1 ? ` · ${f.name}` : ""}
+            </div>
+            <p className="mt-3 text-[14px] leading-[1.6] text-muted">{f.text}</p>
+          </aside>
+        ))}
+
         {result.contenders.length > 0 && (
           <section className="mt-12">
             <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -76,23 +121,42 @@ export default async function InterviewResultPage() {
               {result.contenders.map((slug) => {
                 const tribe = getTribeBySlug(slug);
                 const isPrimary = result.primary.includes(slug);
+                const arc = arcPosition(posture[slug]);
                 return (
-                  <li
-                    key={slug}
-                    className="flex items-baseline justify-between gap-4 border-b border-hair pb-3"
-                  >
-                    <Link
-                      href={`/tribes/${slug}`}
-                      className="font-serif text-[22px] transition-colors hover:text-gold"
-                    >
-                      {tribe?.name ?? slug}
-                      <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
-                        {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                  <li key={slug} className="border-b border-hair pb-3">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <Link
+                        href={`/tribes/${slug}`}
+                        className="font-serif text-[22px] transition-colors hover:text-gold"
+                      >
+                        {tribe?.name ?? slug}
+                        <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
+                          {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                        </span>
+                      </Link>
+                      <span className="text-[15px] tabular-nums text-muted">
+                        {Math.round(pct[slug] ?? 0)}%
                       </span>
-                    </Link>
-                    <span className="text-[15px] tabular-nums text-muted">
-                      {Math.round(pct[slug] ?? 0)}%
-                    </span>
+                    </div>
+                    {arc !== "unknown" && (
+                      <div className="mt-2.5 flex items-center gap-3">
+                        <span className="text-[10px] uppercase tracking-[0.14em] text-faint">
+                          Fall
+                        </span>
+                        <span className="relative h-px flex-1 bg-hair">
+                          <span
+                            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold"
+                            style={{ left: `${integratedShare(posture[slug]) * 100}%` }}
+                          />
+                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.14em] text-faint">
+                          Oil
+                        </span>
+                      </div>
+                    )}
+                    {arc !== "unknown" && (
+                      <p className="mt-1.5 text-[12px] text-muted">{ARC_LABEL[arc]}</p>
+                    )}
                   </li>
                 );
               })}
