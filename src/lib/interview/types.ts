@@ -93,6 +93,14 @@ export interface ScoreTraceEntry {
   type: MarkerType;
   delta: number;
   postureSignal: PostureSignal;
+  /**
+   * Set only when a matured fall-line was routed to the tribe's `oil` Marker
+   * (ADR-0004): the id of the originating fall-line Marker. `markerId`/`type`
+   * then describe the oil Marker the evidence cross-confirms against, while this
+   * preserves which fall-line was read as matured so the score trace stays fully
+   * traceable (ADR-0003).
+   */
+  routedFrom?: string;
 }
 
 /**

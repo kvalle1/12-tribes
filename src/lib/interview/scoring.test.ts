@@ -107,8 +107,19 @@ describe("applyDeltas — matured fall-line → oil routing (ADR-0004)", () => {
         type: "oil",
         delta: 3,
         postureSignal: "integrated",
+        routedFrom: "simeon-fall-wrath",
       },
     ]);
+  });
+
+  it("does not set routedFrom on an un-routed delta", () => {
+    const { trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-strength-front", "judah", "strength", 1)],
+      0,
+      oilFor,
+    );
+    expect(trace[0]).not.toHaveProperty("routedFrom");
   });
 
   it("still credits the routed contribution to strength — maturity never lowers it", () => {

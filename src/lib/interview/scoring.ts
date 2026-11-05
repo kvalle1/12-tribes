@@ -80,6 +80,9 @@ export function applyDeltas(
       type: oilMarkerId ? "oil" : delta.type,
       delta: applied,
       postureSignal: delta.postureSignal,
+      // Keep the originating fall-line id when routed, so the trace stays
+      // traceable to the answer's actual Marker (ADR-0003).
+      ...(oilMarkerId ? { routedFrom: delta.markerId } : {}),
     });
   }
 
