@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
+import { arcFraming, postureLabel } from "@/lib/interview/framing";
+import { derivePostureReadings } from "@/lib/interview/scoring";
 import { currentSession } from "@/lib/interview/session";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { startInterview } from "../actions";
@@ -9,7 +11,10 @@ import { startInterview } from "../actions";
  * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
  * when the top tribes never separated (ADR-0006) — plus the dynamic Contender
  * band, each with its display percentage (ADR-0002), and the full twelve below.
- * Posture and the score trace arrive in later slices.
+ *
+ * Slice 6 (issue #20) adds the Posture axis: each Primary/Contender shows where
+ * it sits on its fall→oil arc, and a Primary whose tribe carries a non-`active`
+ * status gets arc-aware, non-condemning framing (ADR-0004 / ADR-0007).
  *
  * Reached only once the Session is complete — an in-progress or missing Session
  * routes back to the hub, so a refresh here still resolves to the right place.
@@ -24,12 +29,24 @@ export default async function InterviewResultPage() {
   }
 
   // Sessions completed before slice 4 hold a legacy stub result; derive the
-  // reading from their profile instead.
+  // reading from their profile and trace instead.
   const result = Array.isArray(session.result?.primary)
     ? session.result
-    : summarize(session.profile);
+    : summarize(session.profile, session.trace);
   const pct = result.percentages;
+  // Posture per tribe (ADR-0004). Prefer the persisted result; derive from the
+  // Session's trace for a legacy result saved before Posture was recorded.
+  const posture = result.posture ?? derivePostureReadings(session.trace, Object.keys(pct));
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
+  // Arc-aware framing for any Primary tribe the tradition flags (non-`active`).
+  const primaryFramings = result.primary
+    .map((slug) => {
+      const tribe = getTribeBySlug(slug);
+      if (!tribe) return null;
+      const framing = arcFraming(tribe.status, posture[slug] ?? "unknown");
+      return framing ? { slug, name: tribe.name, ...framing } : null;
+    })
+    .filter((f): f is NonNullable<typeof f> => f !== null);
   const otherContenders = result.contenders.filter((slug) => !result.primary.includes(slug));
   const ranked = Object.entries(pct)
     .map(([slug, value]) => ({ slug, value }))
@@ -67,6 +84,27 @@ export default async function InterviewResultPage() {
           </p>
         </div>
 
+        {primaryFramings.length > 0 && (
+          <section className="mt-8 flex flex-col gap-6">
+            {primaryFramings.map((f) => (
+              <div
+                key={f.slug}
+                className="rounded-[2px] border border-hair bg-white/40 p-6"
+              >
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-faint">
+                    {f.name}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-gold">
+                    {f.arcLabel}
+                  </span>
+                </div>
+                <p className="mt-3 text-[15px] leading-[1.6] text-muted">{f.note}</p>
+              </div>
+            ))}
+          </section>
+        )}
+
         {result.contenders.length > 0 && (
           <section className="mt-12">
             <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -88,6 +126,9 @@ export default async function InterviewResultPage() {
                       {tribe?.name ?? slug}
                       <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
                         {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                        <span className="ml-2 text-muted/70">
+                          · {postureLabel(posture[slug] ?? "unknown")}
+                        </span>
                       </span>
                     </Link>
                     <span className="text-[15px] tabular-nums text-muted">

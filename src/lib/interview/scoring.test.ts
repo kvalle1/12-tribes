@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { applyDeltas, normalize } from "./scoring";
-import type { MarkerDelta } from "./types";
+import {
+  applyDeltas,
+  derivePosture,
+  derivePostureProfile,
+  derivePostureReadings,
+  normalize,
+} from "./scoring";
+import type { MarkerDelta, ScoreTraceEntry } from "./types";
 
 const d = (
   markerId: string,
@@ -77,6 +83,143 @@ describe("applyDeltas", () => {
     const { profile } = applyDeltas({ judah: 0 }, [d("m1", "unknown", "strength", 2)], 0);
     expect(profile).toEqual({ judah: 0 });
     expect(Object.keys(profile)).toEqual(["judah"]);
+  });
+});
+
+// A stub resolver standing in for the Marker Catalog's one-oil-per-tribe lookup,
+// so the routing is tested without depending on the real catalog.
+const oilFor = (slug: string): string | undefined =>
+  slug === "unknown" ? undefined : `${slug}-oil`;
+
+describe("applyDeltas — matured fall-line → oil routing (ADR-0004)", () => {
+  it("routes a matured (integrated) fall-line to the tribe's oil Marker in the trace", () => {
+    const { trace } = applyDeltas(
+      { simeon: 0 },
+      [d("simeon-fall-wrath", "simeon", "fallLine", 3, "integrated")],
+      1,
+      oilFor,
+    );
+    expect(trace).toEqual([
+      {
+        turnIndex: 1,
+        markerId: "simeon-oil",
+        tribeSlug: "simeon",
+        type: "oil",
+        delta: 3,
+        postureSignal: "integrated",
+        routedFrom: "simeon-fall-wrath",
+      },
+    ]);
+  });
+
+  it("does not set routedFrom on an un-routed delta", () => {
+    const { trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-strength-front", "judah", "strength", 1)],
+      0,
+      oilFor,
+    );
+    expect(trace[0]).not.toHaveProperty("routedFrom");
+  });
+
+  it("still credits the routed contribution to strength — maturity never lowers it", () => {
+    const { profile } = applyDeltas(
+      { simeon: 2 },
+      [d("simeon-fall-wrath", "simeon", "fallLine", 3, "integrated")],
+      0,
+      oilFor,
+    );
+    // Full fall-line magnitude (3) is added, not re-capped to the oil weight.
+    expect(profile.simeon).toBe(5);
+  });
+
+  it("does not route a fall-line that is still active-shadow (not matured)", () => {
+    const { trace } = applyDeltas(
+      { simeon: 0 },
+      [d("simeon-fall-wrath", "simeon", "fallLine", 3, "active-shadow")],
+      0,
+      oilFor,
+    );
+    expect(trace[0]).toMatchObject({ markerId: "simeon-fall-wrath", type: "fallLine" });
+  });
+
+  it("does not route a non-fall-line Marker even when it reads integrated", () => {
+    const { trace } = applyDeltas(
+      { simeon: 0 },
+      [d("simeon-shadow-zeal", "simeon", "shadow", 2, "integrated")],
+      0,
+      oilFor,
+    );
+    expect(trace[0]).toMatchObject({ markerId: "simeon-shadow-zeal", type: "shadow" });
+  });
+
+  it("leaves the fall-line Marker in place when no oil Marker resolves", () => {
+    const { trace } = applyDeltas(
+      { unknown: 0 },
+      [d("x-fall", "unknown", "fallLine", 3, "integrated")],
+      0,
+      oilFor,
+    );
+    expect(trace[0]).toMatchObject({ markerId: "x-fall", type: "fallLine" });
+  });
+});
+
+const t = (
+  tribeSlug: string,
+  delta: number,
+  postureSignal: ScoreTraceEntry["postureSignal"],
+): ScoreTraceEntry => ({
+  turnIndex: 0,
+  markerId: "m",
+  tribeSlug,
+  type: "strength",
+  delta,
+  postureSignal,
+});
+
+describe("derivePostureProfile", () => {
+  it("tallies integrated and active-shadow evidence per tribe, weighted by delta", () => {
+    const posture = derivePostureProfile([
+      t("judah", 3, "integrated"),
+      t("judah", 1, "active-shadow"),
+      t("levi", 2, "active-shadow"),
+    ]);
+    expect(posture.judah).toEqual({ integrated: 3, activeShadow: 1 });
+    expect(posture.levi).toEqual({ integrated: 0, activeShadow: 2 });
+  });
+
+  it("does not tally neutral (non-posture-bearing) evidence", () => {
+    const posture = derivePostureProfile([t("judah", 3, "neutral")]);
+    expect(posture.judah).toEqual({ integrated: 0, activeShadow: 0 });
+  });
+});
+
+describe("derivePosture", () => {
+  it("reads unknown when there is no posture-bearing evidence", () => {
+    expect(derivePosture(undefined)).toBe("unknown");
+    expect(derivePosture({ integrated: 0, activeShadow: 0 })).toBe("unknown");
+  });
+
+  it("reads integrated when integrated evidence dominates", () => {
+    expect(derivePosture({ integrated: 3, activeShadow: 0 })).toBe("integrated");
+  });
+
+  it("reads active-shadow when shadow evidence dominates", () => {
+    expect(derivePosture({ integrated: 0, activeShadow: 3 })).toBe("active-shadow");
+  });
+
+  it("reads mixed when evidence pulls both ways within the dominance band", () => {
+    expect(derivePosture({ integrated: 2, activeShadow: 2 })).toBe("mixed");
+  });
+});
+
+describe("derivePostureReadings", () => {
+  it("forces a reading for every requested slug, defaulting to unknown", () => {
+    const readings = derivePostureReadings([t("judah", 3, "integrated")], [
+      "judah",
+      "levi",
+    ]);
+    expect(readings).toEqual({ judah: "integrated", levi: "unknown" });
   });
 });
 

@@ -2,6 +2,9 @@ import "server-only";
 
 import type {
   MarkerDelta,
+  PostureProfile,
+  PostureReading,
+  PostureTally,
   ScoreTraceEntry,
   StrengthProfile,
 } from "./types";
@@ -34,11 +37,22 @@ import type {
  *  - **Known tribes only.** A delta whose `tribeSlug` is not already a key of
  *    the profile is a validation miss; it is dropped rather than inventing a
  *    new tribe.
+ *
+ * `resolveOilMarker` wires in the matured-fall-line → oil routing (ADR-0004):
+ * when a fall-line Marker fires with an `integrated` posture — maturity *around*
+ * the tendency, which is evidence *of* the tribe — the contribution is recorded
+ * against the tribe's `oil` Marker instead, cross-confirming the attribution via
+ * a different Marker type. It is injected rather than imported so this module
+ * stays catalog-free and unit-testable in isolation; `flow.ts` passes the real
+ * catalog lookup. With no resolver (or none found) the routing degrades to
+ * recording the fall-line Marker as-is — strength and posture are unchanged
+ * either way, since routing never alters the delta's magnitude or signal.
  */
 export function applyDeltas(
   profile: StrengthProfile,
   deltas: readonly MarkerDelta[],
   turnIndex: number,
+  resolveOilMarker?: OilMarkerResolver,
 ): { profile: StrengthProfile; trace: ScoreTraceEntry[] } {
   const next: StrengthProfile = { ...profile };
   const trace: ScoreTraceEntry[] = [];
@@ -50,17 +64,101 @@ export function applyDeltas(
     const applied = Math.max(0, delta.delta);
     next[delta.tribeSlug] += applied;
 
+    // Route a matured fall-line to the tribe's oil Marker (ADR-0004). This only
+    // re-labels the trace entry (Marker id + type); the strength already added
+    // above and the posture signal carried below are untouched, so a matured
+    // fall-line never lowers strength.
+    const oilMarkerId =
+      delta.type === "fallLine" && delta.postureSignal === "integrated"
+        ? resolveOilMarker?.(delta.tribeSlug)
+        : undefined;
+
     trace.push({
       turnIndex,
-      markerId: delta.markerId,
+      markerId: oilMarkerId ?? delta.markerId,
       tribeSlug: delta.tribeSlug,
-      type: delta.type,
+      type: oilMarkerId ? "oil" : delta.type,
       delta: applied,
       postureSignal: delta.postureSignal,
+      // Keep the originating fall-line id when routed, so the trace stays
+      // traceable to the answer's actual Marker (ADR-0003).
+      ...(oilMarkerId ? { routedFrom: delta.markerId } : {}),
     });
   }
 
   return { profile: next, trace };
+}
+
+/**
+ * Resolves a tribe `slug` to the id of its `oil` Marker, or undefined when the
+ * tribe has none. Injected into {@link applyDeltas} to keep the scoring engine
+ * free of the Marker Catalog (see its note above).
+ */
+export type OilMarkerResolver = (tribeSlug: string) => string | undefined;
+
+/**
+ * Fraction of the net posture lean (over total posture evidence) a tribe needs
+ * to read as decisively `integrated` or `active-shadow` rather than `mixed`.
+ * `0.25` means one arc end must carry ~62.5% of the posture evidence to win the
+ * reading. Tunable, like the Stop Condition thresholds.
+ */
+export const POSTURE_DOMINANCE = 0.25;
+
+/**
+ * Fold the posture-bearing evidence in a score trace into per-tribe tallies
+ * (ADR-0004). Posture is orthogonal to strength: `integrated` and
+ * `active-shadow` evidence pulls toward opposite ends of the fall→oil arc, each
+ * weighted by its applied delta; `neutral` evidence pulls toward neither and is
+ * not tallied. Derived from the trace so no extra Session state is persisted —
+ * the same replay approach the ranking history uses.
+ */
+export function derivePostureProfile(
+  trace: readonly ScoreTraceEntry[],
+): PostureProfile {
+  const posture: PostureProfile = {};
+  for (const entry of trace) {
+    const tally = (posture[entry.tribeSlug] ??= { integrated: 0, activeShadow: 0 });
+    if (entry.postureSignal === "integrated") {
+      tally.integrated += entry.delta;
+    } else if (entry.postureSignal === "active-shadow") {
+      tally.activeShadow += entry.delta;
+    }
+  }
+  return posture;
+}
+
+/**
+ * Read a tribe's position on its fall→oil arc from its posture tally. `unknown`
+ * when there is no posture-bearing evidence; otherwise the net lean decides
+ * between the two arc ends, with `mixed` for evidence pulling both ways within
+ * {@link POSTURE_DOMINANCE}.
+ */
+export function derivePosture(tally: PostureTally | undefined): PostureReading {
+  if (!tally) return "unknown";
+  const total = tally.integrated + tally.activeShadow;
+  if (total <= 0) return "unknown";
+  const score = (tally.integrated - tally.activeShadow) / total;
+  if (score >= POSTURE_DOMINANCE) return "integrated";
+  if (score <= -POSTURE_DOMINANCE) return "active-shadow";
+  return "mixed";
+}
+
+/**
+ * Per-tribe posture readings derived from a trace. Pass `slugs` to force a
+ * reading for every tribe of interest (e.g. all 12) — tribes with no
+ * posture-bearing evidence read `unknown` rather than being omitted.
+ */
+export function derivePostureReadings(
+  trace: readonly ScoreTraceEntry[],
+  slugs?: readonly string[],
+): Record<string, PostureReading> {
+  const posture = derivePostureProfile(trace);
+  const keys = slugs ?? Object.keys(posture);
+  const readings: Record<string, PostureReading> = {};
+  for (const slug of keys) {
+    readings[slug] = derivePosture(posture[slug]);
+  }
+  return readings;
 }
 
 /**

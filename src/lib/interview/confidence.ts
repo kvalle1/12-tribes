@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normalize } from "./scoring";
+import { derivePostureReadings, normalize } from "./scoring";
 import type {
   InterviewResult,
   ScoreTraceEntry,
@@ -67,14 +67,24 @@ export function rank(profile: StrengthProfile): { slug: string; score: number }[
  * leader plus anything inseparable from it), the Contender band, and display
  * percentages. Confidence is the margin over the highest non-Contender, as a
  * fraction of what the Stop Condition needs (capped at 1).
+ *
+ * `posture` is each tribe's read position on its fall→oil arc (ADR-0004),
+ * derived from the score trace. It defaults to empty — a summary built from a
+ * profile alone (e.g. the Funnel planner, which only reads Contenders) reports
+ * every tribe as `unknown` — but the result path threads the real trace so the
+ * reported result carries posture for all 12 tribes.
  */
-export function summarize(profile: StrengthProfile): InterviewResult {
+export function summarize(
+  profile: StrengthProfile,
+  trace: readonly ScoreTraceEntry[] = [],
+): InterviewResult {
   const ranked = rank(profile);
   const percentages = normalize(profile);
+  const posture = derivePostureReadings(trace, Object.keys(profile));
   const leader = ranked[0]?.score ?? 0;
 
   if (leader <= 0) {
-    return { primary: [], contenders: [], coPrimary: false, confidence: 0, percentages };
+    return { primary: [], contenders: [], coPrimary: false, confidence: 0, percentages, posture };
   }
 
   const primary = ranked.filter((r) => r.score >= leader * CO_PRIMARY_BAND).map((r) => r.slug);
@@ -87,6 +97,7 @@ export function summarize(profile: StrengthProfile): InterviewResult {
     coPrimary: primary.length > 1,
     confidence: Math.min(1, marginZ(leader, runner) / MARGIN_Z),
     percentages,
+    posture,
   };
 }
 
@@ -148,7 +159,7 @@ export function evaluate(
   trace: readonly ScoreTraceEntry[],
   turnCount: number,
 ): Verdict {
-  const result = summarize(profile);
+  const result = summarize(profile, trace);
 
   if (turnCount >= MAX_TURNS) {
     return { decision: "stop", reason: "cap", result };
