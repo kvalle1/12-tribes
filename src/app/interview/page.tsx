@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { nextTurn } from "@/lib/interview/flow";
+import { interviewProgress } from "@/lib/interview/progress";
 import { toState } from "@/lib/interview/repository";
 import { currentSession } from "@/lib/interview/session";
 import { startInterview, submitAnswer } from "./actions";
@@ -56,10 +57,31 @@ export default async function InterviewPage() {
           </>
         ) : (
           <>
-            <div className="mt-8 text-[11px] uppercase tracking-[0.16em] text-faint">
-              Question {turn.questionNumber}
-            </div>
-            <p className="mt-4 font-serif text-[22px] leading-[1.4]">
+            {(() => {
+              const progress = interviewProgress(turn.questionNumber - 1);
+              return (
+                <div className="mt-8">
+                  <div className="flex items-baseline justify-between text-[11px] uppercase tracking-[0.16em] text-faint">
+                    <span>Question {turn.questionNumber}</span>
+                    <span>{progress.label}</span>
+                  </div>
+                  <div
+                    aria-hidden
+                    className="mt-2 h-[4px] w-full overflow-hidden rounded-full bg-hair/60"
+                  >
+                    <div
+                      className="h-full rounded-full bg-gold transition-[width] duration-500 ease-out"
+                      style={{ width: `${Math.round(progress.fraction * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[12px] leading-[1.5] text-faint">
+                    There&rsquo;s no set number of questions — the Interview
+                    continues until your result is clear.
+                  </p>
+                </div>
+              );
+            })()}
+            <p className="mt-6 font-serif text-[22px] leading-[1.4]">
               {turn.prompt}
             </p>
 

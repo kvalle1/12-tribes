@@ -93,6 +93,39 @@ export interface InterviewTurn {
 }
 
 /**
+ * One contribution in a tribe's score-trace, as shown to the participant
+ * (issue #21, ADR-0003 traceability). It answers *which answer* mapped to
+ * *which Marker* produced *which delta* — but references the answer by the Turn
+ * it was given on (`questionNumber` + the `question` prompt they saw), never by
+ * reproducing the raw answer text. That keeps the trace defensible without
+ * pre-committing the raw-transcript privacy decision (issue #10): the sensitive
+ * free-text disclosure is the *answer*, and it is deliberately not part of the
+ * trace a client ever receives.
+ */
+export interface TraceContribution {
+  /** 1-based Turn the contribution came from (the answer's position). */
+  questionNumber: number;
+  /** The prompt shown that Turn — authored or neutrally-screened, never raw answer text. */
+  question: string;
+  markerType: MarkerType;
+  /** The Marker's plain-language signal (the rubric line that fired). */
+  signal: string;
+  delta: number;
+}
+
+/**
+ * A single tribe's score-trace: every contribution that built its strength,
+ * oldest first, plus the total they sum to (which equals the tribe's raw
+ * strength). This is the *only* scoring detail exposed to the client — no
+ * Marker ids, weights, raw answers, or other internals (issue #21).
+ */
+export interface TribeScoreTrace {
+  tribeSlug: string;
+  total: number;
+  contributions: TraceContribution[];
+}
+
+/**
  * The reported outcome of an Interview (ADR-0006). `primary` is a *set*: one
  * tribe normally, or honest Co-Primaries when the top tribes are inseparable at
  * the Turn cap. `contenders` is the Primary plus every tribe within a margin of
@@ -122,6 +155,27 @@ export interface InterviewState {
   pendingDilemma: Dilemma | null;
   /** Set once the Stop Condition is met. */
   result: InterviewResult | null;
+}
+
+/**
+ * A rough sense of how far along the Interview is (issue #21). The Interview has
+ * no fixed length — it runs until the Stop Condition is met, between a minimum
+ * floor and a hard cap (ADR-0006) — so this communicates *position*, never
+ * "question N of M". `fraction` is a soft 0–1 fill that grows with answers but
+ * never reaches 1 while the Interview is in progress, so the bar never implies a
+ * known total or an imminent end.
+ */
+export interface InterviewProgress {
+  /** Turns answered so far. */
+  answered: number;
+  /** Which stage of the Funnel the participant is in (ADR-0005). */
+  phase: "calibration" | "discrimination";
+  /** A short, length-agnostic status label. */
+  label: string;
+  /** Soft progress fill, 0–1, asymptotic — never 1 until the Interview ends. */
+  fraction: number;
+  /** Whether the minimum-questions floor has been passed. */
+  minReached: boolean;
 }
 
 /** What the participant should be shown next: a question, a Dilemma, or the result. */
