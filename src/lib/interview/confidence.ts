@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normalize } from "./scoring";
+import { normalize, readPosture } from "./scoring";
 import type {
   InterviewResult,
   ScoreTraceEntry,
@@ -148,10 +148,17 @@ export function evaluate(
   trace: readonly ScoreTraceEntry[],
   turnCount: number,
 ): Verdict {
-  const result = summarize(profile);
+  const summary = summarize(profile);
+
+  // The Posture axis (ADR-0004) is derived from the trace and completes the
+  // output contract (Strength Profile + Posture + Primary/Contenders). It is
+  // only attached to a *stopping* result — the continue result is discarded
+  // (the flow persists `result: null` while in progress) — so the O(trace) fold
+  // runs once, at the end, rather than on every Turn.
+  const stopResult = (): InterviewResult => ({ ...summary, posture: readPosture(trace) });
 
   if (turnCount >= MAX_TURNS) {
-    return { decision: "stop", reason: "cap", result };
+    return { decision: "stop", reason: "cap", result: stopResult() };
   }
 
   const recent = rankingHistory(trace, turnCount).slice(-STABILITY_TURNS);
@@ -162,11 +169,11 @@ export function evaluate(
 
   const confident =
     turnCount >= MIN_TURNS &&
-    result.confidence >= 1 &&
+    summary.confidence >= 1 &&
     stable &&
-    !result.coPrimary;
+    !summary.coPrimary;
 
   return confident
-    ? { decision: "stop", reason: "confident", result }
-    : { decision: "continue", reason: null, result };
+    ? { decision: "stop", reason: "confident", result: stopResult() }
+    : { decision: "continue", reason: null, result: summary };
 }

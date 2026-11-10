@@ -1,9 +1,78 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
+import { readPosture } from "@/lib/interview/scoring";
 import { currentSession } from "@/lib/interview/session";
-import { accentHex, getTribeBySlug } from "@/lib/tribes";
+import type { PostureArc } from "@/lib/interview/types";
+import { accentHex, getTribeBySlug, statusLabels, type TribeStatus } from "@/lib/tribes";
 import { startInterview } from "../actions";
+
+/**
+ * Posture (ADR-0004) surfaced per Primary/Contender: where the participant sits
+ * on that tribe's fall→oil arc. A short, neutral tag for the list.
+ */
+const arcLabel: Record<PostureArc, string> = {
+  "active-shadow": "Active-shadow",
+  mixed: "Mid-arc",
+  integrated: "Integrated",
+  unknown: "",
+};
+
+/**
+ * Arc-aware, non-condemning framing for a non-`active` Primary (ADR-0007): the
+ * `status` names the caution, Posture gives it its reading — active-shadow is
+ * cautionary, integrated is redemption — and the copy never condemns. `active`
+ * tribes need no such framing and are absent here.
+ *
+ * The cautionary `statusNote` (the fall-line reading) and the integrated
+ * `redemptionNote` (the oil reading) are kept as separate per-status copy so an
+ * *integrated* Primary never gets the "don't stay here" caution tacked onto a
+ * "you've matured" lead — the two readings are reconciled by arc, not composed
+ * blindly.
+ */
+const statusNote: Record<Exclude<TribeStatus, "active">, string> = {
+  disqualified:
+    "This tribe is absent from Revelation 7’s 144,000 — a severe warning, not a permanent verdict. Restoration is on the table (Ezekiel 48); the pattern only has to be named.",
+  warning:
+    "This is a warning tribe: the call is not to stay here but to move through it, into others.",
+  "disqualified-arc":
+    "This tribe carries a historical disqualification arc — a severe warning drawn from how its story went, never a sentence on how yours must.",
+};
+
+/** The redemptive close for an *integrated* non-active Primary — the arc resolved. */
+const redemptionNote: Record<Exclude<TribeStatus, "active">, string> = {
+  disqualified:
+    "That hard warning is the story behind this wiring, not a verdict over you — your reading looks like the restoration Ezekiel 48 keeps open.",
+  warning:
+    "A warning tribe’s whole call is to move through it, and your answers read like someone already doing that.",
+  "disqualified-arc":
+    "The arc’s hard history is the caution, not your sentence — you read as having turned where the tribe of old did not.",
+};
+
+/** The arc-specific reading that leads the framing. */
+function arcReading(arc: PostureArc): string {
+  switch (arc) {
+    case "integrated":
+      return "Your answers read as having matured along this arc — you carry the wiring and show its oil, not its fall-line. This is the redemption side of the story.";
+    case "active-shadow":
+      return "Your answers read closer to this tribe’s fall-line than its oil right now. That is a point on an arc, not a verdict — the same wiring is what makes the turn toward its oil possible.";
+    case "mixed":
+      return "Your answers sit mid-arc — some of the fall-line, some of the oil. Where you settle is still being written.";
+    default:
+      return "";
+  }
+}
+
+/**
+ * The full framing paragraph for a non-active Primary, reconciled by arc: an
+ * integrated reading closes on the redemption note (the arc resolved); every
+ * other arc closes on the cautionary status note.
+ */
+function framingCopy(status: Exclude<TribeStatus, "active">, arc: PostureArc): string {
+  const lead = arcReading(arc);
+  const close = arc === "integrated" ? redemptionNote[status] : statusNote[status];
+  return lead ? `${lead} ${close}` : close;
+}
 
 /**
  * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
@@ -29,8 +98,19 @@ export default async function InterviewResultPage() {
     ? session.result
     : summarize(session.profile);
   const pct = result.percentages;
+  // Posture (ADR-0004): prefer the reading persisted with the result; derive it
+  // from the always-present score trace for legacy sessions that predate it.
+  const posture = result.posture ?? readPosture(session.trace);
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
   const otherContenders = result.contenders.filter((slug) => !result.primary.includes(slug));
+
+  // Non-`active` Primaries get arc-aware, non-condemning framing (ADR-0007).
+  const framedPrimaries = result.primary
+    .map((slug) => ({ tribe: getTribeBySlug(slug), arc: posture[slug]?.arc ?? "unknown" }))
+    .filter(
+      (p): p is { tribe: NonNullable<ReturnType<typeof getTribeBySlug>>; arc: PostureArc } =>
+        !!p.tribe && p.tribe.status !== "active",
+    );
   const ranked = Object.entries(pct)
     .map(([slug, value]) => ({ slug, value }))
     .sort((a, b) => b.value - a.value);
@@ -67,6 +147,28 @@ export default async function InterviewResultPage() {
           </p>
         </div>
 
+        {framedPrimaries.length > 0 && (
+          <section className="mt-10 flex flex-col gap-5">
+            {framedPrimaries.map(({ tribe, arc }) => {
+              const status = tribe.status as Exclude<TribeStatus, "active">;
+              return (
+                <div
+                  key={tribe.slug}
+                  className="rounded-[2px] border-l-2 border-gold/50 bg-faint/[0.04] py-4 pl-5 pr-4"
+                >
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-faint">
+                    {tribe.name} · {statusLabels[tribe.status]}
+                    {arcLabel[arc] && ` · ${arcLabel[arc]}`}
+                  </div>
+                  <p className="mt-2 text-[15px] leading-[1.6] text-muted">
+                    {framingCopy(status, arc)}
+                  </p>
+                </div>
+              );
+            })}
+          </section>
+        )}
+
         {result.contenders.length > 0 && (
           <section className="mt-12">
             <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -76,6 +178,8 @@ export default async function InterviewResultPage() {
               {result.contenders.map((slug) => {
                 const tribe = getTribeBySlug(slug);
                 const isPrimary = result.primary.includes(slug);
+                const arc = posture[slug]?.arc ?? "unknown";
+                const role = isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender";
                 return (
                   <li
                     key={slug}
@@ -87,8 +191,13 @@ export default async function InterviewResultPage() {
                     >
                       {tribe?.name ?? slug}
                       <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
-                        {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                        {role}
                       </span>
+                      {arcLabel[arc] && (
+                        <span className="ml-2 text-[11px] uppercase tracking-[0.16em] text-gold/80">
+                          · {arcLabel[arc]}
+                        </span>
+                      )}
                     </Link>
                     <span className="text-[15px] tabular-nums text-muted">
                       {Math.round(pct[slug] ?? 0)}%
