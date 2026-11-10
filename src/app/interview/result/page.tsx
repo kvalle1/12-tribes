@@ -23,6 +23,12 @@ const arcLabel: Record<PostureArc, string> = {
  * `status` names the caution, Posture gives it its reading — active-shadow is
  * cautionary, integrated is redemption — and the copy never condemns. `active`
  * tribes need no such framing and are absent here.
+ *
+ * The cautionary `statusNote` (the fall-line reading) and the integrated
+ * `redemptionNote` (the oil reading) are kept as separate per-status copy so an
+ * *integrated* Primary never gets the "don't stay here" caution tacked onto a
+ * "you've matured" lead — the two readings are reconciled by arc, not composed
+ * blindly.
  */
 const statusNote: Record<Exclude<TribeStatus, "active">, string> = {
   disqualified:
@@ -33,7 +39,17 @@ const statusNote: Record<Exclude<TribeStatus, "active">, string> = {
     "This tribe carries a historical disqualification arc — a severe warning drawn from how its story went, never a sentence on how yours must.",
 };
 
-/** The arc-specific reading that leads the framing, before the status note. */
+/** The redemptive close for an *integrated* non-active Primary — the arc resolved. */
+const redemptionNote: Record<Exclude<TribeStatus, "active">, string> = {
+  disqualified:
+    "That hard warning is the story behind this wiring, not a verdict over you — your reading looks like the restoration Ezekiel 48 keeps open.",
+  warning:
+    "A warning tribe’s whole call is to move through it, and your answers read like someone already doing that.",
+  "disqualified-arc":
+    "The arc’s hard history is the caution, not your sentence — you read as having turned where the tribe of old did not.",
+};
+
+/** The arc-specific reading that leads the framing. */
 function arcReading(arc: PostureArc): string {
   switch (arc) {
     case "integrated":
@@ -45,6 +61,17 @@ function arcReading(arc: PostureArc): string {
     default:
       return "";
   }
+}
+
+/**
+ * The full framing paragraph for a non-active Primary, reconciled by arc: an
+ * integrated reading closes on the redemption note (the arc resolved); every
+ * other arc closes on the cautionary status note.
+ */
+function framingCopy(status: Exclude<TribeStatus, "active">, arc: PostureArc): string {
+  const lead = arcReading(arc);
+  const close = arc === "integrated" ? redemptionNote[status] : statusNote[status];
+  return lead ? `${lead} ${close}` : close;
 }
 
 /**
@@ -123,7 +150,7 @@ export default async function InterviewResultPage() {
         {framedPrimaries.length > 0 && (
           <section className="mt-10 flex flex-col gap-5">
             {framedPrimaries.map(({ tribe, arc }) => {
-              const reading = arcReading(arc);
+              const status = tribe.status as Exclude<TribeStatus, "active">;
               return (
                 <div
                   key={tribe.slug}
@@ -134,8 +161,7 @@ export default async function InterviewResultPage() {
                     {arcLabel[arc] && ` · ${arcLabel[arc]}`}
                   </div>
                   <p className="mt-2 text-[15px] leading-[1.6] text-muted">
-                    {reading && <span>{reading} </span>}
-                    {statusNote[tribe.status as Exclude<TribeStatus, "active">]}
+                    {framingCopy(status, arc)}
                   </p>
                 </div>
               );

@@ -163,15 +163,27 @@ describe("evaluate", () => {
     expect(confidence).toBeLessThanOrEqual(1);
   });
 
-  it("attaches the per-tribe Posture reading, derived from the trace (ADR-0004)", () => {
-    // judah carries integrated posture evidence; dan carries active-shadow.
-    const trace: ScoreTraceEntry[] = [
-      { turnIndex: 0, markerId: "judah-oil", tribeSlug: "judah", type: "oil", delta: 4, postureSignal: "integrated" },
-      { turnIndex: 1, markerId: "dan-fall", tribeSlug: "dan", type: "fallLine", delta: 4, postureSignal: "active-shadow" },
-    ];
-    const profile = profileOf({ judah: 4, dan: 4 });
-    const { posture } = evaluate(profile, trace, MIN_TURNS).result;
-    expect(posture?.judah.arc).toBe("integrated");
-    expect(posture?.dan.arc).toBe("active-shadow");
+  it("attaches the per-tribe Posture reading to a stopping result, from the trace (ADR-0004)", () => {
+    // A stable judah lead (integrated) over a small dan active-shadow signal —
+    // decisive enough to stop, so the result is retained with its Posture.
+    const trace: ScoreTraceEntry[] = Array.from({ length: MIN_TURNS }, (_, turn) => turn).flatMap(
+      (turn): ScoreTraceEntry[] => [
+        { turnIndex: turn, markerId: "judah-oil", tribeSlug: "judah", type: "oil", delta: 3, postureSignal: "integrated" },
+        { turnIndex: turn, markerId: "dan-fall", tribeSlug: "dan", type: "fallLine", delta: 0.5, postureSignal: "active-shadow" },
+      ],
+    );
+    const profile = profileFromTrace(trace);
+    const verdict = evaluate(profile, trace, MIN_TURNS);
+    expect(verdict.decision).toBe("stop");
+    expect(verdict.result.posture?.judah.arc).toBe("integrated");
+    expect(verdict.result.posture?.dan.arc).toBe("active-shadow");
+  });
+
+  it("does not spend the posture fold on a continue verdict", () => {
+    // Below the floor: the result is discarded, so posture is not attached.
+    const s = steady(MIN_TURNS - 1, { judah: 10 });
+    const verdict = evaluate(s.profile, s.trace, s.turnCount);
+    expect(verdict.decision).toBe("continue");
+    expect(verdict.result.posture).toBeUndefined();
   });
 });
