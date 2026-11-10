@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normalize } from "./scoring";
+import { normalize, readPosture } from "./scoring";
 import type {
   InterviewResult,
   ScoreTraceEntry,
@@ -148,7 +148,10 @@ export function evaluate(
   trace: readonly ScoreTraceEntry[],
   turnCount: number,
 ): Verdict {
-  const result = summarize(profile);
+  // `summarize` reads only the profile; the Posture axis (ADR-0004) is derived
+  // from the trace and attached here so a persisted result carries the full
+  // output contract (Strength Profile + Posture + Primary/Contenders).
+  const result: InterviewResult = { ...summarize(profile), posture: readPosture(trace) };
 
   if (turnCount >= MAX_TURNS) {
     return { decision: "stop", reason: "cap", result };

@@ -21,9 +21,9 @@ export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
 
 /**
  * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
- * Slice 3 carries the signal the agent returns through to the trace but does not
- * yet aggregate a Posture axis — that is slice 6. `neutral` is the default when
- * an answer is not posture-bearing.
+ * The agent returns this per delta and it rides through the trace; slice 6
+ * aggregates it into a per-tribe Posture axis (see `PostureReading`). `neutral`
+ * is the default when an answer is not posture-bearing.
  */
 export type PostureSignal = "active-shadow" | "neutral" | "integrated";
 
@@ -32,6 +32,38 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
   "neutral",
   "integrated",
 ] as const;
+
+/**
+ * Accumulated Posture evidence for one tribe (ADR-0004): the competing weights
+ * on its fall→oil arc. Posture rides the *same* evidence as strength — each
+ * scored delta's `postureSignal` routes its weight to a pole — so a tribe is
+ * never placed on an arc it has no strength evidence for. `neutral` signals
+ * contribute to neither pole.
+ */
+export interface PostureTally {
+  /** Summed delta weight of answers reading active-shadow (living the fall-line). */
+  activeShadow: number;
+  /** Summed delta weight of answers reading integrated (matured past it). */
+  integrated: number;
+}
+
+/**
+ * A tribe's resolved position on its fall→oil arc once the posture evidence is
+ * weighed. `unknown` means no posture-bearing evidence yet; `mixed` means the
+ * evidence is present but too balanced to call either pole.
+ */
+export type PostureArc = "active-shadow" | "mixed" | "integrated" | "unknown";
+
+/**
+ * A tribe's resolved Posture: the arc label, a signed `score` in [-1, 1] (−1
+ * fully active-shadow, +1 fully integrated), and the raw tally behind it. The
+ * score is the margin between poles, so it is traceable back to the evidence.
+ */
+export interface PostureReading {
+  arc: PostureArc;
+  score: number;
+  tally: PostureTally;
+}
 
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;
@@ -98,6 +130,11 @@ export interface InterviewTurn {
  * the Turn cap. `contenders` is the Primary plus every tribe within a margin of
  * it, ordered strongest first. `percentages` are the display shares for all 12
  * tribes (ADR-0002) and `confidence` is 0–1.
+ *
+ * `posture` is the per-tribe fall→oil arc reading (ADR-0004), part of the stable
+ * output contract a future report consumes. It is optional for back-compat:
+ * results persisted before slice 6 lack it, and a reader derives it from the
+ * (always-present) score `trace` instead.
  */
 export interface InterviewResult {
   primary: string[];
@@ -105,6 +142,7 @@ export interface InterviewResult {
   coPrimary: boolean;
   confidence: number;
   percentages: Record<string, number>;
+  posture?: Record<string, PostureReading>;
 }
 
 /** Server-authoritative Session state the pure flow logic operates on. */

@@ -162,4 +162,16 @@ describe("evaluate", () => {
     expect(confidence).toBeGreaterThan(0);
     expect(confidence).toBeLessThanOrEqual(1);
   });
+
+  it("attaches the per-tribe Posture reading, derived from the trace (ADR-0004)", () => {
+    // judah carries integrated posture evidence; dan carries active-shadow.
+    const trace: ScoreTraceEntry[] = [
+      { turnIndex: 0, markerId: "judah-oil", tribeSlug: "judah", type: "oil", delta: 4, postureSignal: "integrated" },
+      { turnIndex: 1, markerId: "dan-fall", tribeSlug: "dan", type: "fallLine", delta: 4, postureSignal: "active-shadow" },
+    ];
+    const profile = profileOf({ judah: 4, dan: 4 });
+    const { posture } = evaluate(profile, trace, MIN_TURNS).result;
+    expect(posture?.judah.arc).toBe("integrated");
+    expect(posture?.dan.arc).toBe("active-shadow");
+  });
 });
