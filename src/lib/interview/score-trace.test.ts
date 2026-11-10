@@ -99,6 +99,17 @@ describe("buildTribeTraces", () => {
     expect(judah.total).toBe(2);
   });
 
+  it("omits a clamped zero-delta entry so no '+0' row and the total stays consistent", () => {
+    const trace = [
+      entry(0, "judah-strength-front", "judah", "strength", 0),
+      entry(1, "judah-oil-responsibility", "judah", "oil", 2),
+    ];
+    const [judah] = buildTribeTraces(trace, turns, resolve);
+    expect(judah.contributions).toHaveLength(1);
+    expect(judah.contributions[0].questionNumber).toBe(2);
+    expect(judah.total).toBe(2);
+  });
+
   it("tolerates a trace entry that points past the recorded turns", () => {
     const trace = [entry(9, "judah-strength-front", "judah", "strength", 1)];
     const [judah] = buildTribeTraces(trace, turns, resolve);

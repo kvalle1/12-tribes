@@ -52,6 +52,10 @@ export function buildTribeTraces(
   const byTribe = new Map<string, TribeScoreTrace>();
 
   for (const entry of trace) {
+    // A clamped-to-zero contribution added no strength; showing a "+0" row is
+    // noise, so it is omitted and `total` stays equal to what is displayed.
+    if (entry.delta <= 0) continue;
+
     const marker = lookup(entry.markerId);
     if (!marker) continue;
 
