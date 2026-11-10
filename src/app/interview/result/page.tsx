@@ -1,15 +1,35 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
+import { buildTribeTraces } from "@/lib/interview/score-trace";
 import { currentSession } from "@/lib/interview/session";
+import type { MarkerType } from "@/lib/interview/types";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { startInterview } from "../actions";
+
+/** Human-readable labels for the Marker field a contribution came from. */
+const MARKER_TYPE_LABELS: Record<MarkerType, string> = {
+  strength: "Strength",
+  oil: "Thrives",
+  shadow: "Shadow",
+  fallLine: "Fall line",
+};
+
+/**
+ * Deltas are bounded to a Marker's weight but can arrive as model-supplied
+ * fractions, so render integers plainly and trim anything else to one decimal
+ * rather than leaking a long float onto the page.
+ */
+const formatDelta = (delta: number): string =>
+  Number.isInteger(delta) ? String(delta) : delta.toFixed(1);
 
 /**
  * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
  * when the top tribes never separated (ADR-0006) — plus the dynamic Contender
  * band, each with its display percentage (ADR-0002), and the full twelve below.
- * Posture and the score trace arrive in later slices.
+ * Each scored tribe carries an expandable score trace (slice 7, issue #21):
+ * question shown → Marker signal → delta, built server-side and exposing no raw
+ * answer text (issue #10) or scoring internals. Posture arrives in slice 6.
  *
  * Reached only once the Session is complete — an in-progress or missing Session
  * routes back to the hub, so a refresh here still resolves to the right place.
@@ -35,6 +55,15 @@ export default async function InterviewResultPage() {
     .map(([slug, value]) => ({ slug, value }))
     .sort((a, b) => b.value - a.value);
   const top = ranked[0]?.value ?? 0;
+
+  // Score trace (issue #21): why each tribe scored as it did, built on the
+  // server from the authoritative trace. It cites the question shown and the
+  // Marker signal that fired — never the raw answer text (issue #10) or any
+  // scoring internals beyond these fields.
+  const traceBySlug = new Map(
+    buildTribeTraces(session.trace, session.turns).map((t) => [t.tribeSlug, t]),
+  );
+  const hasTrace = traceBySlug.size > 0;
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -104,25 +133,72 @@ export default async function InterviewResultPage() {
           <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
             How the twelve scored
           </p>
+          {hasTrace && (
+            <p className="mt-3 text-[13px] leading-[1.6] text-muted">
+              Expand a tribe to see the score trace — which question and which
+              signal produced each point. Your answers themselves are never
+              shown here.
+            </p>
+          )}
           <ul className="mt-6 flex flex-col gap-3.5">
             {ranked.map((row) => {
               const tribe = getTribeBySlug(row.slug);
               const accent = accentHex(tribe?.color ?? "");
               const width = top > 0 ? (row.value / top) * 100 : 0;
+              const trace = traceBySlug.get(row.slug);
               return (
-                <li key={row.slug} className="flex items-center gap-4">
-                  <span className="w-[108px] shrink-0 font-serif text-[16px]">
-                    {tribe?.name ?? row.slug}
-                  </span>
-                  <span className="relative h-[8px] flex-1 overflow-hidden rounded-full bg-hair/60">
-                    <span
-                      className="absolute inset-y-0 left-0 rounded-full"
-                      style={{ width: `${width}%`, backgroundColor: accent }}
-                    />
-                  </span>
-                  <span className="w-[44px] shrink-0 text-right text-[13px] tabular-nums text-muted">
-                    {Math.round(row.value)}%
-                  </span>
+                <li key={row.slug} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-4">
+                    <span className="w-[108px] shrink-0 font-serif text-[16px]">
+                      {tribe?.name ?? row.slug}
+                    </span>
+                    <span className="relative h-[8px] flex-1 overflow-hidden rounded-full bg-hair/60">
+                      <span
+                        className="absolute inset-y-0 left-0 rounded-full"
+                        style={{ width: `${width}%`, backgroundColor: accent }}
+                      />
+                    </span>
+                    <span className="w-[44px] shrink-0 text-right text-[13px] tabular-nums text-muted">
+                      {Math.round(row.value)}%
+                    </span>
+                  </div>
+
+                  {trace && trace.contributions.length > 0 && (
+                    <details className="group ml-4 sm:ml-[124px]">
+                      <summary className="cursor-pointer list-none text-[11px] uppercase tracking-[0.14em] text-faint transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+                        <span className="group-open:hidden">Why this score ↓</span>
+                        <span className="hidden group-open:inline">Hide trace ↑</span>
+                      </summary>
+                      <ul className="mt-3 flex flex-col gap-3 border-l border-hair pl-4">
+                        {trace.contributions.map((c, i) => (
+                          <li
+                            key={`${c.questionNumber}-${i}`}
+                            className="flex flex-col gap-1 text-[13px] leading-[1.5]"
+                          >
+                            <p className="text-[12px] leading-[1.4] text-faint">
+                              <span className="tabular-nums">Q{c.questionNumber}</span>
+                              {c.question && <span className="mx-1.5">·</span>}
+                              {c.question}
+                            </p>
+                            <div className="flex items-baseline gap-3">
+                              <span className="flex-1 text-muted">
+                                <span
+                                  className="mr-2 align-middle text-[10px] uppercase tracking-[0.12em]"
+                                  style={{ color: accent }}
+                                >
+                                  {MARKER_TYPE_LABELS[c.markerType]}
+                                </span>
+                                {c.signal}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-ink">
+                                +{formatDelta(c.delta)}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </li>
               );
             })}
