@@ -55,6 +55,10 @@ export interface TribeTrace {
  * the rest are ordered strongest-total first, ties broken by slug so the order
  * is deterministic. Contributions within a tribe stay in Turn order, as the
  * trace log is oldest-first.
+ *
+ * Zero-delta entries are skipped: the scoring engine clamps a negative delta to
+ * zero but still logs it (scoring.ts), and a "+0" row that moved no strength is
+ * noise to the participant, so it never reaches the view model.
  */
 export function buildScoreTrace(
   trace: readonly ScoreTraceEntry[],
@@ -63,6 +67,8 @@ export function buildScoreTrace(
   const byTribe = new Map<string, TribeTrace>();
 
   for (const item of trace) {
+    if (item.delta <= 0) continue;
+
     const contribution: TraceContribution = {
       turnNumber: item.turnIndex + 1,
       question: turns[item.turnIndex]?.question ?? "",

@@ -4,10 +4,11 @@
  * The Interview has no fixed length: it runs until the Stop Condition is met,
  * anywhere between the minimum floor and the hard cap (ADR-0006). So progress
  * here is deliberately *rough* and must never imply a fixed number of
- * questions — no "question 3 of 10". The bar ramps toward, but never reaches,
- * 100% while a question is still pending, and it has filled a clear majority by
- * the time the minimum floor is reached (from there the Interview may stop at
- * any Turn, so it is honestly "near the end").
+ * questions — no "question 3 of 10". The bar fills a clear majority by the time
+ * the minimum floor is reached (from there the Interview may stop at any Turn,
+ * so it is honestly "near the end"), then ramps the rest of the way toward a
+ * ceiling just below full, reaching that ceiling only at the hard cap. It never
+ * reaches 100% while a question is still pending.
  *
  * Pure and parameterized: the caller passes the floor/cap from the
  * Confidence/Stop evaluator's constants, so this module carries no server-only
@@ -44,7 +45,7 @@ export function interviewProgress(
   floor: number,
   cap: number,
 ): Progress {
-  const done = Math.max(0, answered);
+  const done = Number.isFinite(answered) ? Math.max(0, answered) : 0;
 
   let fraction: number;
   if (done <= 0) {
@@ -54,12 +55,12 @@ export function interviewProgress(
     // guaranteed, so progress toward the floor is honest.
     fraction = (done / floor) * FLOOR_FRACTION;
   } else {
-    // Past the floor the Interview can stop any Turn; creep asymptotically
-    // toward (but never to) full so no fixed length is implied.
-    const span = cap > floor ? (done - floor) / (cap - floor) : 1;
-    fraction = FLOOR_FRACTION + (1 - FLOOR_FRACTION) * Math.min(1, span);
+    // Past the floor the Interview can stop any Turn; ramp the remaining band
+    // so the ceiling is reached only at the cap — never a premature freeze, and
+    // never full while a question is still pending.
+    const span = cap > floor ? Math.min(1, (done - floor) / (cap - floor)) : 1;
+    fraction = FLOOR_FRACTION + (MAX_IN_PROGRESS - FLOOR_FRACTION) * span;
   }
-  fraction = Math.min(fraction, MAX_IN_PROGRESS);
 
   const phase: ProgressPhase =
     fraction < WARMING_UP_BELOW

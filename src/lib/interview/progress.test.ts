@@ -46,6 +46,17 @@ describe("interviewProgress", () => {
     expect(interviewProgress(-3, FLOOR, CAP).fraction).toBe(0);
   });
 
+  it("treats a non-finite answered count as zero", () => {
+    expect(interviewProgress(Number.NaN, FLOOR, CAP).fraction).toBe(0);
+    expect(interviewProgress(Number.POSITIVE_INFINITY, FLOOR, CAP).fraction).toBeLessThan(1);
+  });
+
+  it("reaches its ceiling only at the cap, not before", () => {
+    expect(interviewProgress(CAP - 1, FLOOR, CAP).fraction).toBeLessThan(
+      interviewProgress(CAP, FLOOR, CAP).fraction,
+    );
+  });
+
   it("does not divide by zero when the floor equals the cap", () => {
     const { fraction } = interviewProgress(8, 6, 6);
     expect(Number.isFinite(fraction)).toBe(true);

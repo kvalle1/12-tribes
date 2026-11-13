@@ -86,6 +86,16 @@ describe("buildScoreTrace", () => {
     expect(tribe.contributions[0].turnNumber).toBe(8);
   });
 
+  it("omits zero-delta contributions and any tribe left with none", () => {
+    const trace = [
+      entry(0, "clamped", "judah", 0), // negative delta clamped to 0 upstream
+      entry(1, "real", "levi", 2),
+    ];
+    const result = buildScoreTrace(trace, [turn("Q1", "A1"), turn("Q2", "A2")]);
+    expect(result.map((t) => t.tribeSlug)).toEqual(["levi"]);
+    expect(result[0].contributions).toHaveLength(1);
+  });
+
   it("carries the delta, type, and posture signal through for display", () => {
     const trace = [entry(0, "m", "judah", 3, "fallLine", "integrated")];
     const [tribe] = buildScoreTrace(trace, [turn("Q", "A")]);

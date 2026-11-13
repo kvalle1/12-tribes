@@ -70,6 +70,7 @@ export default async function InterviewPage() {
                 MIN_TURNS,
                 MAX_TURNS,
               );
+              const pct = Math.round(progress.fraction * 100);
               return (
                 <div className="mt-8">
                   <div className="flex items-baseline justify-between text-[11px] uppercase tracking-[0.16em] text-faint">
@@ -79,14 +80,14 @@ export default async function InterviewPage() {
                   <div
                     className="mt-3 h-[6px] w-full overflow-hidden rounded-full bg-hair/60"
                     role="progressbar"
-                    aria-valuenow={Math.round(progress.fraction * 100)}
+                    aria-valuenow={pct}
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-label="Interview progress"
                   >
                     <span
                       className="block h-full rounded-full bg-gold transition-[width] duration-500"
-                      style={{ width: `${Math.round(progress.fraction * 100)}%` }}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
