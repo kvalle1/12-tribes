@@ -2,8 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
 import { currentSession } from "@/lib/interview/session";
+import { buildScoreTrace } from "@/lib/interview/trace";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { startInterview } from "../actions";
+
+/** Friendly labels for the kind of signal a Marker carries, for the score trace. */
+const TRACE_TYPE_LABELS = {
+  strength: "Strength",
+  oil: "Oil",
+  shadow: "Shadow",
+  fallLine: "Fall line",
+} as const;
 
 /**
  * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
@@ -35,6 +44,10 @@ export default async function InterviewResultPage() {
     .map(([slug, value]) => ({ slug, value }))
     .sort((a, b) => b.value - a.value);
   const top = ranked[0]?.value ?? 0;
+
+  // The per-tribe score trace (ADR-0003): why each tribe scored. Built from the
+  // applied-delta log and Turn history; empty for legacy pre-trace Sessions.
+  const scoreTrace = buildScoreTrace(session.trace ?? [], session.turns ?? []);
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -128,6 +141,72 @@ export default async function InterviewResultPage() {
             })}
           </ul>
         </section>
+
+        {scoreTrace.length > 0 && (
+          <section className="mt-12 border-t border-hair pt-8">
+            <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
+              Why these scores
+            </p>
+            <p className="mt-3 text-[14px] leading-[1.6] text-muted">
+              Every point is traceable to a signal the Interview heard and the
+              Marker it matched. Your answers themselves aren&rsquo;t shown here
+              — each row cites the question and the signal, not what you wrote.
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              {scoreTrace.map((entry) => {
+                const tribe = getTribeBySlug(entry.tribeSlug);
+                const accent = accentHex(tribe?.color ?? "");
+                return (
+                  <details
+                    key={entry.tribeSlug}
+                    className="group rounded-[2px] border border-hair bg-white"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
+                      <span className="flex items-center gap-3 font-serif text-[18px]">
+                        <span
+                          className="inline-block h-[10px] w-[10px] rounded-full"
+                          style={{ backgroundColor: accent }}
+                        />
+                        {tribe?.name ?? entry.tribeSlug}
+                      </span>
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
+                        {entry.contributions.length}{" "}
+                        {entry.contributions.length === 1 ? "signal" : "signals"}
+                        <span className="ml-2 inline-block transition-transform group-open:rotate-90">
+                          ›
+                        </span>
+                      </span>
+                    </summary>
+                    <ul className="flex flex-col gap-4 border-t border-hair px-4 py-4">
+                      {entry.contributions.map((c, i) => (
+                        <li key={`${c.markerId}-${i}`} className="flex flex-col gap-1">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
+                              Answer {c.turnNumber}
+                              {c.type !== "strength" &&
+                                ` · ${TRACE_TYPE_LABELS[c.type]}`}
+                            </span>
+                            <span className="text-[13px] tabular-nums text-muted">
+                              +{c.delta}
+                            </span>
+                          </div>
+                          <p className="text-[15px] leading-[1.5] text-ink">
+                            {c.signal}
+                          </p>
+                          {c.question && (
+                            <p className="text-[13px] italic leading-[1.5] text-faint">
+                              “{c.question}”
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/*
           A completed Session otherwise dead-ends here: /interview redirects a

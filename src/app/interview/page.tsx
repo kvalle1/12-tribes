@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { MAX_TURNS, MIN_TURNS } from "@/lib/interview/confidence";
 import { nextTurn } from "@/lib/interview/flow";
+import { interviewProgress } from "@/lib/interview/progress";
 import { toState } from "@/lib/interview/repository";
 import { currentSession } from "@/lib/interview/session";
 import { startInterview, submitAnswer } from "./actions";
+
+const PROGRESS_LABELS = {
+  "warming-up": "Warming up",
+  "homing-in": "Homing in",
+  "almost-there": "Almost there",
+} as const;
 
 /**
  * Interview hub. The view is derived purely from the server-side Session, so a
@@ -56,10 +64,35 @@ export default async function InterviewPage() {
           </>
         ) : (
           <>
-            <div className="mt-8 text-[11px] uppercase tracking-[0.16em] text-faint">
-              Question {turn.questionNumber}
-            </div>
-            <p className="mt-4 font-serif text-[22px] leading-[1.4]">
+            {(() => {
+              const progress = interviewProgress(
+                turn.questionNumber - 1,
+                MIN_TURNS,
+                MAX_TURNS,
+              );
+              return (
+                <div className="mt-8">
+                  <div className="flex items-baseline justify-between text-[11px] uppercase tracking-[0.16em] text-faint">
+                    <span>Question {turn.questionNumber}</span>
+                    <span>{PROGRESS_LABELS[progress.phase]}</span>
+                  </div>
+                  <div
+                    className="mt-3 h-[6px] w-full overflow-hidden rounded-full bg-hair/60"
+                    role="progressbar"
+                    aria-valuenow={Math.round(progress.fraction * 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Interview progress"
+                  >
+                    <span
+                      className="block h-full rounded-full bg-gold transition-[width] duration-500"
+                      style={{ width: `${Math.round(progress.fraction * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+            <p className="mt-6 font-serif text-[22px] leading-[1.4]">
               {turn.prompt}
             </p>
 
