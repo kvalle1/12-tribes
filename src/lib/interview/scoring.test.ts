@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { oilMarkerFor } from "./markers";
 import {
   accumulatePosture,
   applyDeltas,
@@ -121,15 +122,37 @@ describe("applyDeltas — matured fall-line routing (ADR-0004)", () => {
     ]);
   });
 
-  it("preserves the trace→profile invariant: one entry, same delta (no double-count)", () => {
+  it("preserves the trace→profile invariant across a mixed, multi-tribe Turn", () => {
+    // A routed matured fall-line, an unrouted active-shadow fall-line, a plain
+    // strength delta, and a negative delta clamped to zero — the per-tribe sums
+    // of trace deltas must still reconstruct the profile (what confidence.ts
+    // replays), whatever the routing did to markerId/type.
     const { profile, trace } = applyDeltas(
-      { judah: 0 },
-      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      { judah: 0, levi: 0, dan: 0 },
+      [
+        d("judah-fall-power", "judah", "fallLine", 3, "integrated"), // routed → oil
+        d("levi-fall-x", "levi", "fallLine", 2, "active-shadow"), // not routed
+        d("judah-strength-front", "judah", "strength", 1, "neutral"),
+        d("dan-shadow-x", "dan", "shadow", -4, "active-shadow"), // clamped to 0
+      ],
       0,
       oilFor,
     );
-    const summed = trace.reduce((sum, e) => sum + e.delta, 0);
-    expect(summed).toBe(profile.judah);
+    const summedByTribe: Record<string, number> = {};
+    for (const e of trace) summedByTribe[e.tribeSlug] = (summedByTribe[e.tribeSlug] ?? 0) + e.delta;
+    expect(summedByTribe).toEqual({ judah: profile.judah, levi: profile.levi, dan: profile.dan });
+    expect(profile).toEqual({ judah: 4, levi: 2, dan: 0 });
+  });
+
+  it("does not route a matured fall-line for a tribe outside the profile (dropped, like any unknown)", () => {
+    const { profile, trace } = applyDeltas(
+      { judah: 0 },
+      [d("unknown-fall", "unknown", "fallLine", 3, "integrated")],
+      0,
+      () => "unknown-oil",
+    );
+    expect(profile).toEqual({ judah: 0 });
+    expect(trace).toEqual([]);
   });
 
   it("does not route a fall-line that is still active-shadow", () => {
@@ -159,7 +182,9 @@ describe("applyDeltas — matured fall-line routing (ADR-0004)", () => {
       0,
     );
     expect(trace[0].type).toBe("oil");
-    expect(trace[0].markerId).toBe("judah-oil-responsibility");
+    // Assert against the catalog helper rather than a hard-coded id, so a
+    // rename of the Marker doesn't falsely fail this wiring check.
+    expect(trace[0].markerId).toBe(oilMarkerFor("judah"));
   });
 
   it("only routes fall-line Markers, never an integrated strength or oil contribution", () => {
@@ -216,6 +241,31 @@ describe("posturePosition", () => {
 
   it("has no position without posture-bearing evidence", () => {
     expect(posturePosition({ activeShadow: 0, integrated: 0 })).toBeNull();
+  });
+
+  it("reads exactly the threshold (0.33) as mixed, since the bucket edge is strict", () => {
+    // integrated=2, activeShadow=1 → score 0.333… which is > 0.33 → integrated;
+    // integrated=1.33, activeShadow=0.67 lands right at the edge. Use a 2:1 that
+    // sits just above and a flat split that sits at/below to pin both sides.
+    expect(posturePosition({ activeShadow: 1, integrated: 2 })?.arc).toBe("integrated");
+    // A score of exactly 0.33 is "mixed" (strict >): 66.5 vs 33.5 of 100.
+    expect(posturePosition({ activeShadow: 33.5, integrated: 66.5 })?.score).toBeCloseTo(0.33);
+    expect(posturePosition({ activeShadow: 33.5, integrated: 66.5 })?.arc).toBe("mixed");
+  });
+});
+
+describe("routing feeds posture end-to-end", () => {
+  it("a matured fall-line, once routed to oil, still counts toward integrated posture", () => {
+    const oilFor = (slug: string) => (slug === "judah" ? "judah-oil-x" : undefined);
+    const { trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      0,
+      oilFor,
+    );
+    const posture = accumulatePosture(trace);
+    expect(posture.judah).toEqual({ activeShadow: 0, integrated: 3 });
+    expect(posturePosition(posture.judah)?.arc).toBe("integrated");
   });
 });
 
