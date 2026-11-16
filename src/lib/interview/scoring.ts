@@ -1,7 +1,11 @@
 import "server-only";
 
+import { oilMarkerFor } from "./markers";
 import type {
   MarkerDelta,
+  PostureProfile,
+  PosturePosition,
+  PostureTally,
   ScoreTraceEntry,
   StrengthProfile,
 } from "./types";
@@ -34,11 +38,25 @@ import type {
  *  - **Known tribes only.** A delta whose `tribeSlug` is not already a key of
  *    the profile is a validation miss; it is dropped rather than inventing a
  *    new tribe.
+ *
+ * **Matured fall-line routing (ADR-0004).** A fall-line Marker scored with an
+ * `integrated` posture signal is a *matured* fall-line: the person resonates
+ * with the theme but has grown past its dysfunction, and the mature expression
+ * of a fall-line theme is precisely the tribe's `oil`. So its trace entry is
+ * re-attributed to the tribe's oil Marker — cross-confirming the attribution
+ * through a different Marker type — while the strength it carries lands on the
+ * tribe exactly once, unchanged. Re-attribution (not an extra contribution)
+ * keeps the invariant the Confidence evaluator relies on: the trace's deltas
+ * per tribe still sum to the profile, so `profileHistory` can replay it. The
+ * oil Marker is resolved via `resolveOilMarker` (defaulting to the catalog) so
+ * the engine stays unit-testable with a stub resolver; when a tribe has no oil
+ * Marker, the original citation is kept.
  */
 export function applyDeltas(
   profile: StrengthProfile,
   deltas: readonly MarkerDelta[],
   turnIndex: number,
+  resolveOilMarker: (tribeSlug: string) => string | undefined = oilMarkerFor,
 ): { profile: StrengthProfile; trace: ScoreTraceEntry[] } {
   const next: StrengthProfile = { ...profile };
   const trace: ScoreTraceEntry[] = [];
@@ -50,17 +68,67 @@ export function applyDeltas(
     const applied = Math.max(0, delta.delta);
     next[delta.tribeSlug] += applied;
 
+    // Route a matured fall-line to the tribe's oil Marker, if one exists.
+    const matured = delta.type === "fallLine" && delta.postureSignal === "integrated";
+    const oilMarkerId = matured ? resolveOilMarker(delta.tribeSlug) : undefined;
+
     trace.push({
       turnIndex,
-      markerId: delta.markerId,
+      markerId: oilMarkerId ?? delta.markerId,
       tribeSlug: delta.tribeSlug,
-      type: delta.type,
+      type: oilMarkerId ? "oil" : delta.type,
       delta: applied,
       postureSignal: delta.postureSignal,
     });
   }
 
   return { profile: next, trace };
+}
+
+/**
+ * Accumulate the per-tribe Posture tallies from a score trace (ADR-0004, slice
+ * 6). Posture is the second axis every scored Marker feeds, orthogonal to
+ * strength: each contribution's `postureSignal` moves the tribe toward one end
+ * of its fall→oil arc, weighted by the contribution's `delta`. `neutral`
+ * contributions move neither end but still register the tribe (so a tribe with
+ * evidence but no posture read appears at zero rather than vanishing).
+ *
+ * Derived from the trace rather than stored separately, exactly like
+ * `profileHistory`: the trace is the persisted source of truth, so Posture
+ * needs no extra column and old Sessions project correctly too.
+ */
+export function accumulatePosture(
+  trace: readonly ScoreTraceEntry[],
+): PostureProfile {
+  const posture: PostureProfile = {};
+  for (const entry of trace) {
+    const tally = (posture[entry.tribeSlug] ??= { activeShadow: 0, integrated: 0 });
+    if (entry.postureSignal === "integrated") tally.integrated += entry.delta;
+    else if (entry.postureSignal === "active-shadow") tally.activeShadow += entry.delta;
+  }
+  return posture;
+}
+
+/** A tribe leaning further than this from centre reads as one end of the arc. */
+export const POSTURE_ARC_THRESHOLD = 0.33;
+
+/**
+ * Place a tribe's Posture tally on its fall→oil arc. `score` is the net lean,
+ * -1 (fully active-shadow) to +1 (fully integrated); `arc` buckets it. A tribe
+ * with no posture-bearing evidence has no position (`null`) rather than a
+ * misleading centre reading.
+ */
+export function posturePosition(tally: PostureTally): PosturePosition | null {
+  const total = tally.activeShadow + tally.integrated;
+  if (total === 0) return null;
+  const score = (tally.integrated - tally.activeShadow) / total;
+  const arc =
+    score > POSTURE_ARC_THRESHOLD
+      ? "integrated"
+      : score < -POSTURE_ARC_THRESHOLD
+        ? "active-shadow"
+        : "mixed";
+  return { arc, score };
 }
 
 /**

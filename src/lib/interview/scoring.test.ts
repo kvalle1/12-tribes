@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyDeltas, normalize } from "./scoring";
-import type { MarkerDelta } from "./types";
+import {
+  accumulatePosture,
+  applyDeltas,
+  normalize,
+  posturePosition,
+} from "./scoring";
+import type { MarkerDelta, ScoreTraceEntry } from "./types";
 
 const d = (
   markerId: string,
@@ -9,6 +14,14 @@ const d = (
   delta: number,
   postureSignal: MarkerDelta["postureSignal"] = "neutral",
 ): MarkerDelta => ({ markerId, tribeSlug, type, delta, postureSignal });
+
+const te = (
+  turnIndex: number,
+  tribeSlug: string,
+  type: ScoreTraceEntry["type"],
+  delta: number,
+  postureSignal: ScoreTraceEntry["postureSignal"],
+): ScoreTraceEntry => ({ turnIndex, tribeSlug, type, delta, postureSignal, markerId: `${tribeSlug}-${type}` });
 
 describe("applyDeltas", () => {
   it("adds a strength delta to the cited tribe", () => {
@@ -49,10 +62,13 @@ describe("applyDeltas", () => {
   });
 
   it("records a trace entry per applied delta, tied to the Turn index and Marker", () => {
+    // No oil Marker to route to, so the citation passes through unchanged —
+    // matured-fall-line routing has its own tests below.
     const { trace } = applyDeltas(
       { judah: 0 },
       [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
       2,
+      () => undefined,
     );
     expect(trace).toEqual([
       {
@@ -77,6 +93,129 @@ describe("applyDeltas", () => {
     const { profile } = applyDeltas({ judah: 0 }, [d("m1", "unknown", "strength", 2)], 0);
     expect(profile).toEqual({ judah: 0 });
     expect(Object.keys(profile)).toEqual(["judah"]);
+  });
+});
+
+describe("applyDeltas — matured fall-line routing (ADR-0004)", () => {
+  const oilFor = (slug: string) => (slug === "judah" ? "judah-oil-x" : undefined);
+
+  it("re-attributes a matured fall-line (integrated) to the tribe's oil Marker in the trace", () => {
+    const { profile, trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      1,
+      oilFor,
+    );
+    // Strength lands once, on the tribe, and is never lowered.
+    expect(profile.judah).toBe(3);
+    // The trace entry is routed to the oil Marker: same tribe/delta/posture, oil type.
+    expect(trace).toEqual([
+      {
+        turnIndex: 1,
+        markerId: "judah-oil-x",
+        tribeSlug: "judah",
+        type: "oil",
+        delta: 3,
+        postureSignal: "integrated",
+      },
+    ]);
+  });
+
+  it("preserves the trace→profile invariant: one entry, same delta (no double-count)", () => {
+    const { profile, trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      0,
+      oilFor,
+    );
+    const summed = trace.reduce((sum, e) => sum + e.delta, 0);
+    expect(summed).toBe(profile.judah);
+  });
+
+  it("does not route a fall-line that is still active-shadow", () => {
+    const { trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-fall-power", "judah", "fallLine", 3, "active-shadow")],
+      0,
+      oilFor,
+    );
+    expect(trace[0]).toMatchObject({ markerId: "judah-fall-power", type: "fallLine" });
+  });
+
+  it("keeps the original Marker when the tribe has no oil Marker to route to", () => {
+    const { trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      0,
+      () => undefined,
+    );
+    expect(trace[0]).toMatchObject({ markerId: "judah-fall-power", type: "fallLine" });
+  });
+
+  it("routes against the real catalog by default (judah's oil Marker)", () => {
+    const { trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-fall-power", "judah", "fallLine", 3, "integrated")],
+      0,
+    );
+    expect(trace[0].type).toBe("oil");
+    expect(trace[0].markerId).toBe("judah-oil-responsibility");
+  });
+
+  it("only routes fall-line Markers, never an integrated strength or oil contribution", () => {
+    const { trace } = applyDeltas(
+      { judah: 0 },
+      [d("judah-strength-front", "judah", "strength", 1, "integrated")],
+      0,
+      oilFor,
+    );
+    expect(trace[0]).toMatchObject({ markerId: "judah-strength-front", type: "strength" });
+  });
+});
+
+describe("accumulatePosture", () => {
+  it("tallies integrated and active-shadow evidence per tribe by delta, ignoring neutral", () => {
+    const posture = accumulatePosture([
+      te(0, "judah", "oil", 3, "integrated"),
+      te(1, "judah", "shadow", 2, "active-shadow"),
+      te(2, "judah", "strength", 1, "neutral"),
+      te(3, "levi", "oil", 2, "integrated"),
+    ]);
+    expect(posture.judah).toEqual({ activeShadow: 2, integrated: 3 });
+    expect(posture.levi).toEqual({ activeShadow: 0, integrated: 2 });
+  });
+
+  it("lists a tribe with only neutral evidence at zero on both ends", () => {
+    const posture = accumulatePosture([te(0, "dan", "strength", 1, "neutral")]);
+    expect(posture.dan).toEqual({ activeShadow: 0, integrated: 0 });
+  });
+
+  it("is empty for an empty trace", () => {
+    expect(accumulatePosture([])).toEqual({});
+  });
+});
+
+describe("posturePosition", () => {
+  it("leans integrated when integrated evidence dominates", () => {
+    const p = posturePosition({ activeShadow: 1, integrated: 3 });
+    expect(p?.score).toBeCloseTo(0.5);
+    expect(p?.arc).toBe("integrated");
+  });
+
+  it("leans active-shadow when shadow evidence dominates", () => {
+    const p = posturePosition({ activeShadow: 3, integrated: 0 });
+    expect(p?.score).toBeCloseTo(-1);
+    expect(p?.arc).toBe("active-shadow");
+  });
+
+  it("reads mixed when the two ends are close", () => {
+    const p = posturePosition({ activeShadow: 2, integrated: 2 });
+    expect(p?.score).toBeCloseTo(0);
+    expect(p?.arc).toBe("mixed");
+  });
+
+  it("has no position without posture-bearing evidence", () => {
+    expect(posturePosition({ activeShadow: 0, integrated: 0 })).toBeNull();
   });
 });
 

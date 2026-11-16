@@ -21,9 +21,9 @@ export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
 
 /**
  * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
- * Slice 3 carries the signal the agent returns through to the trace but does not
- * yet aggregate a Posture axis — that is slice 6. `neutral` is the default when
- * an answer is not posture-bearing.
+ * The signal rides on each scored contribution through to the trace, and slice 6
+ * (issue #20) aggregates it into a per-tribe Posture axis (`PostureProfile`).
+ * `neutral` is the default when an answer is not posture-bearing.
  */
 export type PostureSignal = "active-shadow" | "neutral" | "integrated";
 
@@ -35,6 +35,36 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
 
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;
+
+/**
+ * Where a single tribe sits on its fall→oil arc (ADR-0004, slice 6). Posture is
+ * the second axis every scored Marker feeds — orthogonal to strength ("is this
+ * wiring present?"). The two ends of the arc are accumulated separately as the
+ * posture-bearing evidence behind each (the `delta` of every integrated- or
+ * active-shadow-signalled contribution), so a tribe can carry evidence of both.
+ * `neutral` contributions move neither end.
+ */
+export interface PostureTally {
+  activeShadow: number;
+  integrated: number;
+}
+
+/** Per-tribe Posture tallies, keyed by tribe `slug`. */
+export type PostureProfile = Record<string, PostureTally>;
+
+/**
+ * A tribe's reading on the arc. `score` is -1 (fully active-shadow) to +1 (fully
+ * integrated); `arc` buckets it for display. A tribe with no posture-bearing
+ * evidence has no position (`null` from `posturePosition`) rather than a
+ * misleading 0.
+ */
+export type PostureArc = "active-shadow" | "mixed" | "integrated";
+
+export interface PosturePosition {
+  arc: PostureArc;
+  /** Net lean on the arc, -1..1. */
+  score: number;
+}
 
 /**
  * One validated scoring contribution the agent assigned to an answer, citing a
