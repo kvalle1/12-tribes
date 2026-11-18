@@ -37,6 +37,29 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
 export type StrengthProfile = Record<string, number>;
 
 /**
+ * A tribe's accumulated Posture, split across the fall→oil arc (ADR-0004). Each
+ * bucket holds the summed strength magnitude of the evidence that carried that
+ * signal, so Posture is weighted by how much resonance stood behind it, not by a
+ * bare count of answers. Orthogonal to strength: the same evidence feeds both,
+ * but strength answers "how much?" and Posture answers "where on the arc?".
+ */
+export interface PostureTally {
+  activeShadow: number;
+  integrated: number;
+  neutral: number;
+}
+
+/** Per-tribe Posture tallies, keyed by tribe `slug`. */
+export type PostureProfile = Record<string, PostureTally>;
+
+/**
+ * Where a tribe sits on its fall→oil arc: the dominant pole of its Posture
+ * tally. `active-shadow` and `integrated` are the poles; `neutral` when they
+ * balance or nothing posture-bearing has scored.
+ */
+export type PostureLean = "active-shadow" | "integrated" | "neutral";
+
+/**
  * One validated scoring contribution the agent assigned to an answer, citing a
  * single catalogued Marker (ADR-0003: no ad-hoc rationale). `tribeSlug` and
  * `type` are authoritative — reconciled against the Marker Catalog from

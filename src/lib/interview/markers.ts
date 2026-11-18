@@ -763,6 +763,16 @@ export function markersForTribe(slug: string): Marker[] {
   return markerCatalog.filter((m) => m.tribeSlug === slug);
 }
 
+/**
+ * The tribe's oil Marker — the routing target for a matured fall-line
+ * (ADR-0004). Every tribe has exactly one (enforced by even coverage: one
+ * Marker per type), so the first match is the one; `undefined` only for an
+ * unknown slug. Used to build the `ResolveOilMarker` the scoring engine injects.
+ */
+export function oilMarkerForTribe(slug: string): Marker | undefined {
+  return markerCatalog.find((m) => m.tribeSlug === slug && m.type === "oil");
+}
+
 /** Look up a single Marker by its stable id. */
 export function getMarkerById(id: string): Marker | undefined {
   return markerCatalog.find((m) => m.id === id);
