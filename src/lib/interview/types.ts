@@ -21,9 +21,9 @@ export type MarkerType = "strength" | "oil" | "shadow" | "fallLine";
 
 /**
  * Where an answer places the participant on a tribe's fall→oil arc (ADR-0004).
- * Slice 3 carries the signal the agent returns through to the trace but does not
- * yet aggregate a Posture axis — that is slice 6. `neutral` is the default when
- * an answer is not posture-bearing.
+ * One answer's signal; the trace carries these through and slice 6 aggregates
+ * them per tribe into a {@link TribePosture}. `neutral` is the default when an
+ * answer is not posture-bearing.
  */
 export type PostureSignal = "active-shadow" | "neutral" | "integrated";
 
@@ -32,6 +32,36 @@ export const POSTURE_SIGNALS: readonly PostureSignal[] = [
   "neutral",
   "integrated",
 ] as const;
+
+/**
+ * Where a tribe sits on its fall→oil arc once every posture-bearing answer is
+ * aggregated (ADR-0004) — the per-tribe counterpart to a single answer's
+ * {@link PostureSignal}. `active-shadow` and `integrated` are the two poles;
+ * `mixed` is posture-bearing evidence that pulls both ways; `neutral` means no
+ * posture-bearing evidence landed on the tribe at all (distinct from `mixed`).
+ */
+export type ArcPosition = "active-shadow" | "mixed" | "integrated" | "neutral";
+
+export const ARC_POSITIONS: readonly ArcPosition[] = [
+  "active-shadow",
+  "mixed",
+  "integrated",
+  "neutral",
+] as const;
+
+/**
+ * A tribe's accumulated Posture, derived purely from the score trace (ADR-0004).
+ * `integrated` and `activeShadow` are the delta-weighted evidence on each pole;
+ * `lean` is their normalized difference in [-1, 1] (0 when no posture-bearing
+ * evidence), and `arc` is the labelled position derived from it. Posture rides
+ * *alongside* strength and never changes it.
+ */
+export interface TribePosture {
+  integrated: number;
+  activeShadow: number;
+  lean: number;
+  arc: ArcPosition;
+}
 
 /** A running per-tribe strength tally, keyed by tribe `slug`. */
 export type StrengthProfile = Record<string, number>;

@@ -89,6 +89,29 @@ describe("applyTurn", () => {
     expect(state.trace.map((t) => t.turnIndex)).toEqual([0, 0, 0]);
   });
 
+  it("routes a matured fall-line to the tribe's oil Marker, keeping full strength (ADR-0004)", () => {
+    const matured: ScoredAnswer = {
+      deltas: [
+        {
+          markerId: "dan-fall-idolatry",
+          tribeSlug: "dan",
+          type: "fallLine",
+          delta: 3,
+          postureSignal: "integrated",
+        },
+      ],
+      nextQuestion: "Next?",
+    };
+    const state = applyTurn(initialState(), "I used to read everyone as a threat; I've grown past it.", matured);
+    // Strength is never lowered by the maturity (resonance is still evidence).
+    expect(state.profile.dan).toBe(3);
+    // The trace records the oil cross-confirmation, not the fall-line citation.
+    const [entry] = state.trace;
+    expect(entry.type).toBe("oil");
+    expect(entry.markerId).toBe("dan-oil-trust");
+    expect(entry.postureSignal).toBe("integrated");
+  });
+
   it("asks the fixed Calibration questions first, ignoring the agent's proposal", () => {
     let state = initialState();
     for (let i = 1; i < CALIBRATION_TURNS; i++) {

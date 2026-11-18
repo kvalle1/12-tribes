@@ -1,7 +1,7 @@
 import "server-only";
 
 import { tribes } from "@/lib/tribes";
-import type { MarkerType } from "./types";
+import type { MarkerDelta, MarkerType } from "./types";
 
 /**
  * The Marker Catalog — the rubric the Interview scores answers against
@@ -766,4 +766,45 @@ export function markersForTribe(slug: string): Marker[] {
 /** Look up a single Marker by its stable id. */
 export function getMarkerById(id: string): Marker | undefined {
   return markerCatalog.find((m) => m.id === id);
+}
+
+/** A tribe's single `oil` Marker — the integrated end of its fall→oil arc. */
+export function oilMarkerForTribe(slug: string): Marker | undefined {
+  return markerCatalog.find((m) => m.tribeSlug === slug && m.type === "oil");
+}
+
+/**
+ * Route a matured fall-line to the tribe's oil Marker (ADR-0004). A `shadow` or
+ * `fallLine` delta that fired with an `integrated` posture signal is evidence of
+ * maturity *around* the tribe's tendency — resonance with the theme, not current
+ * dysfunction — so it is re-cited against the tribe's `oil` Marker, which
+ * cross-confirms the attribution through a different Marker type.
+ *
+ * Two invariants from the ADR hold here:
+ *
+ *  - **Strength is never lowered.** The delta magnitude is carried through
+ *    unchanged; only the citation (`markerId`/`type`) moves. Re-capping it to the
+ *    oil Marker's (lower) weight would reduce the strength a matured fall-line
+ *    earned — reintroducing the very confound this routing exists to remove — so
+ *    the earned weight is preserved even past the oil Marker's own ceiling.
+ *  - **Posture moves toward integrated.** The `integrated` signal rides along to
+ *    the trace, where {@link accumulatePosture} reads it.
+ *
+ * Pure and total: a delta that is not a matured fall-line, or whose tribe somehow
+ * has no oil Marker, passes through untouched.
+ */
+export function routeMaturedFallLines(
+  deltas: readonly MarkerDelta[],
+): MarkerDelta[] {
+  return deltas.map((d) => {
+    const isMaturedShadow =
+      (d.type === "fallLine" || d.type === "shadow") &&
+      d.postureSignal === "integrated";
+    if (!isMaturedShadow) return d;
+
+    const oil = oilMarkerForTribe(d.tribeSlug);
+    if (!oil) return d;
+
+    return { ...d, markerId: oil.id, type: "oil" };
+  });
 }

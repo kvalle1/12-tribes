@@ -10,8 +10,11 @@ import {
   getMarkerById,
   markerCatalog,
   markersForTribe,
+  oilMarkerForTribe,
+  routeMaturedFallLines,
   validateMarkerCatalog,
 } from "@/lib/interview/markers";
+import type { MarkerDelta } from "@/lib/interview/types";
 
 const tribeSlugs = tribes.map((t) => t.slug);
 
@@ -57,6 +60,81 @@ describe("even coverage across all 12 tribes", () => {
   it("leaves no tribe uncovered", () => {
     const covered = new Set(markerCatalog.map((m) => m.tribeSlug));
     expect(covered.size).toBe(tribes.length);
+  });
+});
+
+describe("oilMarkerForTribe", () => {
+  it("returns the single oil Marker for every tribe", () => {
+    for (const slug of tribeSlugs) {
+      const oil = oilMarkerForTribe(slug);
+      expect(oil?.tribeSlug).toBe(slug);
+      expect(oil?.type).toBe("oil");
+    }
+  });
+
+  it("returns undefined for an unknown tribe", () => {
+    expect(oilMarkerForTribe("not-a-tribe")).toBeUndefined();
+  });
+});
+
+describe("routeMaturedFallLines", () => {
+  const delta = (over: Partial<MarkerDelta>): MarkerDelta => ({
+    markerId: "dan-fall-idolatry",
+    tribeSlug: "dan",
+    type: "fallLine",
+    delta: 3,
+    postureSignal: "integrated",
+    ...over,
+  });
+
+  it("re-cites a matured fall-line to the tribe's oil Marker (ADR-0004)", () => {
+    const oil = oilMarkerForTribe("dan")!;
+    const [routed] = routeMaturedFallLines([delta({})]);
+    expect(routed.markerId).toBe(oil.id);
+    expect(routed.type).toBe("oil");
+    expect(routed.tribeSlug).toBe("dan");
+  });
+
+  it("preserves the earned strength — never lowers it, even past the oil weight", () => {
+    // dan-fall-idolatry weighs 3; dan's oil Marker weighs 2. Routing keeps 3.
+    const [routed] = routeMaturedFallLines([delta({ delta: 3 })]);
+    expect(routed.delta).toBe(3);
+  });
+
+  it("carries the integrated posture signal through to the routed delta", () => {
+    const [routed] = routeMaturedFallLines([delta({})]);
+    expect(routed.postureSignal).toBe("integrated");
+  });
+
+  it("also routes a matured shadow Marker to oil", () => {
+    const [routed] = routeMaturedFallLines([
+      delta({ markerId: "dan-shadow-cynicism", type: "shadow" }),
+    ]);
+    expect(routed.type).toBe("oil");
+    expect(routed.markerId).toBe(oilMarkerForTribe("dan")!.id);
+  });
+
+  it("leaves an active-shadow fall-line untouched (it is not matured)", () => {
+    const input = delta({ postureSignal: "active-shadow" });
+    expect(routeMaturedFallLines([input])).toEqual([input]);
+  });
+
+  it("leaves a neutral fall-line untouched", () => {
+    const input = delta({ postureSignal: "neutral" });
+    expect(routeMaturedFallLines([input])).toEqual([input]);
+  });
+
+  it("leaves strength and oil Markers untouched regardless of posture", () => {
+    const strength = delta({ markerId: "dan-strength-sentinel", type: "strength" });
+    const oil = delta({ markerId: "dan-oil-trust", type: "oil" });
+    expect(routeMaturedFallLines([strength, oil])).toEqual([strength, oil]);
+  });
+
+  it("is a pure projection — does not mutate its input", () => {
+    const input = delta({});
+    const snapshot = { ...input };
+    routeMaturedFallLines([input]);
+    expect(input).toEqual(snapshot);
   });
 });
 
