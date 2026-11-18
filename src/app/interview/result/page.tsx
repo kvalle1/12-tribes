@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { summarize } from "@/lib/interview/confidence";
+import {
+  accumulatePosture,
+  arcFraming,
+  arcLabel,
+  postureFor,
+} from "@/lib/interview/posture";
 import { currentSession } from "@/lib/interview/session";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { startInterview } from "../actions";
@@ -9,7 +15,12 @@ import { startInterview } from "../actions";
  * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
  * when the top tribes never separated (ADR-0006) — plus the dynamic Contender
  * band, each with its display percentage (ADR-0002), and the full twelve below.
- * Posture and the score trace arrive in later slices.
+ *
+ * Slice 6 (issue #20) adds the Posture axis (ADR-0004): each Primary/Contender
+ * shows where it sits on its fall→oil arc, and a Primary whose tribe carries a
+ * non-`active` status gets non-condemning, arc-aware framing (ADR-0007) — a
+ * caution when the arc reads active-shadow, a redemption reading when it reads
+ * integrated. Posture is derived from the score trace, not persisted.
  *
  * Reached only once the Session is complete — an in-progress or missing Session
  * routes back to the hub, so a refresh here still resolves to the right place.
@@ -31,6 +42,21 @@ export default async function InterviewResultPage() {
   const pct = result.percentages;
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
   const otherContenders = result.contenders.filter((slug) => !result.primary.includes(slug));
+
+  // Posture axis (ADR-0004): where each tribe sits on its fall→oil arc, derived
+  // purely from the score trace. Framing couples a Primary's `status` with its
+  // arc (ADR-0007). Legacy sessions with no trace read `neutral`.
+  const posture = accumulatePosture(session.trace);
+  const primaryFramings = result.primary.flatMap((slug) => {
+    const tribe = getTribeBySlug(slug);
+    if (!tribe) return [];
+    const copy = arcFraming({
+      status: tribe.status,
+      arc: postureFor(posture, slug).arc,
+      tribeName: tribe.name,
+    });
+    return copy ? [{ slug, copy }] : [];
+  });
   const ranked = Object.entries(pct)
     .map(([slug, value]) => ({ slug, value }))
     .sort((a, b) => b.value - a.value);
@@ -65,6 +91,27 @@ export default async function InterviewResultPage() {
               ? "Your top tribes stayed inseparable to the end, so the Interview reports them together rather than forcing a single winner."
               : "Each share reflects how strongly your words resonated with a tribe’s signals."}
           </p>
+
+          {/*
+            Arc-aware framing (ADR-0004 × ADR-0007): a Primary's status is read
+            through its Posture. For a non-`active` tribe this names the arc
+            without condemning; for an `active` tribe it is a light arc reading.
+            `arcFraming` returns null when there is nothing worth saying, so this
+            block only appears when it has copy.
+          */}
+          {primaryFramings.length > 0 && (
+            <div className="mt-6 flex flex-col gap-3 border-t border-gold/25 pt-5">
+              {primaryFramings.map(({ slug, copy }) => (
+                <div key={slug}>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-faint">
+                    {getTribeBySlug(slug)?.name ?? slug} · Posture:{" "}
+                    {arcLabel(postureFor(posture, slug).arc)}
+                  </div>
+                  <p className="mt-1.5 text-[15px] leading-[1.6] text-muted">{copy}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {result.contenders.length > 0 && (
@@ -90,8 +137,15 @@ export default async function InterviewResultPage() {
                         {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
                       </span>
                     </Link>
-                    <span className="text-[15px] tabular-nums text-muted">
-                      {Math.round(pct[slug] ?? 0)}%
+                    <span className="flex items-baseline gap-3">
+                      {postureFor(posture, slug).arc !== "neutral" && (
+                        <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
+                          {arcLabel(postureFor(posture, slug).arc)}
+                        </span>
+                      )}
+                      <span className="text-[15px] tabular-nums text-muted">
+                        {Math.round(pct[slug] ?? 0)}%
+                      </span>
                     </span>
                   </li>
                 );
