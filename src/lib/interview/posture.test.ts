@@ -91,9 +91,10 @@ describe("accumulatePosture", () => {
   });
 
   it("a matured fall-line routed to the oil Marker reads as integrated", () => {
-    // After routing (agent.ts), a matured fall-line appears in the trace as an
-    // oil-type entry carrying an `integrated` signal. Posture must read it as a
-    // move toward integrated — the ADR-0004 confound resolution.
+    // After routing (flow.applyTurn → routeMaturedFallLines), a matured
+    // fall-line appears in the trace as an oil-type entry carrying an
+    // `integrated` signal. Posture must read it as a move toward integrated —
+    // the ADR-0004 confound resolution.
     const posture = accumulatePosture([
       entry({
         tribeSlug: "dan",
@@ -163,5 +164,14 @@ describe("arcFraming", () => {
     for (const status of ["warning", "disqualified", "disqualified-arc"] as const) {
       expect(arcFraming({ status, arc: "neutral", tribeName: "Reuben" })).toBeTruthy();
     }
+  });
+
+  it("uses grammatical status phrasing, not a lower-cased multi-word label", () => {
+    const warning = arcFraming({ status: "warning", arc: "integrated", tribeName: "Reuben" })!;
+    const arc = arcFraming({ status: "disqualified-arc", arc: "integrated", tribeName: "Gad" })!;
+    // "carries a warning tribe history" / "disqualified arc history" would be awkward.
+    expect(warning).toContain("warning-tribe history");
+    expect(warning).not.toMatch(/warning tribe history/i);
+    expect(arc).toContain("disqualified-arc history");
   });
 });

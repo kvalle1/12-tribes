@@ -790,6 +790,14 @@ export function oilMarkerForTribe(slug: string): Marker | undefined {
  *  - **Posture moves toward integrated.** The `integrated` signal rides along to
  *    the trace, where {@link accumulatePosture} reads it.
  *
+ * By design this makes the trace cite a Marker the agent did not name directly
+ * (ADR-0004's oil attribution is deliberately preferred over the raw fall-line
+ * citation for a matured answer), and the routed entry may carry a delta above
+ * the oil Marker's own weight. A single Turn can therefore hold more than one
+ * oil-side entry for a tribe — a genuine oil citation plus a routed matured
+ * fall-line — which is fine: every downstream reader (strength, Posture, the
+ * replayed history) simply sums the trace.
+ *
  * Pure and total: a delta that is not a matured fall-line, or whose tribe somehow
  * has no oil Marker, passes through untouched.
  */

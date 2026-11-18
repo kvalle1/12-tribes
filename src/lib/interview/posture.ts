@@ -1,6 +1,6 @@
 import "server-only";
 
-import { statusLabels, type TribeStatus } from "@/lib/tribes";
+import type { TribeStatus } from "@/lib/tribes";
 import type { ArcPosition, ScoreTraceEntry, TribePosture } from "./types";
 
 /**
@@ -48,9 +48,11 @@ function arcFor(lean: number, evidence: number): ArcPosition {
  *
  * Weighting by `delta` (ADR-0004) means stronger evidence moves Posture more:
  * one decisive integrated answer outweighs several faint shadow ones. A matured
- * fall-line, which `agent.ts` routes to the tribe's oil Marker with an
- * `integrated` signal before it ever reaches the trace, therefore pulls Posture
- * toward integrated here — the two halves of the ADR-0004 rule meeting.
+ * fall-line — which `flow.applyTurn` routes to the tribe's oil Marker (via
+ * `routeMaturedFallLines`) carrying its `integrated` signal before it reaches the
+ * trace — therefore pulls Posture toward integrated here. This reads only
+ * `postureSignal` and `delta`, never a tribe's score, so Posture can never move
+ * strength.
  *
  * Only tribes that appear in the trace are returned; use {@link postureFor} to
  * read a tribe that may be absent and get a neutral default.
@@ -104,6 +106,18 @@ export function arcLabel(arc: ArcPosition): string {
 }
 
 /**
+ * Grammatical fragment for each non-`active` status, dropped into "carries a ___
+ * history". Built as a dedicated phrase rather than lower-casing the display
+ * label, whose multi-word forms ("Warning Tribe", "Disqualified Arc") read
+ * awkwardly inline.
+ */
+const STATUS_PHRASE: Record<Exclude<TribeStatus, "active">, string> = {
+  disqualified: "disqualified",
+  warning: "warning-tribe",
+  "disqualified-arc": "disqualified-arc",
+};
+
+/**
  * Non-condemning, arc-aware framing for a tribe surfaced as a Primary/Contender
  * (ADR-0004 × ADR-0007). `status` describes the tribe's fate in the biblical
  * narrative, never a verdict on the participant; Posture gives the copy its
@@ -136,7 +150,7 @@ export function arcFraming({
     }
   }
 
-  const label = statusLabels[status].toLowerCase();
+  const label = STATUS_PHRASE[status];
   switch (arc) {
     case "integrated":
       return `${tribeName} carries a ${label} history in the biblical arc, but your answers place you on its redeemed side. Read this as the integrated form of the pattern — the wiring turned toward its oil, not the fall that named the warning.`;

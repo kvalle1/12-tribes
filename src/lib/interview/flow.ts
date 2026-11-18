@@ -122,8 +122,10 @@ export function applyTurn(
     : { question: state.pendingQuestion, answer };
   const turns = [...state.turns, turn];
   // Route matured fall-lines to each tribe's oil Marker before folding them in
-  // (ADR-0004), so the profile and trace record the oil cross-confirmation and
-  // the integrated posture — without ever lowering strength.
+  // (ADR-0004). Strength stays additive and Posture rides on `postureSignal`
+  // regardless, so routing does not change either; its effect is to record the
+  // evidence in the trace under the tribe's oil Marker — the cross-confirmation
+  // through a different Marker type that the ADR calls for.
   const routed = routeMaturedFallLines(scored.deltas);
   const applied = applyDeltas(state.profile, routed, turnIndex);
   const profile = applied.profile;
