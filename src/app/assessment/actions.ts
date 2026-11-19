@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { isCompletePagedSelection } from "@/lib/assessment/pages";
 import { saveCurrentResult } from "@/lib/assessment/repository";
 
 /**
@@ -18,9 +19,12 @@ export async function submitAssessment(formData: FormData): Promise<void> {
 
   const words = formData.getAll("words").map(String);
 
+  // The paged flow requires exactly three picks from each of the five pages.
+  if (!isCompletePagedSelection(words)) redirect("/assessment");
+
   const saved = await saveCurrentResult(session.user.id, words);
   // Out-of-range or empty selections don't save; send the Subject back to retry.
   if (!saved) redirect("/assessment");
 
-  redirect("/assessment/result");
+  redirect("/assessment/complete");
 }

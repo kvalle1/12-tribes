@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { shuffledWordList } from "@/lib/assessment/selection";
-import { WordSelector } from "@/components/word-selector";
+import { shuffledPages } from "@/lib/assessment/pages";
+import { PagedWordSelector } from "@/components/paged-word-selector";
 import { submitAssessment } from "./actions";
 
 /**
@@ -17,7 +17,7 @@ export default async function AssessmentPage() {
     redirect(`/signin?callbackUrl=${encodeURIComponent("/assessment")}`);
   }
 
-  const words = shuffledWordList();
+  const pages = shuffledPages();
 
   return (
     <main className="min-h-screen bg-bone text-ink">
@@ -33,16 +33,12 @@ export default async function AssessmentPage() {
           Which words describe you?
         </h1>
         <p className="mt-3 max-w-[560px] text-[16px] text-muted">
-          Read the list and choose the words that genuinely fit how you&rsquo;re
-          wired — not who you wish you were. There are no right answers, and the
-          order is shuffled each time.
+          Five pages of twelve words. On each page, choose the three that fit
+          how you&rsquo;re wired best — not who you wish you were. There are no
+          right answers, and the order is shuffled each time.
         </p>
 
-        <WordSelector
-          words={words}
-          action={submitAssessment}
-          submitLabel="See my result"
-        />
+        <PagedWordSelector pages={pages} action={submitAssessment} />
       </div>
     </main>
   );

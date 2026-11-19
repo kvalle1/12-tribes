@@ -21,3 +21,11 @@ export const MAX_WORDS = 15;
 export function isWithinSelectionRange(count: number): boolean {
   return count >= MIN_WORDS && count <= MAX_WORDS;
 }
+
+/**
+ * The paged Self Assessment shape: `PAGE_COUNT` pages, from each of which the
+ * Subject picks exactly `PICKS_PER_PAGE` words (15 total — the top of the
+ * 8–15 range above, so a completed paged run always passes the gate).
+ */
+export const PAGE_COUNT = 5;
+export const PICKS_PER_PAGE = 3;
