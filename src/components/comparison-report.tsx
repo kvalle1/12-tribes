@@ -37,7 +37,7 @@ export function ComparisonReport({
     aggregateObservers(observerResponses);
 
   return (
-    <section className="mt-14 border-t border-hair pt-8">
+    <section id="compare" className="mt-14 scroll-mt-8 border-t border-hair pt-8">
       <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
         The 360 read
       </p>
