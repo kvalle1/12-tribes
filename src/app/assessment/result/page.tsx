@@ -59,7 +59,7 @@ export default async function AssessmentResultPage() {
           secondarySlug={row.secondarySlug}
         />
 
-        <section className="mt-14 border-t border-hair pt-8">
+        <section id="share" className="mt-14 scroll-mt-8 border-t border-hair pt-8">
           <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
             Get a 360 read
           </p>
