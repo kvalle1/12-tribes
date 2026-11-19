@@ -5,7 +5,15 @@ import { interviewSessions } from "@/db/schema";
 import { scoreAnswer, type ScoreAnswer } from "./agent";
 import { applyTurn, initialState, OPENING_QUESTION } from "./flow";
 import { previewPlan } from "./funnel";
+import { oilMarkerForTribe } from "./markers";
 import type { DilemmaChoice, InterviewState } from "./types";
+
+/**
+ * The production oil-Marker resolver (ADR-0004): looks a tribe's oil Marker up
+ * in the catalog so the scoring engine can route matured fall-lines to it. Lives
+ * here, at the server boundary, because `flow`/`scoring` stay catalog-free.
+ */
+const resolveOilMarker = (tribeSlug: string) => oilMarkerForTribe(tribeSlug)?.id;
 
 /**
  * Server-only persistence for Interview Sessions (ADR-0009 trust boundary).
@@ -118,7 +126,7 @@ export async function recordInterviewAnswer(
     choice: dilemma ? choice : undefined,
     plan: previewPlan(state, dilemma !== undefined),
   });
-  const next = applyTurn(state, answer, scored, choice);
+  const next = applyTurn(state, answer, scored, choice, resolveOilMarker);
 
   const [updated] = await db
     .update(interviewSessions)

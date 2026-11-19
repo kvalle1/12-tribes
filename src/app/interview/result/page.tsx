@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { arcFraming, postureLabel } from "@/lib/interview/arc";
 import { summarize } from "@/lib/interview/confidence";
+import { aggregatePosture, postureLean } from "@/lib/interview/scoring";
 import { currentSession } from "@/lib/interview/session";
 import { accentHex, getTribeBySlug } from "@/lib/tribes";
 import { startInterview } from "../actions";
 
 /**
- * Interview result (slice 4, issue #17): the Primary — or honest Co-Primaries
- * when the top tribes never separated (ADR-0006) — plus the dynamic Contender
- * band, each with its display percentage (ADR-0002), and the full twelve below.
- * Posture and the score trace arrive in later slices.
+ * Interview result (slice 4, issue #17; Posture added in slice 6, issue #20):
+ * the Primary — or honest Co-Primaries when the top tribes never separated
+ * (ADR-0006) — plus the dynamic Contender band, each with its display percentage
+ * (ADR-0002) and its Posture / arc position (ADR-0004), and the full twelve
+ * below. A non-active Primary gets non-condemning, status-and-Posture-aware
+ * framing (ADR-0007). The score trace arrives in slice 7.
  *
  * Reached only once the Session is complete — an in-progress or missing Session
  * routes back to the hub, so a refresh here still resolves to the right place.
@@ -31,6 +35,21 @@ export default async function InterviewResultPage() {
   const pct = result.percentages;
   const primaryNames = result.primary.map((slug) => getTribeBySlug(slug)?.name ?? slug);
   const otherContenders = result.contenders.filter((slug) => !result.primary.includes(slug));
+
+  // Posture (ADR-0004) is derived from the persisted score trace — no extra
+  // stored state — so a matured fall-line that was routed to its oil Marker
+  // reads as integrated here. Legacy pre-slice-4 Sessions have no trace, so
+  // every tribe reads mid-arc, which degrades gracefully.
+  const posture = aggregatePosture(session.trace ?? []);
+  const leanOf = (slug: string) => postureLean(posture[slug]);
+
+  // Non-condemning framing for any non-active Primary tribe (ADR-0007).
+  const arcNotes = result.primary.flatMap((slug) => {
+    const tribe = getTribeBySlug(slug);
+    if (!tribe) return [];
+    const framing = arcFraming(tribe.status, leanOf(slug));
+    return framing ? [{ slug, name: tribe.name, framing }] : [];
+  });
   const ranked = Object.entries(pct)
     .map(([slug, value]) => ({ slug, value }))
     .sort((a, b) => b.value - a.value);
@@ -67,6 +86,20 @@ export default async function InterviewResultPage() {
           </p>
         </div>
 
+        {arcNotes.map(({ slug, name, framing }) => (
+          <section
+            key={slug}
+            className="mt-6 rounded-[2px] border border-hair bg-white/50 p-6"
+          >
+            <div className="text-[11px] uppercase tracking-[0.16em] text-faint">
+              {name} · {framing.heading}
+            </div>
+            <p className="mt-3 text-[15px] leading-[1.65] text-muted">
+              {framing.note}
+            </p>
+          </section>
+        ))}
+
         {result.contenders.length > 0 && (
           <section className="mt-12">
             <p className="text-[12px] uppercase tracking-[0.2em] text-faint">
@@ -81,15 +114,20 @@ export default async function InterviewResultPage() {
                     key={slug}
                     className="flex items-baseline justify-between gap-4 border-b border-hair pb-3"
                   >
-                    <Link
-                      href={`/tribes/${slug}`}
-                      className="font-serif text-[22px] transition-colors hover:text-gold"
-                    >
-                      {tribe?.name ?? slug}
-                      <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
-                        {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                    <div className="flex flex-col gap-1">
+                      <Link
+                        href={`/tribes/${slug}`}
+                        className="font-serif text-[22px] transition-colors hover:text-gold"
+                      >
+                        {tribe?.name ?? slug}
+                        <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-faint">
+                          {isPrimary ? (result.coPrimary ? "Co-Primary" : "Primary") : "Contender"}
+                        </span>
+                      </Link>
+                      <span className="text-[11px] uppercase tracking-[0.14em] text-faint">
+                        Posture · {postureLabel(leanOf(slug))}
                       </span>
-                    </Link>
+                    </div>
                     <span className="text-[15px] tabular-nums text-muted">
                       {Math.round(pct[slug] ?? 0)}%
                     </span>
